@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ConvoSpan Global Intel Signal",
+  "description": "Structure of the outbound intent signals from NetJana.AI to ConvoSpan",
+  "type": "object",
+  "required": ["event", "source", "timestamp", "lead"],
+  "properties": {
+    "event": {
+      "type": "string",
+      "enum": ["LEAD_CARD_READY", "SIGNAL_INGESTED", "INTENT_UPDATED"],
+      "description": "Lifecycle state of the signal."
+    },
+    "source": {
+      "type": "string",
+      "const": "NetJana.AI / ConvoSpan Intel",
+      "description": "Identifier for the source engine."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 transmission timestamp."
+    },
+    "lead": {
+      "type": "object",
+      "required": ["lead_id", "company_name", "intent_score"],
+      "properties": {
+        "lead_id": { "type": "string", "format": "uuid" },
+        "company_name": { "type": "string" },
+        "geo_state": { "type": "string" },
+        "sector": { "type": "string" },
+        "buying_stage": { "type": "string", "enum": ["AWARENESS", "CONSIDERATION", "DECISION", "UNKNOWN"] },
+        "intent_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "card_why_now": { "type": "string" },
+        "card_what_they_need": { "type": "string" },
+        "card_do_this": { "type": "string" },
+        "verity_tier": { "type": "string", "enum": ["TIER_1", "TIER_2"] }
+      }
+    },
+    "campaign_id": { "type": "string", "description": "ConvoSpan internal campaign routing ID." }
+  }
+}

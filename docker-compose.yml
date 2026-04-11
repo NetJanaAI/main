@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: b2b-scraper
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgres://netjana:netjana@postgres:5432/netjana
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - REGION_ID=UAE_DUBAI_01
+      # Audit remediation: ConvoSpan push + Outreach vars
+      - CONVOSPAN_WEBHOOK_URL=${CONVOSPAN_WEBHOOK_URL}
+      - CONVOSPAN_API_KEY=${CONVOSPAN_API_KEY}
+      - NETJANA_HMAC_SECRET=${NETJANA_HMAC_SECRET}
+      - NETJANA_PULL_API_KEY=${NETJANA_PULL_API_KEY}
+      - OUTREACH_DEFAULT_EMAIL=${OUTREACH_DEFAULT_EMAIL}
+      - ROLE=api_only
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  scraper-worker:
+    build: .
+    container_name: b2b-scraper-worker
+    restart: unless-stopped
+    command: npm run start:scraper
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://netjana:netjana@postgres:5432/netjana
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - ROLE=worker
+      - REGION_ID=UAE_DUBAI_01
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  go-pusher:
+    build: 
+      context: ./go-pusher
+      dockerfile: Dockerfile
+    container_name: b2b-go-pusher
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://netjana:netjana@postgres:5432/netjana
+      - CONVOSPAN_WEBHOOK_URL=${CONVOSPAN_WEBHOOK_URL}
+      - CONVOSPAN_API_KEY=${CONVOSPAN_API_KEY}
+      - NETJANA_HMAC_SECRET=${NETJANA_HMAC_SECRET}
+      - PUSHER_MAX_RETRIES=5
+      - PUSHER_TIMEOUT_SEC=15
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: b2b-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: netjana
+      POSTGRES_PASSWORD: netjana
+      POSTGRES_DB: netjana
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      # Auto-run init.sql on first container start (idempotent migration)
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netjana -d netjana"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: b2b-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
+  pg_data:
+

@@ -1,0 +1,26 @@
+:root {
+  --color-void-black: #020813;
+  --color-terminal-amber: #D4AF37;
+  --color-cyber-cyan: #22D3EE;
+  --color-surface-glass: rgba(255, 255, 255, 0.04);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-success: #10B981;
+  --color-error: #EF4444;
+  
+  --font-ui: "Inter", sans-serif;
+  --font-data: "JetBrains Mono", monospace;
+  
+  --spacing-base: 4px;
+}
+
+body {
+  background-color: var(--color-void-black);
+  color: var(--color-gray-200);
+  font-family: var(--font-ui);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, pre {
+  font-family: var(--font-data);
+}
