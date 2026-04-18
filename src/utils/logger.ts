@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/node";
+
 /**
  * Secure Logger
  * Intercepts logs and redacts PII to prevent leaks without crashing the process.
@@ -51,6 +53,13 @@ export const SecureLogger = {
 
         console.error = (...args: any[]) => {
             const safeArgs = args.map(arg => maskPII(arg));
+            
+            // Forward error objects to Sentry
+            safeArgs.forEach(arg => {
+                if (arg instanceof Error) Sentry.captureException(arg);
+                else if (typeof arg === 'string') Sentry.captureMessage(arg, 'error');
+            });
+            
             originalError.apply(console, safeArgs);
         };
 

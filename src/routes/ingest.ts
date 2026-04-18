@@ -40,6 +40,12 @@ router.post('/gem', async (req: Request, res: Response) => {
         }
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        (req as any).io?.emit('ingest_signal', {
+            id: signal.signal_id,
+            source: 'GeM',
+            type: 'PROCUREMENT_BID',
+            timestamp: new Date().toISOString()
+        });
         res.status(201).json({ status: 'enqueued', signal_id: signal.signal_id });
     } catch (err: any) {
         res.status(400).json({ error: 'Validation Error', details: err.errors || err.message });
@@ -55,6 +61,12 @@ router.post('/indiamart', async (req: Request, res: Response) => {
         const signal = await adaptIndiaMART(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        (req as any).io?.emit('ingest_signal', {
+            id: signal.signal_id,
+            source: 'IndiaMART',
+            type: 'BUYER_INTENT',
+            timestamp: new Date().toISOString()
+        });
         res.status(201).json({ status: 'enqueued', signal_id: signal.signal_id });
     } catch (err: any) {
         res.status(400).json({ error: 'Validation Error', details: err.errors || err.message });
@@ -70,6 +82,12 @@ router.post('/funding', async (req: Request, res: Response) => {
         const signal = await adaptFunding(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        (req as any).io?.emit('ingest_signal', {
+            id: signal.signal_id,
+            source: 'Funding',
+            type: 'VC_ROUND',
+            timestamp: new Date().toISOString()
+        });
         res.status(201).json({ status: 'enqueued', signal_id: signal.signal_id });
     } catch (err: any) {
         res.status(400).json({ error: 'Validation Error', details: err.errors || err.message });
@@ -85,6 +103,12 @@ router.post('/naukri', async (req: Request, res: Response) => {
         const signal = await adaptNaukri(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        (req as any).io?.emit('ingest_signal', {
+            id: signal.signal_id,
+            source: 'Naukri',
+            type: 'HIRING_SURGE',
+            timestamp: new Date().toISOString()
+        });
         res.status(201).json({ status: 'enqueued', signal_id: signal.signal_id });
     } catch (err: any) {
         res.status(400).json({ error: 'Validation Error', details: err.errors || err.message });
@@ -100,6 +124,12 @@ router.post('/zauba', async (req: Request, res: Response) => {
         const signal = await adaptZauba(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        (req as any).io?.emit('ingest_signal', {
+            id: signal.signal_id,
+            source: 'Zauba',
+            type: 'TRADE_LICENSE',
+            timestamp: new Date().toISOString()
+        });
         res.status(201).json({ status: 'enqueued', signal_id: signal.signal_id });
     } catch (err: any) {
         res.status(400).json({ error: 'Validation Error', details: err.errors || err.message });
@@ -115,6 +145,12 @@ router.post('/mca', async (req: Request, res: Response) => {
         const signal = await adaptMca(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        (req as any).io?.emit('ingest_signal', {
+            id: signal.signal_id,
+            source: 'MCA',
+            type: 'DIRECTOR_CHANGE',
+            timestamp: new Date().toISOString()
+        });
         res.status(201).json({ status: 'enqueued', signal_id: signal.signal_id });
     } catch (err: any) {
         res.status(400).json({ error: 'Validation Error', details: err.errors || err.message });

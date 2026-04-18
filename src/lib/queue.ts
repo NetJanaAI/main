@@ -34,6 +34,7 @@ export const TIER1_QUEUE_NAME = 'tier1_queue';
 export const TIER2_QUEUE_NAME = 'tier2_queue';
 export const TIER3_QUEUE_NAME = 'tier3_queue';
 export const OUTREACH_QUEUE_NAME = 'outreach_queue';
+export const DLQ_QUEUE_NAME = 'dead_letter_queue';
 
 /**
  * Returns a region-specific queue name.
@@ -90,6 +91,15 @@ export const tier3Queue = new Queue(TIER3_QUEUE_NAME, {
 export const outreachQueue = new Queue(OUTREACH_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 10000 }, removeOnComplete: true }
+});
+
+export const dlqQueue = new Queue(DLQ_QUEUE_NAME, {
+    connection,
+    defaultJobOptions: { 
+        attempts: 1, // We don't retry failure-logging itself
+        removeOnComplete: true,
+        removeOnFail: false
+    }
 });
 
 console.log(`[Queue] Initialized BullMQ on ${REDIS_HOST}:${REDIS_PORT}`);

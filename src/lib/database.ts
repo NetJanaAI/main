@@ -134,9 +134,16 @@ export async function initDb() {
                 error TEXT,
                 raw_text TEXT,
                 llm_response TEXT,
+                source_queue TEXT,
+                organization_id UUID REFERENCES tenants(id),
+                metadata JSONB,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
         `);
+        // Migration for existing DLQ tables
+        try { await client.query("ALTER TABLE dead_letter_queue ADD COLUMN IF NOT EXISTS source_queue TEXT"); } catch(e) {}
+        try { await client.query("ALTER TABLE dead_letter_queue ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES tenants(id)"); } catch(e) {}
+        try { await client.query("ALTER TABLE dead_letter_queue ADD COLUMN IF NOT EXISTS metadata JSONB"); } catch(e) {}
 
         // 2. PII Vault Table
         await client.query(`

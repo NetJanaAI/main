@@ -78,6 +78,31 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                             <span className="text-7xl font-serif italic tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">{(data as any).alphaScore || data.frictionScore || 0}</span>
                             <span className="text-white/20 text-[9px] font-black uppercase tracking-[3px]">Sovereign Indices</span>
                         </div>
+
+                        {/* ML Feedback Loop */}
+                        <div className="mt-8 pt-6 border-t border-white/5 flex items-center gap-4">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Intelligence Alignment:</span>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => api.patch(`/api/leads/${data.jobId}/feedback`, { status: 'converted' })}
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                                >
+                                    Accurate
+                                </button>
+                                <button 
+                                    onClick={() => api.patch(`/api/leads/${data.jobId}/feedback`, { status: 'wrong' })}
+                                    className="px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition-all"
+                                >
+                                    Wrong Intent
+                                </button>
+                                <button 
+                                    onClick={() => api.patch(`/api/leads/${data.jobId}/feedback`, { status: 'wrong' })}
+                                    className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                                >
+                                    False Positive
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="glass-panel p-10 flex items-center gap-8 border-white/5 bg-gradient-to-tr from-white/[0.02] to-transparent">

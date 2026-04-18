@@ -17,7 +17,7 @@
     "start:covospan": "cross-env NETJANA_MODE=covospan node dist/modes/covospan/index.js",
     "start:standalone": "cross-env NETJANA_MODE=standalone ROLE=api_only node dist/modes/standalone/index.js",
     "start:scraper": "cross-env NETJANA_MODE=worker ROLE=worker node dist/modes/worker/index.js",
-    "build:full": "npm run build && npm run client:build",
+    "build:full": "npm run build && npm run build --prefix client",
     "mcp": "node dist/mcp/index.js"
   },
   "dependencies": {
@@ -28,6 +28,8 @@
     "@langchain/ollama": "^1.2.6",
     "@langchain/openai": "^1.2.12",
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@sentry/node": "^10.48.0",
+    "@sentry/profiling-node": "^10.48.0",
     "@types/node-cron": "^3.0.11",
     "@upstash/redis": "^1.37.0",
     "axios": "^1.6.2",

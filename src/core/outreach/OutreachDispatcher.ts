@@ -83,32 +83,22 @@ export class OutreachDispatcher {
     private async dispatchWaba(body: string, phone: string): Promise<DispatchResult> {
         if (!phone) return { success: false, channel: 'WABA', error: 'No phone number found' };
 
-        // SDK STUB: In production, this calls Meta Graph API or a provider like Twilio/Gupshup
-        console.log(`[Dispatcher:WABA] MISSION SIMULATION: Sending to ${phone}`);
-        console.log(`[Dispatcher:WABA] CONTENT: ${body}`);
-
-        try {
-            // Simulated HTTP call to WABA endpoint
-            /*
-            await axios.post('https://api.netjana.com/v1/waba/dispatch', {
-                to: phone,
-                message: body,
-                priority: 'high'
-            }, { headers: { 'Authorization': `Bearer ${process.env.WABA_TOKEN}` }});
-            */
-            return { success: true, channel: 'WABA', messageId: `waba_${Date.now()}` };
-        } catch (error: any) {
-            return { success: false, channel: 'WABA', error: error.message };
-        }
+        console.warn(`[Dispatcher:WABA] MISSION FAILED: Channel SDK not integrated (STUB) for ${phone}`);
+        return { 
+            success: false, 
+            channel: 'WABA', 
+            error: 'STUB_UNIMPLEMENTED: WhatsApp Business API SDK not integrated. Please configure WABA_TOKEN and provider endpoint.' 
+        };
     }
 
     private async dispatchLinkedIn(note: string, profile: string): Promise<DispatchResult> {
         if (!profile) return { success: false, channel: 'LINKEDIN', error: 'No LinkedIn profile found' };
 
-        // SDK STUB: In production, this uses LinkedIn Messaging API or an automation bridge
-        console.log(`[Dispatcher:LinkedIn] MISSION SIMULATION: Messaging ${profile}`);
-        console.log(`[Dispatcher:LinkedIn] NOTE: ${note}`);
-
-        return { success: true, channel: 'LINKEDIN', messageId: `li_${Date.now()}` };
+        console.warn(`[Dispatcher:LinkedIn] MISSION FAILED: Channel SDK not integrated (STUB) for ${profile}`);
+        return { 
+            success: false, 
+            channel: 'LINKEDIN', 
+            error: 'STUB_UNIMPLEMENTED: LinkedIn Messaging API SDK not integrated. Requires OAuth connection for this organization.' 
+        };
     }
 }

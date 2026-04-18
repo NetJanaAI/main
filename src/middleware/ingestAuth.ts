@@ -15,11 +15,31 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
     const isDev = process.env.NODE_ENV !== 'production';
 
     // 1. IP / CIDR Allowlist Protection
-    const allowedIps = process.env.ALLOWED_INGEST_IPS
-        ? process.env.ALLOWED_INGEST_IPS.split(',').map(s => s.trim())
-        : [];
+    let isAllowed = false;
+    
+    // Check dynamic DB allowlist first
+    try {
+        const dbIpsRes = await query('SELECT cidr FROM allowed_ips WHERE organization_id IS NULL OR organization_id = $1', [(req as any).organizationId || null]);
+        const dbIps = dbIpsRes.rows.map(r => r.cidr);
+        
+        if (dbIps.includes(clientIp)) {
+            isAllowed = true;
+        }
+    } catch (e) {
+        console.error('[IngestGuard] DB IP check failed, falling back to ENV:', e);
+    }
 
-    if (!isLocalhost && allowedIps.length > 0 && !allowedIps.includes(clientIp)) {
+    // Fallback to ENV allowlist for transition/dev
+    if (!isAllowed) {
+        const envAllowedIps = process.env.ALLOWED_INGEST_IPS
+            ? process.env.ALLOWED_INGEST_IPS.split(',').map(s => s.trim())
+            : [];
+        if (envAllowedIps.includes(clientIp)) {
+            isAllowed = true;
+        }
+    }
+
+    if (!isLocalhost && !isAllowed && (process.env.NODE_ENV === 'production' || process.env.ENFORCE_INGEST_AUTH === 'true')) {
         console.warn(`[IngestGuard] Blocked unauthorized IP: ${clientIp}`);
         return res.status(403).json({ error: 'Forbidden: IP not in allowlist' });
     }

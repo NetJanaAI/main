@@ -42,7 +42,13 @@ const TakeActionPanel: React.FC<{ leadId: string; organizationId: string }> = ({
                 method: 'POST',
                 headers: { 'x-organization-id': organizationId }
             });
-            if (res.status === 402) alert("Freemium limit reached. Upgrade for more generations.");
+            if (res.status === 402) {
+                alert("Freemium limit reached. Upgrade for more generations.");
+                setLoading(false);
+            }
+            // Success depends on socket event 'lead:outreach_ready'
+            // But we add a safety timeout to prevent indefinite loading
+            setTimeout(() => setLoading(false), 15000); 
         } catch (e) {
             setLoading(false);
         }
@@ -93,9 +99,10 @@ const TakeActionPanel: React.FC<{ leadId: string; organizationId: string }> = ({
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center p-20 animate-pulse">
+            <div className="flex flex-col items-center justify-center p-20">
                 <RefreshCcw className="w-12 h-12 text-indigo-500 animate-spin mb-4" />
-                <p className="text-slate-400 font-medium">Bypassing generic copy... Injecting regional verity...</p>
+                <p className="text-slate-400 font-medium tracking-wide text-xs uppercase">Processing Adversarial Rewrite Clusters...</p>
+                <p className="text-slate-500 text-[10px] mt-2 italic">Injecting regional verity signals</p>
             </div>
         );
     }

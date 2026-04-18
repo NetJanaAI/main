@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type { Tenant } from '../types';
-import { Building2, Plus, Key, BarChart3, ShieldCheck, Copy, Check } from 'lucide-react';
+import { Building2, Plus, Key, BarChart3, ShieldCheck, Copy, Check, Terminal, ShieldAlert, RefreshCcw, Shield } from 'lucide-react';
+import DlqManager from './DlqManager';
+import SecurityDashboard from './SecurityDashboard';
+
+type AdminTab = 'tenants' | 'dlq' | 'security';
 
 export const AdminDashboard: React.FC = () => {
     const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -11,6 +15,7 @@ export const AdminDashboard: React.FC = () => {
     const [newTenantQuota, setNewTenantQuota] = useState(100);
     const [createdKey, setCreatedKey] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [activeTab, setActiveTab] = useState<AdminTab>('tenants');
 
     const fetchTenants = async () => {
         setIsLoading(true);
@@ -66,7 +71,7 @@ export const AdminDashboard: React.FC = () => {
                         Sovereign Governance & Multi-Tenant Management
                     </p>
                 </div>
-                {!isCreating && (
+                {activeTab === 'tenants' && !isCreating && (
                     <button
                         onClick={() => setIsCreating(true)}
                         className="flex items-center gap-2 px-6 py-3 bg-primary text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary/80 transition-all rounded-lg"
@@ -77,7 +82,28 @@ export const AdminDashboard: React.FC = () => {
                 )}
             </div>
 
-            {isCreating && (
+            {/* Admin Sub-navigation */}
+            <div className="flex gap-8 border-b border-white/10">
+                <button 
+                    onClick={() => setActiveTab('tenants')}
+                    className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'tenants' ? 'border-primary text-primary' : 'border-transparent text-white/20 hover:text-white/40'}`}
+                >
+                    Organization Provisioning
+                </button>
+                <button 
+                    onClick={() => setActiveTab('security')}
+                    className={`pb-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'security' ? 'border-[#3366ff] text-[#3366ff]' : 'border-transparent text-white/20 hover:text-white/40'}`}
+                >
+                    <div className="flex items-center gap-2">
+                        <Shield className="w-3 h-3" />
+                        Infrastructure Security
+                    </div>
+                </button>
+            </div>
+
+            {activeTab === 'tenants' ? (
+                <>
+                {isCreating && (
                 <div className="glass-panel p-8 border-primary/20 bg-primary/5 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4">
                          <button onClick={() => { setIsCreating(false); setCreatedKey(null); }} className="text-white/20 hover:text-white/60 transition-colors uppercase text-[10px] font-black tracking-widest">Cancel</button>
@@ -191,9 +217,37 @@ export const AdminDashboard: React.FC = () => {
 
                                 <div className="h-10 w-px bg-white/5" />
 
-                                <button className="p-3 glass-panel border-white/5 hover:border-primary/40 text-white/20 hover:text-primary transition-all rounded-xl">
-                                    <Key className="w-4 h-4" />
-                                </button>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            if (confirm('Rotate API Key? Existing key will be revoked.')) {
+                                                api.post(`/api/admin/tenants/${tenant.id}/rotate-key`, {}).then(res => res.json()).then(data => {
+                                                    if (data.apiKey) {
+                                                        setCreatedKey(data.apiKey);
+                                                        setIsCreating(true);
+                                                    }
+                                                });
+                                            }
+                                        }}
+                                        className="p-3 glass-panel border-white/5 hover:border-orange-500/40 text-white/20 hover:text-orange-400 Transition-all rounded-xl group/rotate"
+                                        title="Rotate API Key"
+                                    >
+                                        <RefreshCcw className="w-4 h-4 group-hover/rotate:rotate-180 transition-transform duration-500" />
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            if (confirm(`Execute Vanish Protocol for ${tenant.name}? This will permanently delete all associated data.`)) {
+                                                api.delete(`/api/admin/tenants/${tenant.id}/vanish`).then(res => {
+                                                    if (res.ok) fetchTenants();
+                                                });
+                                            }
+                                        }}
+                                        className="p-3 glass-panel border-white/5 hover:border-red-500/40 text-white/20 hover:text-red-500 transition-all rounded-xl"
+                                        title="Execute Vanish Protocol"
+                                    >
+                                        <ShieldAlert className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -249,7 +303,12 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+                </>
+            ) : activeTab === 'dlq' ? (
+                <DlqManager />
+            ) : (
+                <SecurityDashboard />
+            )}
         </div>
     );
 };

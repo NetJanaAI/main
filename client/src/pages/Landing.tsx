@@ -9,22 +9,71 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 
-const MOCK_SIGNALS = [
+// DEMO_MODE: These signals are simulated for the unauthenticated landing view.
+// In a provisioned environment, this feed is replaced by a live intercept stream.
+const DEMO_SIGNALS = [
   { id: 1, org: "Reliance Petro", intent: "Solar Infrastructure", score: 92, status: "HOT" },
   { id: 2, org: "Adani Green", intent: "Grid-Scale Storage", score: 88, status: "WARM" },
   { id: 3, org: "Tata Power", intent: "Smart Meters", score: 76, status: "DISCOVERY" },
   { id: 4, org: "JSW Energy", intent: "Hydro-Turbines", score: 95, status: "HOT" },
 ];
 
+interface Stats {
+  total: number;
+  hot: number;
+  today: number;
+  alpha_sum: number;
+}
+
 export default function Landing() {
   const [signalIdx, setSignalIdx] = useState(0);
+  const [stats, setStats] = useState<Stats>({ total: 2041, hot: 412, today: 121, alpha_sum: 140000 });
+  const [liveLeads, setLiveLeads] = useState<any[]>([]);
 
   useEffect(() => {
+    // 1. Cycle active signal index
     const timer = setInterval(() => {
-      setSignalIdx((prev) => (prev + 1) % MOCK_SIGNALS.length);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
+      setSignalIdx((prev) => (prev + 1) % Math.max(1, liveLeads.length));
+    }, 4000);
+
+    // 2. Fetch real stats for the telemetry sidebar
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/leads/stats');
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        }
+      } catch (e) {
+        console.warn('[Landing] Stats fetch failed, staying in simulated mode.');
+      }
+    };
+    fetchStats();
+    const statsTimer = setInterval(fetchStats, 60000); // Refresh every minute
+
+    // 3. Fetch real leads for the matrix
+    const fetchLeads = async () => {
+      try {
+        const res = await fetch('/api/leads/match?limit=5');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.matches && data.matches.length > 0) {
+            setLiveLeads(data.matches);
+          } else {
+            setLiveLeads(DEMO_SIGNALS); // Fallback to demo if DB is clean
+          }
+        }
+      } catch (e) {
+        setLiveLeads(DEMO_SIGNALS);
+      }
+    };
+    fetchLeads();
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(statsTimer);
+    };
+  }, [liveLeads.length]);
 
   return (
     <div className="min-h-screen bg-[#020813] text-gray-200 overflow-x-hidden selection:bg-[#D4AF37]/30 selection:text-white">
@@ -94,10 +143,10 @@ export default function Landing() {
 
           <div className="space-y-4">
             {[
-              { val: "1.4M", label: "INDEXED_NODES" },
+              { val: stats.total.toLocaleString(), label: "INDEXED_NODES" },
               { val: "42ms", label: "avg_packet_latency" },
-              { val: "ENCRYPTED", label: "data_sovereignty" },
-              { val: "2,041", label: "signals_intercepted" }
+              { val: (stats.alpha_sum / 1000).toFixed(1) + "k", label: "aggregate_alpha" },
+              { val: stats.today.toLocaleString(), label: "signals_intercepted_today" }
             ].map((stat) => (
               <div key={stat.label} className="space-y-1">
                 <div className="text-[10px] font-data text-white/40 uppercase">{stat.label}</div>
@@ -129,8 +178,8 @@ export default function Landing() {
                 <Terminal className="w-4 h-4 text-[#00ffca]" />
                 <span className="text-[11px] font-data font-black tracking-[0.1em] text-[#00ffca] glitch-hover">/NETJANA/INTERCEPT_MATRIX_V2.0</span>
               </div>
-              <div className="text-[10px] font-data text-[#ff3366] animate-pulse">
-                [ RECORDING_LIVE_STREAM ]
+              <div className="text-[10px] font-data text-[#00ffca] animate-pulse">
+                [ {liveLeads === DEMO_SIGNALS ? 'DEMO_MODE: SIMULATED_STREAM' : 'LIVE_MODE: REALTIME_INTERCEPT'} ]
               </div>
             </div>
 
@@ -157,9 +206,9 @@ export default function Landing() {
               `}</style>
 
               <AnimatePresence mode="popLayout">
-                {MOCK_SIGNALS.map((sig, i) => (
+                {liveLeads.map((sig, i) => (
                   <motion.div
-                    key={`${sig.id}-${signalIdx}`}
+                    key={`${sig.lead_id || sig.id}-${signalIdx}`}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.98 }}
@@ -167,25 +216,25 @@ export default function Landing() {
                       i === 0 ? "border-[#00ffca] bg-[#00ffca]/5" : "border-white/10 bg-transparent opacity-80"
                     } hover:bg-white/5 transition-colors font-data cursor-crosshair`}
                   >
-                    <div className="col-span-1 text-[10px] text-white/30">#{sig.id.toString().padStart(4, '0')}</div>
+                    <div className="col-span-1 text-[10px] text-white/30">#{ (sig.lead_id || sig.id).toString().substring(0,4) }</div>
                     <div className={`col-span-4 text-xs font-bold ${i === 0 ? "text-[#00ffca]" : "text-gray-200"} truncate uppercase`}>
-                      {sig.org}
+                      {sig.company_name || sig.org}
                     </div>
                     <div className="col-span-4 text-[10px] text-white/60 truncate">
-                      {sig.intent}
+                      {sig.procurement_category || sig.intent}
                     </div>
                     <div className="col-span-2 text-right">
-                      <div className={`text-sm font-bold ${sig.score > 90 ? 'text-[#00ffca]' : 'text-yellow-400'}`}>
-                        {sig.score}.00
+                      <div className={`text-sm font-bold ${ (sig.intent_score || sig.score) > 90 ? 'text-[#00ffca]' : 'text-yellow-400'}`}>
+                        {sig.intent_score || sig.score}.00
                       </div>
                     </div>
                     <div className="col-span-1 text-right">
                       <span className={`text-[9px] px-1.5 py-0.5 rounded-sm border ${
-                        sig.status === 'HOT' ? 'border-[#ff3366] text-[#ff3366] bg-[#ff3366]/10' : 
-                        sig.status === 'WARM' ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' :
+                        (sig.intent_score || sig.score) >= 80 ? 'border-[#ff3366] text-[#ff3366] bg-[#ff3366]/10' : 
+                        (sig.intent_score || sig.score) >= 60 ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' :
                         'border-white/20 text-white/40'
                       }`}>
-                        {sig.status}
+                        {(sig.intent_score || sig.score) >= 80 ? 'HOT' : (sig.intent_score || sig.score) >= 60 ? 'WARM' : 'COLD'}
                       </span>
                     </div>
                   </motion.div>

@@ -33,6 +33,8 @@ RUN mkdir -p /app/data && chmod 777 /app/data
 # Set environment
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV NETJANA_MODE=standalone
+ENV ROLE=api_only
 
 # Azure App Service and Container Apps will use the PORT env var
 EXPOSE 3000

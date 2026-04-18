@@ -1,7 +1,15 @@
 import crypto from 'crypto';
 
+const isDev = process.env.NODE_ENV !== 'production';
+const HMAC_SECRET = process.env.HMAC_SECRET;
+
+if (!isDev && (!HMAC_SECRET || HMAC_SECRET === 'dev-placeholder-long-random-string-32-chars')) {
+    console.error('[Crypto] FATAL: HMAC_SECRET is missing or using dev-placeholder in production.');
+    process.exit(1);
+}
+
 const ALGORITHM = 'aes-256-cbc';
-const ENCRYPTION_KEY = (process.env.HMAC_SECRET || 'dev-placeholder-long-random-string-32-chars').slice(0, 32).padEnd(32, '0');
+const ENCRYPTION_KEY = (HMAC_SECRET || 'dev-placeholder-long-random-string-32-chars').slice(0, 32).padEnd(32, '0');
 
 export function encrypt(text: string): string {
     const iv = crypto.randomBytes(16);

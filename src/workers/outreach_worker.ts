@@ -49,7 +49,9 @@ export async function startOutreachWorker(io: Server) {
                 timestamp: new Date().toISOString(),
                 url: `lead:${leadId}`,
                 error: `Outreach Generation Failed: ${error.message}`,
-                rawText: JSON.stringify(job.data)
+                rawText: JSON.stringify(job.data),
+                organizationId,
+                sourceQueue: 'outreach_queue'
             });
 
             // Notify UI of explicit failure

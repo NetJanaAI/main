@@ -34,6 +34,8 @@ validateEnv();
 // Initialize DB Schema asynchronously
 initDb().catch(e => console.error("Database initialization failed", e));
 
+import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import express from 'express';
 import 'express-async-errors'; // Centralized async error handling
 import { createServer } from 'http';
@@ -67,6 +69,7 @@ import netjanaIntelRoutes from './routes/netjana-intel';
 import { bootstrapSchedules } from './lib/scheduler';
 import { setupRecalibrationCron } from './lib/recalibration';
 import { setupScrapeWorker } from './workers/scrapeWorker';
+import { setupDlqWorker } from './workers/dlqWorker';
 import { setupRouterWorker } from './core/router';
 import { setupGeminiWorkers } from './core/gemini-chain';
 import { tenantContext } from './middleware/tenant';
@@ -76,6 +79,16 @@ import { register, getSystemHealth } from './lib/telemetry';
 
 const app = express();
 const httpServer = createServer(app);
+
+// Sentry Initialization
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || "https://placeholder-dsn@sentry.io/0",
+  integrations: [
+    nodeProfilingIntegration(),
+  ],
+  tracesSampleRate: 1.0,
+  profilesSampleRate: 1.0,
+});
 
 // Use raw body for Clerk webhooks before global json parsing
 app.use('/api/webhooks', express.raw({ type: 'application/json' }), (req: any, res, next) => {
@@ -98,6 +111,7 @@ const io = new Server(httpServer, {
 // globalLimiter has been replaced by tenantRateLimiter below
 
 setupScrapeWorker(io);
+setupDlqWorker();
 setupRouterWorker();
 setupGeminiWorkers(io);
 setupRecalibrationCron(io);

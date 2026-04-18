@@ -19,9 +19,28 @@ export class HACanary {
                 health,
                 timestamp: new Date().toISOString()
             });
+
+            if (health.status !== 'UP' && process.env.SLACK_WEBHOOK_URL) {
+                await axios.post(process.env.SLACK_WEBHOOK_URL, {
+                    text: `*⚠️ System Health Alert [${region}]*`,
+                    attachments: [{
+                        color: "#FF9900",
+                        text: `Status: ${health.status}\nCheck the Protocol Terminal immediately.`
+                    }]
+                });
+            }
         } catch (e: any) {
             console.error(`[Canary] [${region}] Failed to report heartbeat:`, e.message);
-            // In a real HA setup, this might trigger a local failover or page an SRE
+            
+            if (process.env.SLACK_WEBHOOK_URL) {
+                await axios.post(process.env.SLACK_WEBHOOK_URL, {
+                    text: `*🚨 Critical: Canary Failure [${region}]*`,
+                    attachments: [{
+                        color: "#FF0000",
+                        text: `Canary reported a fatal error: ${e.message}`
+                    }]
+                });
+            }
         }
     }
 }

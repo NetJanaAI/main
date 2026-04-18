@@ -123,7 +123,9 @@ export class AdversarialCritic {
                 timestamp: new Date().toISOString(),
                 url: url || 'unknown',
                 error: (error as Error).message,
-                rawText: text.substring(0, 500)
+                rawText: text.substring(0, 500),
+                organizationId: organizationId || 'default',
+                sourceQueue: 'analysis_tier'
             });
             return {
                 frictionScore: 0,

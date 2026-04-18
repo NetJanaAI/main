@@ -9,6 +9,7 @@ import IntentPipeline from './components/views/IntentPipeline';
 import SourceHealth from './components/views/SourceHealth';
 import Analytics from './components/views/Analytics';
 import IntentMatcher from './components/views/IntentMatcher';
+import SystemHealthWidget from './components/SystemHealthWidget';
 
 const socket: Socket = io();
 
@@ -126,6 +127,8 @@ function App() {
           </div>
         </div>
       </div>
+
+      <SystemHealthWidget />
 
       {/* Navigation Tabs */}
       <div className="w-full max-w-7xl relative z-10 mb-8 border-b border-white/10">
