@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type { Tenant } from '../types';
-import { Building2, Plus, Key, BarChart3, ShieldCheck, Copy, Check, Terminal, ShieldAlert, RefreshCcw, Shield } from 'lucide-react';
+import { Building2, Plus, Key, BarChart3, ShieldCheck, Copy, Check, ShieldAlert, RefreshCcw, Shield } from 'lucide-react';
 import DlqManager from './DlqManager';
 import SecurityDashboard from './SecurityDashboard';
 
@@ -124,7 +124,7 @@ export const AdminDashboard: React.FC = () => {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Initial Scrape Quota</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Initial Ingestion Quota</label>
                                 <input
                                     type="number"
                                     value={newTenantQuota}
@@ -303,7 +303,8 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                     </div>
                 </div>
-                </>
+            </div>
+            </>
             ) : activeTab === 'dlq' ? (
                 <DlqManager />
             ) : (

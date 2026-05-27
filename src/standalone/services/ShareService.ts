@@ -2,9 +2,9 @@ import crypto from 'crypto';
 import Redis from 'ioredis';
 import { query } from '../../lib/database';
 import { SovereignFirewall } from '../../lib/ai/SovereignFirewall';
+import { getHmacSecret } from '../../lib/secrets';
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-const HMAC_SECRET = process.env.HMAC_SECRET || 'dev-safety-fallback';
 
 export class ShareService {
     /**
@@ -15,7 +15,7 @@ export class ShareService {
         
         // HMAC signature
         const tokenData = `${leadId}:${organizationId}:${expiresAt}`;
-        const signature = crypto.createHmac('sha256', HMAC_SECRET)
+        const signature = crypto.createHmac('sha256', getHmacSecret('share token signing'))
             .update(tokenData)
             .digest('hex');
             

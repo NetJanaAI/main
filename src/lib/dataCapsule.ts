@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { ScrapeResult } from './schemas';
+import { getHmacSecret } from './secrets';
 
-const HMAC_SECRET = process.env.HMAC_SECRET || 'dev-safety-fallback-do-not-use-in-prod';
 const REGION_ID = process.env.REGION_ID || 'UAE_DUBAI_01';
 
 export interface DataCapsule {
@@ -52,7 +52,7 @@ export function generateCapsule(result: ScrapeResult): DataCapsule {
  * Cryptographically signs the Data Capsule to prove origin from the Sovereign Alpha Node.
  */
 export function signCapsule(capsule: object): string {
-    const signature = crypto.createHmac('sha256', HMAC_SECRET)
+    const signature = crypto.createHmac('sha256', getHmacSecret('data capsule signing'))
         .update(JSON.stringify(capsule))
         .digest('hex');
     return signature;

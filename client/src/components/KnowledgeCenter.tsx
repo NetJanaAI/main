@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import type { ScrapeResult } from '../types';
+import type { RegistrySignalResult } from '../types';
 import { api } from '../lib/api';
 
 interface KnowledgeCenterProps {
-    onUploadSuccess?: (data: ScrapeResult) => void;
+    onUploadSuccess?: (data: RegistrySignalResult) => void;
 }
 
 export const KnowledgeCenter: React.FC<KnowledgeCenterProps> = ({ onUploadSuccess }) => {

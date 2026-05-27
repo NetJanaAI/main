@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Cpu, Zap, TrendingUp, BarChart3 } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface TokenStats {
   realtime: any[];
@@ -22,7 +23,7 @@ export default function TokenTelemetry() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/telemetry/tokens');
+      const res = await api.get('/api/telemetry/tokens');
       const data = await res.json();
       setStats(data);
     } catch (e) {

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Server, Globe, ShieldCheck, TrendingUp, Zap, Download, RefreshCw } from 'lucide-react';
 import { LogicDialogue } from './LogicDialogue';
-import type { ScrapeResult } from '../types';
+import type { RegistrySignalResult } from '../types';
 import InfluenceRadar from './InfluenceRadar';
 import WarmEntryPoints from './WarmEntryPoints';
 import TakeActionPanel from './TakeActionPanel';
 import { api } from '../lib/api';
 
 interface ResultCardProps {
-    data: ScrapeResult;
+    data: RegistrySignalResult;
 }
 
 export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
@@ -34,6 +34,22 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
             console.error('Failed to fetch influence data:', e);
         } finally {
             setLoadingInfluence(false);
+        }
+    };
+
+    const downloadIntelligencePdf = async () => {
+        if (!data.jobId) return;
+        try {
+            const res = await api.get(`/api/results/report/${data.jobId}`);
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = `netjana-report-${data.jobId}.pdf`;
+            link.click();
+            URL.revokeObjectURL(objectUrl);
+        } catch (e) {
+            console.error('Failed to download intelligence PDF:', e);
         }
     };
 
@@ -216,21 +232,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                 </div>
             )}
 
-            {data.screenshotPath && (
-                <div className="lg:col-span-3 glass-panel p-8 border-white/5 bg-gradient-to-tr from-white/[0.02] to-transparent animate-in fade-in slide-in-from-bottom-5 duration-1000">
-                    <h3 className="text-white/40 text-[9px] font-black uppercase tracking-[4px] mb-6 flex items-center gap-3">
-                        <Globe className="w-4 h-4 text-primary" /> Visual Signal Extraction
-                    </h3>
-                    <div className="relative rounded-3xl overflow-hidden border border-white/10 group shadow-2xl">
-                        <img 
-                            src={data.screenshotPath} 
-                            alt="Captured site UI" 
-                            className="w-full object-cover max-h-[500px] object-top opacity-70 group-hover:opacity-100 transition-all duration-700 select-none pointer-events-none"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent pointer-events-none" />
-                    </div>
-                </div>
-            )}
+
 
             <div className="lg:col-span-3">
                 <LogicDialogue steps={data.criticAnalysis?.verity_steps || []} />
@@ -238,10 +240,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
 
             {data.jobId && (
                 <div className="lg:col-span-3 mt-8 flex flex-col sm:flex-row justify-center gap-6 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-500">
-                    <a 
-                        href={`/api/results/report/${data.jobId}`} 
-                        target="_blank" 
-                        rel="noreferrer"
+                    <button
+                        type="button"
+                        onClick={downloadIntelligencePdf}
                         className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-background focus:outline-none hover:scale-105 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_50px_rgba(255,255,255,0.3)] rounded-2xl group"
                     >
                         <Download className="w-5 h-5 group-hover:animate-bounce" />
@@ -249,7 +250,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                             <span className="block text-sm font-black uppercase tracking-[3px]">Intelligence PDF</span>
                             <span className="block text-[8px] font-black uppercase tracking-[2px] opacity-60">Sovereign Format</span>
                         </div>
-                    </a>
+                    </button>
                 </div>
             )}
         </div>

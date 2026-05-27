@@ -4,7 +4,7 @@ import { Activity, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 interface Job {
     jobId: string;
     domain: string;
-    status: 'queued' | 'scraping' | 'analyzing' | 'complete' | 'failed';
+    status: 'queued' | 'ingesting' | 'analyzing' | 'complete' | 'failed';
     logs: string[];
     startedAt: string;
 }
@@ -15,7 +15,7 @@ interface JobMonitorProps {
 
 const statusConfig = {
     queued: { icon: Clock, color: 'text-yellow-400', label: 'Queued' },
-    scraping: { icon: Loader2, color: 'text-blue-400', label: 'Scraping', spin: true },
+    ingesting: { icon: Loader2, color: 'text-blue-400', label: 'Ingesting', spin: true },
     analyzing: { icon: Loader2, color: 'text-purple-400', label: 'Analyzing AI', spin: true },
     complete: { icon: CheckCircle, color: 'text-emerald-400', label: 'Complete' },
     failed: { icon: XCircle, color: 'text-red-400', label: 'Failed' },
@@ -34,7 +34,7 @@ export const JobMonitor: React.FC<JobMonitorProps> = ({ socket }) => {
                 const job = next.get(jobId);
                 if (job) {
                     job.logs = [...job.logs.slice(-49), `[${type?.toUpperCase() || 'INFO'}] ${message}`];
-                    job.status = message.includes('Adversarial') ? 'analyzing' : 'scraping';
+                    job.status = message.includes('Adversarial') ? 'analyzing' : 'ingesting';
                     next.set(jobId, { ...job });
                 }
                 return next;

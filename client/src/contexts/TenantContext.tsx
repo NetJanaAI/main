@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Tenant } from '../types';
+import { api } from '../lib/api';
 
 interface TenantContextType {
     currentTenantId: string | null;
@@ -22,7 +23,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const refreshTenants = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch('/api/admin/tenants');
+            const res = await api.get('/api/admin/tenants');
             if (res.ok) {
                 const data = await res.json();
                 setTenants(data);

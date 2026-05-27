@@ -12,6 +12,7 @@ import {
   Link2,
   X
 } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface IntelligenceModalProps {
   leadId: string;
@@ -25,7 +26,7 @@ export default function IntelligenceModal({ leadId, onClose }: IntelligenceModal
   useEffect(() => {
     const fetchIntelligence = async () => {
       try {
-        const res = await fetch(`/api/leads/${leadId}/intelligence`);
+        const res = await api.get(`/api/leads/${leadId}/intelligence`);
         const json = await res.json();
         setData(json);
       } catch (e) {
@@ -66,6 +67,12 @@ export default function IntelligenceModal({ leadId, onClose }: IntelligenceModal
                 {isVerified ? <ShieldCheck className="w-3 h-3" /> : <ShieldAlert className="w-3 h-3" />}
                 {isVerified ? 'Cluster Verified' : 'Unconfirmed Signal'}
               </div>
+              {data.watch_profile_id && (
+                <div className="px-3 py-1 rounded-full border bg-[#D4AF37]/10 border-[#D4AF37]/20 text-[#D4AF37] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                  <Target className="w-3 h-3" />
+                  Tender Match
+                </div>
+              )}
             </div>
             <p className="text-white/40 font-medium text-sm font-data">{data.geo_state} · {data.sector || 'General Industry'} · {data.procurement_category}</p>
           </div>

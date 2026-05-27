@@ -86,10 +86,18 @@ let demoModeWarned = false;
  */
 class FallbackLLM {
     private role: ModelRole;
-    constructor(role: ModelRole) { this.role = role; }
+    constructor(role: ModelRole) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error(
+                '[ModelAPI] FATAL: No LLM provider configured. ' +
+                'Set GOOGLE_API_KEY or OLLAMA_HOST. DEMO_MODE is not permitted in production.'
+            );
+        }
+        this.role = role;
+    }
     async invoke(_input: any): Promise<{ content: string }> {
         if (!demoModeWarned) {
-            console.warn('[ModelAPI] ⚠  DEMO_MODE ACTIVE — No GOOGLE_API_KEY or OLLAMA_HOST found. All inference will return structured mock data. Set GOOGLE_API_KEY in .env to enable live AI.');
+            console.warn('[ModelAPI] ⚠️  DEMO_MODE active — returning mock responses.');
             demoModeWarned = true;
         }
         return { content: MOCK_RESPONSES[this.role]() };
@@ -126,7 +134,7 @@ export async function callModel(opts: ModelCallOptions): Promise<string> {
     } else if (process.env.OLLAMA_HOST) {
         client = new ChatOllama({
             baseUrl: process.env.OLLAMA_HOST,
-            model: 'phi3', 
+            model: 'phi3',
             temperature: config.temperature,
         });
     } else {
@@ -138,9 +146,9 @@ export async function callModel(opts: ModelCallOptions): Promise<string> {
             const userPrompt = attempt === 0
                 ? user
                 : user + '\nReturn ONLY the JSON object. No markdown, no explanation.';
-            
+
             const res = await client.invoke([['system', system], ['user', userPrompt]]);
-            
+
             // Extract Usage Metadata (LangChain style)
             const usage = res.usage_metadata || res.response_metadata?.usage || {
                 input_tokens: TokenTracker.estimateTokens(system + userPrompt),

@@ -1,4 +1,4 @@
-export interface ScrapeResult {
+export interface RegistrySignalResult {
     jobId?: string;
     domain: string;
     frictionScore: number;
@@ -12,11 +12,6 @@ export interface ScrapeResult {
         limit: number;
     };
     estimatedRoi?: number;
-    screenshotPath?: string | null;
-    spiderStats?: {
-        pagesVisited: number;
-        urlsCrawled: string[];
-    };
     groundingScore?: number;
     citations?: string[];
     criticAnalysis?: {
@@ -42,10 +37,10 @@ export interface ScrapeResult {
 export interface Job {
     jobId: string;
     domain: string;
-    status: 'queued' | 'scraping' | 'analyzing' | 'complete' | 'failed';
+    status: 'queued' | 'ingesting' | 'analyzing' | 'complete' | 'failed';
     logs: string[];
     startedAt: string;
-    result?: ScrapeResult;
+    result?: RegistrySignalResult;
 }
 
 export interface Log {
@@ -77,6 +72,7 @@ export interface LeadCard {
     company_domain: string | null;
     geo_state: string;
     sector: string;
+    watch_profile_id?: string;
     card_what_they_need: string;
     card_why_now: string;
     card_do_this: string;

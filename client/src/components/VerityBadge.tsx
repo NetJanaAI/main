@@ -32,4 +32,3 @@ export default function VerityBadge({ corroborated, signalCount, verityTier }: V
     </div>
   );
 }
- bitumen: 121

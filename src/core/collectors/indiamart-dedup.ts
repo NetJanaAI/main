@@ -12,8 +12,8 @@ export async function isIndiaMArtDuplicate(lead: any): Promise<boolean> {
     const qid = lead.query_id || lead.QUERY_ID;
     if (qid) {
         const key = `${DEDUP_PREFIX}qid:${qid}`;
-        // IORedis opts: EX seconds NX
-        const seen = await cache.set(key, '1', 'EX', DEDUP_TTL_SECONDS, 'NX');
+        // Upstash opts: { ex: seconds, nx: true }
+        const seen = await cache.set(key, '1', { ex: DEDUP_TTL_SECONDS, nx: true });
         if (!seen) {
             console.debug('[DEDUP] HIT query_id', { query_id: qid });
             return true; // already seen
@@ -24,7 +24,7 @@ export async function isIndiaMArtDuplicate(lead: any): Promise<boolean> {
     // Layer 2: No query_id — build content fingerprint
     const fingerprint = buildContentFingerprint(lead);
     const key = `${DEDUP_PREFIX}fp:${fingerprint}`;
-    const seen = await cache.set(key, '1', 'EX', DEDUP_TTL_SECONDS, 'NX');
+    const seen = await cache.set(key, '1', { ex: DEDUP_TTL_SECONDS, nx: true });
 
     if (!seen) {
         console.debug('[DEDUP] HIT fingerprint', { fingerprint });
@@ -51,7 +51,7 @@ function buildContentFingerprint(lead: any): string {
         .slice(0, 16);
 }
 
-export async function safeQueueIndiaMARTLead(lead: any): Promise<void> {
+export async function safeQueueIndiaMARTLead(lead: any, organizationId: string): Promise<void> {
     const isDuplicate = await isIndiaMArtDuplicate(lead);
     const today = new Date().toISOString().slice(0, 10);
 
@@ -67,7 +67,7 @@ export async function safeQueueIndiaMARTLead(lead: any): Promise<void> {
         source: 'IndiaMART',
         type: 'BUYER_INTENT',
         rawPayload: lead,
-        organizationId: 'default' // Multi-tenant routing would apply here
+        organizationId
     }, { jobId: ingestJobId });
 
     console.log(`[Collector] New IndiaMART Lead queued for ingestion: ${lead.query_id || lead.QUERY_ID} -> Job: ${ingestJobId}`);
@@ -83,8 +83,8 @@ export async function getDedupStats(days = 7): Promise<any[]> {
         const key = d.toISOString().slice(0, 10);
 
         const [queued, duped] = await Promise.all([
-            cache.get(`stats:queued:indiamart:${key}`),
-            cache.get(`stats:dedup:indiamart:${key}`),
+            cache.get<string>(`stats:queued:indiamart:${key}`),
+            cache.get<string>(`stats:dedup:indiamart:${key}`),
         ]);
 
         const q = parseInt(queued || '0');

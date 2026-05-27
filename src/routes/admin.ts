@@ -4,9 +4,9 @@ import crypto from 'crypto';
 import { VanishProtocol } from '../core/rag/VanishProtocol';
 import { DeadLetterQueue } from '../lib/DeadLetterQueue';
 import { AuditTrail } from '../core/compliance/AuditTrail';
+import { getHmacSecret } from '../lib/secrets';
 
 const router = Router();
-const ADMIN_SECRET = process.env.HMAC_SECRET || 'dev-safety-fallback-do-not-use-in-prod';
 
 /**
  * POST /api/admin/tenants - Create a new tenant organization.
@@ -18,7 +18,7 @@ router.post('/tenants', async (req: Request, res: Response) => {
     try {
         // Generate a secure API Key
         const apiKey = `netjana_sk_${crypto.randomBytes(24).toString('hex')}`;
-        const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(apiKey).digest('hex');
+        const apiKeyHash = crypto.createHmac('sha256', getHmacSecret('tenant API key hashing')).update(apiKey).digest('hex');
 
         const result = await query(
             'INSERT INTO tenants (name, api_key_hash, quota_limit) VALUES ($1, $2, $3) RETURNING id, name, quota_limit',
@@ -51,7 +51,7 @@ router.post('/tenants/:id/rotate-key', async (req: Request, res: Response) => {
     try {
         const organizationId = req.params.id;
         const newApiKey = `netjana_sk_${crypto.randomBytes(24).toString('hex')}`;
-        const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(newApiKey).digest('hex');
+        const apiKeyHash = crypto.createHmac('sha256', getHmacSecret('tenant API key rotation')).update(newApiKey).digest('hex');
 
         await query('UPDATE tenants SET api_key_hash = $1 WHERE id = $2', [apiKeyHash, organizationId]);
 

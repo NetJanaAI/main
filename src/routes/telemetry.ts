@@ -15,7 +15,10 @@ router.get('/tokens', async (req: any, res: Response) => {
 
     try {
         // 1. Get real-time stats from Redis (last 7 days)
-        const redisStats = await TokenTracker.getStats(orgId, days);
+        const redisStats = await TokenTracker.getStats(orgId, days).catch((error) => {
+            console.warn('[Telemetry] Redis token stats unavailable:', (error as Error).message);
+            return [];
+        });
 
         // 2. Get aggregate historical stats from Postgres
         const postgresStats = await db.query(`
@@ -63,13 +66,13 @@ router.get('/health', async (req: any, res: Response) => {
         // 1. Get Blocked IP Count (Last 24h)
         const blocks = await db.query(`
             SELECT COUNT(*) FROM audit_logs 
-            WHERE action = 'IP_BLOCKED' AND created_at >= NOW() - INTERVAL '24 hours'
+            WHERE action = 'IP_BLOCKED' AND timestamp >= NOW() - INTERVAL '24 hours'
         `);
 
         // 2. Get Audit Activity (Last 1h)
         const audits = await db.query(`
             SELECT COUNT(*) FROM audit_logs 
-            WHERE created_at >= NOW() - INTERVAL '1 hour'
+            WHERE timestamp >= NOW() - INTERVAL '1 hour'
         `);
 
         // 3. Canary Heartbeat (Check if scraping workers are alive)

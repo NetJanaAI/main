@@ -8,6 +8,10 @@ interface FreshnessBadgeProps {
 }
 
 const FreshnessBadge: React.FC<FreshnessBadgeProps> = ({ status, freshnessPercent, capturedAt, nextReview }) => {
+    const daysSinceCaptured = Math.max(
+        0,
+        Math.floor((new Date().getTime() - new Date(capturedAt).getTime()) / (1000 * 60 * 60 * 24))
+    );
     const getColor = () => {
         switch (status) {
             case 'Hot': return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
@@ -39,7 +43,7 @@ const FreshnessBadge: React.FC<FreshnessBadgeProps> = ({ status, freshnessPercen
             {/* Tooltip */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl scale-0 group-hover:scale-100 transition-transform origin-bottom z-50 pointer-events-none">
                 <div className="text-slate-400 text-[10px] normal-case tracking-normal space-y-1">
-                    <p>Signal captured <span className="text-white font-medium">{Math.floor((Date.now() - new Date(capturedAt).getTime()) / (1000*60*60*24))} days ago</span></p>
+                    <p>Signal captured <span className="text-white font-medium">{daysSinceCaptured} days ago</span></p>
                     <p>Current freshness: <span className="text-white font-medium">{freshnessPercent}%</span></p>
                     <p>Next tier transition: <span className="text-white font-medium">{new Date(nextReview).toLocaleDateString()}</span></p>
                 </div>

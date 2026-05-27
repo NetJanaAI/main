@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/appStore';
+import { api } from '../../lib/api';
 
 interface CovospanConfig {
   endpoint_url: string;
@@ -55,7 +56,7 @@ interface CovospanStats {
 }
 
 export default function ConvospanSync() {
-  const { market } = useAppStore();
+  const {} = useAppStore();
   
   // Config state
   const [config, setConfig] = useState<CovospanConfig | null>(null);
@@ -84,9 +85,9 @@ export default function ConvospanSync() {
   const fetchData = async () => {
     try {
       const [configRes, statsRes, logRes] = await Promise.all([
-        fetch('/api/covospan/config'),
-        fetch('/api/covospan/stats'),
-        fetch('/api/covospan/log?limit=15')
+        api.get('/api/covospan/config'),
+        api.get('/api/covospan/stats'),
+        api.get('/api/covospan/log?limit=15')
       ]);
       
       const configData = await configRes.json();
@@ -116,11 +117,7 @@ export default function ConvospanSync() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/covospan/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      const res = await api.post('/api/covospan/config', formData);
       if (res.ok) {
         setIsEditing(false);
         setFormData(prev => ({ ...prev, api_key: '', hmac_secret: '' })); // Clear sensitive fields
@@ -137,7 +134,7 @@ export default function ConvospanSync() {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch('/api/covospan/test', { method: 'POST' });
+      const res = await api.post('/api/covospan/test', {});
       const data = await res.json();
       setTestResult(data);
     } catch (e: any) {
@@ -149,7 +146,7 @@ export default function ConvospanSync() {
 
   const handleManualPush = async (leadId: string) => {
     try {
-      await fetch(`/api/covospan/push/${leadId}`, { method: 'POST' });
+      await api.post(`/api/covospan/push/${leadId}`, {});
       fetchData(); // Refresh logs
     } catch (e) {
       console.error('Manual push failed', e);

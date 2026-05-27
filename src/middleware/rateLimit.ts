@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 export const tenantRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: (req: any) => {
+        if (process.env.NODE_ENV !== 'production') return 5000;
         // Dynamic limits based on tier
         if (req.tenantTier === 'enterprise') return 1000;
         return 100; // Default 100 requests per 15 mins
@@ -35,7 +36,7 @@ export const tenantRateLimiter = rateLimit({
  */
 export const scrapeLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // Max 10 scrapes per hour for free/standard tier
+    max: process.env.NODE_ENV !== 'production' ? 100 : 10, // Max 10 scrapes per hour for free/standard tier
     keyGenerator: (req: any) => req.organizationId || req.ip || 'unknown',
     validate: false,
     message: {

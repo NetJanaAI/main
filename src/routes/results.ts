@@ -29,20 +29,6 @@ router.get('/', async (req: TenantRequest, res) => {
     }
 });
 
-// GET /api/results/:domain - get results by domain
-router.get('/:domain', async (req: TenantRequest, res) => {
-    try {
-        const orgId = req.organizationId;
-        const result = await query(
-            'SELECT * FROM scrape_results WHERE domain = $1 AND (organization_id = $2 OR organization_id IS NULL) ORDER BY timestamp DESC',
-            [req.params.domain, orgId || null]
-        );
-        res.json(result ? result.rows : []);
-    } catch (e: any) {
-        res.status(500).json({ error: 'Database query failed', details: e.message });
-    }
-});
-
 // GET /api/results/report/:jobId - Generate PDF report
 router.get('/report/:jobId', async (req: TenantRequest, res) => {
     try {
@@ -127,6 +113,21 @@ router.get('/capsule/:jobId', async (req: TenantRequest, res) => {
         if (!res.headersSent) {
             res.status(500).json({ error: 'Capsule Generation failed', details: e.message });
         }
+    }
+});
+
+// GET /api/results/:domain - get results by domain
+// Keep this last so it does not swallow /report/:jobId or /capsule/:jobId.
+router.get('/:domain', async (req: TenantRequest, res) => {
+    try {
+        const orgId = req.organizationId;
+        const result = await query(
+            'SELECT * FROM scrape_results WHERE domain = $1 AND (organization_id = $2 OR organization_id IS NULL) ORDER BY timestamp DESC',
+            [req.params.domain, orgId || null]
+        );
+        res.json(result ? result.rows : []);
+    } catch (e: any) {
+        res.status(500).json({ error: 'Database query failed', details: e.message });
     }
 });
 

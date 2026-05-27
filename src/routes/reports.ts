@@ -12,7 +12,7 @@ router.get('/export', async (req: any, res) => {
 
     try {
         const results = await query(
-            'SELECT company_name, sector, intent_score, decay_status, card_why_now FROM lead_cards WHERE organization_id = $1 LIMIT 100',
+            'SELECT company_name, sector, intent_score, decay_status, card_why_now FROM lead_cards WHERE org_id = $1 LIMIT 100',
             [orgId]
         );
 
@@ -22,7 +22,7 @@ router.get('/export', async (req: any, res) => {
             
             let csv = 'Company,Sector,Intent Score,Status,Context\n';
             results.rows.forEach(r => {
-                csv += `"${r.company_name}","${r.sector}",${r.intent_score},"${r.decay_status}","${r.card_why_now.replace(/"/g, '""')}"\n`;
+                csv += `"${r.company_name}","${r.sector || ''}",${r.intent_score},"${r.decay_status}","${(r.card_why_now || '').replace(/"/g, '""')}"\n`;
             });
             return res.send(csv);
         }
@@ -41,8 +41,8 @@ router.get('/export', async (req: any, res) => {
 
         results.rows.forEach((r, i) => {
             doc.fontSize(12).font('Helvetica-Bold').text(`${i+1}. ${r.company_name} [${r.intent_score} AQ]`);
-            doc.fontSize(10).font('Helvetica').text(`Sector: ${r.sector} | Status: ${r.decay_status}`);
-            doc.fontSize(10).fillColor('#444').text(`Analysis: ${r.card_why_now}`);
+            doc.fontSize(10).font('Helvetica').text(`Sector: ${r.sector || 'Unknown'} | Status: ${r.decay_status}`);
+            doc.fontSize(10).fillColor('#444').text(`Analysis: ${r.card_why_now || 'No narrative available.'}`);
             doc.moveDown();
         });
 

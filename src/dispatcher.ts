@@ -4,15 +4,19 @@ import { SovereignFirewall } from './lib/ai/SovereignFirewall'; // Air-gapped lo
 import { ScrapeResultSchema, type ScrapeResult } from './lib/schemas';
 import { query } from './lib/database';
 import { generateCapsule, signCapsule } from './lib/dataCapsule';
+import { getHmacSecret } from './lib/secrets';
 
 const firewall = new SovereignFirewall(process.env.REGION_ID || 'UAE_DUBAI_01');
 import { IS_COVOSPAN } from './config/mode';
 
 const HMAC_SECRET = process.env.HMAC_SECRET;
-const BRAIN_WEBHOOK_URL = process.env.BRAIN_WEBHOOK_URL || 'http://localhost:4000/api/webhooks/scraper-ingest';
+const BRAIN_WEBHOOK_URL = process.env.BRAIN_WEBHOOK_URL;
 const REGION_ID = process.env.REGION_ID || 'UAE_DUBAI_01';
 const CONVOSPAN_EDGE_WEBHOOK_URL = process.env.CONVOSPAN_EDGE_WEBHOOK_URL;
 
+if (!HMAC_SECRET && process.env.NODE_ENV === 'production') {
+    throw new Error('[Dispatcher] FATAL: HMAC_SECRET must be set in production.');
+}
 if (!HMAC_SECRET) {
     console.warn('[Dispatcher] WARNING: HMAC_SECRET is not defined. Secure dispatch will fail in production.');
 }
@@ -36,18 +40,23 @@ export async function sendResults(data: any, organizationId?: string): Promise<v
 
         // 2. Identity Handshake (HMAC Signature)
         const fullPayload = { event: 'scrape_complete', payload: maskedData };
-        const secret = HMAC_SECRET || 'dev-safety-fallback-do-not-use-in-prod';
+        const secret = getHmacSecret('dispatcher result signing');
         const signature = crypto.createHmac('sha256', secret)
             .update(JSON.stringify(fullPayload))
             .digest('hex');
 
-        // 3. Secure Dispatch
-        await axios.post(BRAIN_WEBHOOK_URL, fullPayload, {
-            headers: {
-                'X-Region-ID': REGION_ID,
-                'X-Compliance-Signature': signature
-            }
-        });
+        // 3. Optional Brain Dispatch
+        if (BRAIN_WEBHOOK_URL) {
+            await axios.post(BRAIN_WEBHOOK_URL, fullPayload, {
+                headers: {
+                    'X-Region-ID': REGION_ID,
+                    'X-Compliance-Signature': signature
+                },
+                timeout: 10_000
+            });
+        } else {
+            console.info('[Dispatcher] BRAIN_WEBHOOK_URL not configured; storing locally and skipping external brain dispatch.');
+        }
 
         // 4. Persistence to Vault
         try {
@@ -100,7 +109,8 @@ export async function sendResults(data: any, organizationId?: string): Promise<v
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Convospan-Signature': capsule.signature
-                    }
+                    },
+                    timeout: 10_000
                 });
                 console.log(`[Dispatcher] Successfully pushed Data Capsule to Convospan Edge.`);
                 // Update capsule log status
@@ -110,7 +120,7 @@ export async function sendResults(data: any, organizationId?: string): Promise<v
                 // Upsert campaign as CAPSULE_SENT
                 await query(`
                     INSERT INTO campaigns (domain, state, capsule_id, organization_id) VALUES ($1, 'CAPSULE_SENT', $2, $3)
-                    ON CONFLICT (domain) DO UPDATE SET state = 'CAPSULE_SENT', capsule_id = $2, organization_id = $3, updated_at = NOW()
+                    ON CONFLICT (organization_id, domain) DO UPDATE SET state = 'CAPSULE_SENT', capsule_id = $2, updated_at = NOW()
                 `, [data.domain, capsuleLogId || null, organizationId || null]);
             } catch (edgeError: any) {
                 console.warn(`[Dispatcher] Failed to push to Convospan Edge:`, edgeError.message);
@@ -123,7 +133,7 @@ export async function sendResults(data: any, organizationId?: string): Promise<v
             try {
                 await query(`
                     INSERT INTO campaigns (domain, state, organization_id) VALUES ($1, 'DISCOVERED', $2)
-                    ON CONFLICT (domain) DO NOTHING
+                    ON CONFLICT (organization_id, domain) DO NOTHING
                 `, [data.domain, organizationId || null]);
                 if (capsuleLogId) {
                     await query(`UPDATE capsule_log SET status = 'ready' WHERE id = $1`, [capsuleLogId]);
@@ -141,10 +151,15 @@ export async function sendResults(data: any, organizationId?: string): Promise<v
 export async function reportViolation(data: ViolationReport): Promise<void> {
     // Basic dispatcher for violations (implementation aligned with secure sendResults logic)
     try {
-        const secret = HMAC_SECRET || 'dev-safety-fallback-do-not-use-in-prod';
+        const secret = getHmacSecret('dispatcher violation signing');
         const signature = crypto.createHmac('sha256', secret)
             .update(JSON.stringify({ event: 'compliance_violation', payload: data }))
             .digest('hex');
+
+        if (!BRAIN_WEBHOOK_URL) {
+            console.info('[Dispatcher] BRAIN_WEBHOOK_URL not configured; compliance violation dispatch skipped.');
+            return;
+        }
 
         await axios.post(BRAIN_WEBHOOK_URL, {
             event: 'compliance_violation',
@@ -153,7 +168,8 @@ export async function reportViolation(data: ViolationReport): Promise<void> {
             headers: {
                 'X-Region-ID': REGION_ID,
                 'X-Compliance-Signature': signature
-            }
+            },
+            timeout: 10_000
         });
     } catch (e) {
         console.error('[Dispatcher] Failed to report violation.');

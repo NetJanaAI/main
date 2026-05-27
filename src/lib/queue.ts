@@ -24,7 +24,9 @@ export const connection: ConnectionOptions = {
 
 // BullMQ Will Fail in Any Cloud Redis FIX: Add TLS if protocol is rediss://
 if (REDIS_URL && REDIS_URL.startsWith('rediss://')) {
-    connection.tls = { rejectUnauthorized: false };
+    connection.tls = {
+        rejectUnauthorized: process.env.REDIS_TLS_SKIP_VERIFY !== 'true' // false only in dev
+    };
 }
 
 export const SCRAPE_QUEUE_NAME = 'b2b-scrapes';

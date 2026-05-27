@@ -48,7 +48,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ domain, onClose }) => {
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="glass-panel p-8 w-full max-w-md space-y-5 border border-primary/20">
-                <h3 className="text-white font-black text-lg">Schedule Re-scrape</h3>
+                <h3 className="text-white font-black text-lg">Schedule Re-ingest</h3>
                 <p className="text-white/50 text-sm">Domain: <span className="text-primary font-mono">{domain}</span></p>
                 <div className="space-y-3">
                     {CRON_PRESETS.map(p => (
@@ -161,7 +161,7 @@ export const CampaignFeed: React.FC = () => {
                                 <button
                                     onClick={() => setScheduleDomain(cap.domain)}
                                     className="p-3 glass-panel border-white/5 hover:border-primary/40 text-white/20 hover:text-primary transition-all rounded-xl"
-                                    title="Schedule Re-scrape"
+                                    title="Schedule Re-ingest"
                                 >
                                     <Calendar className="w-4 h-4" />
                                 </button>

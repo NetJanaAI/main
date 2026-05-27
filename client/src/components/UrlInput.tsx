@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 
 interface UrlInputProps {
-    onScrape: (url: string, useOnlineAI: boolean, spiderMode: boolean, maxPages: number) => void;
+    onIngest: (url: string, useOnlineAI: boolean, spiderMode: boolean, maxPages: number) => void;
     isLoading: boolean;
 }
 
-export const UrlInput: React.FC<UrlInputProps> = ({ onScrape, isLoading }) => {
+export const UrlInput: React.FC<UrlInputProps> = ({ onIngest, isLoading }) => {
     const [url, setUrl] = useState('');
     const [useOnlineAI, setUseOnlineAI] = useState(false);
     const [spiderMode, setSpiderMode] = useState(false);
@@ -15,7 +15,7 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onScrape, isLoading }) => {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (url && !isLoading) {
-            onScrape(url, useOnlineAI, spiderMode, maxPages);
+            onIngest(url, useOnlineAI, spiderMode, maxPages);
         }
     };
 
@@ -38,7 +38,7 @@ export const UrlInput: React.FC<UrlInputProps> = ({ onScrape, isLoading }) => {
                     disabled={isLoading}
                     className="btn-premium disabled:opacity-50 disabled:scale-100 flex items-center gap-3"
                 >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Execute Scrape'}
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Fetch Signals'}
                 </button>
             </div>
 

@@ -17,7 +17,7 @@ const FAQ_DATA = [
   },
   {
     k: "What is 'Vanish' status?",
-    v: "The Vanish protocol ensures complete data purgation. When a tenant is purged, all leads, PII-scrubbed vectors, and cached scraping results are annihilated from secondary and tertiary cold storage as per GDPR/DPDP."
+    v: "The Vanish protocol ensures complete data purgation. When a tenant is purged, all leads, PII-scrubbed vectors, and cached registry signals are annihilated from secondary and tertiary cold storage as per GDPR/DPDP."
   }
 ];
 
@@ -73,14 +73,14 @@ export default function Help() {
              <BookOpen className="w-8 h-8 text-[#D4AF37] mb-6" />
              <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">Developer API</h3>
              <p className="text-xs text-white/40 leading-loose mb-6">Integrate your CRM directly with our intelligence layer via our authenticated REST endpoints and HMAC webhook signatures.</p>
-             <button className="text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37] border-b border-[#D4AF37]/30 pb-0.5 hover:border-[#D4AF37] transition-all">Explore API Docs</button>
+             <Link to="/app/api" className="text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37] border-b border-[#D4AF37]/30 pb-0.5 hover:border-[#D4AF37] transition-all">Explore API Docs</Link>
            </div>
            
            <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">
              <Mail className="w-8 h-8 text-white/30 mb-6" />
              <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">Tier Support</h3>
              <p className="text-xs text-white/40 leading-loose mb-6">Enterprise and Alpha subscribers receive dedicated support via specialized private Slack channels and high-priority ticketing.</p>
-             <button className="text-[10px] font-black uppercase tracking-[3px] text-white/40 border-b border-white/10 pb-0.5 hover:text-white transition-all">Submit Protocol Failure</button>
+             <a href="mailto:support@convospan.com?subject=Protocol%20Failure" className="text-[10px] font-black uppercase tracking-[3px] text-white/40 border-b border-white/10 pb-0.5 hover:text-white transition-all">Submit Protocol Failure</a>
            </div>
         </div>
       </div>

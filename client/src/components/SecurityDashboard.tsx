@@ -2,16 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { 
     Shield, 
-    Key, 
-    Lock, 
-    ShieldCheck, 
     History, 
     Globe, 
     Plus, 
     Trash2, 
     RefreshCcw,
-    AlertTriangle,
-    CheckCircle2
+    AlertTriangle
 } from 'lucide-react';
 
 interface AllowedIp {

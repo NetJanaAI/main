@@ -1,13 +1,15 @@
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "../lib/auth";
 import { Link } from "react-router-dom";
-import { 
-  Cpu, 
-  Zap, 
+import {
+  Cpu,
+  Zap,
   Activity,
   Terminal
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
+import { api } from "../lib/api";
 
 // DEMO_MODE: These signals are simulated for the unauthenticated landing view.
 // In a provisioned environment, this feed is replaced by a live intercept stream.
@@ -25,10 +27,23 @@ interface Stats {
   alpha_sum: number;
 }
 
-export default function Landing() {
+type LandingLead = {
+  id?: number | string;
+  lead_id?: number | string;
+  org?: string;
+  company_name?: string;
+  intent?: string;
+  procurement_category?: string;
+  score?: number;
+  intent_score?: number;
+  status?: string;
+};
+
+export function TerminalExperience() {
+  const { t } = useTranslation();
   const [signalIdx, setSignalIdx] = useState(0);
   const [stats, setStats] = useState<Stats>({ total: 2041, hot: 412, today: 121, alpha_sum: 140000 });
-  const [liveLeads, setLiveLeads] = useState<any[]>([]);
+  const [liveLeads, setLiveLeads] = useState<LandingLead[]>([]);
 
   useEffect(() => {
     // 1. Cycle active signal index
@@ -39,12 +54,12 @@ export default function Landing() {
     // 2. Fetch real stats for the telemetry sidebar
     const fetchStats = async () => {
       try {
-        const res = await fetch('/api/leads/stats');
+        const res = await api.get('/api/leads/stats');
         if (res.ok) {
           const data = await res.json();
           setStats(data);
         }
-      } catch (e) {
+      } catch {
         console.warn('[Landing] Stats fetch failed, staying in simulated mode.');
       }
     };
@@ -54,7 +69,7 @@ export default function Landing() {
     // 3. Fetch real leads for the matrix
     const fetchLeads = async () => {
       try {
-        const res = await fetch('/api/leads/match?limit=5');
+        const res = await api.get('/api/leads/match?limit=5');
         if (res.ok) {
           const data = await res.json();
           if (data.matches && data.matches.length > 0) {
@@ -63,7 +78,7 @@ export default function Landing() {
             setLiveLeads(DEMO_SIGNALS); // Fallback to demo if DB is clean
           }
         }
-      } catch (e) {
+      } catch {
         setLiveLeads(DEMO_SIGNALS);
       }
     };
@@ -83,7 +98,7 @@ export default function Landing() {
         <div className="absolute inset-0 bg-[#020813]" />
         <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:40px_40px]" />
       </div>
-      
+
       {/* Premium Navigation */}
       <nav className="relative z-50 flex items-center justify-between px-8 py-4 border-b border-[#00ffca]/20 backdrop-blur-xl bg-black/50 bg-scanlines">
         <div className="flex items-center gap-3 group px-4 py-2 hover:bg-[#00ffca]/10 rounded-sm transition-all duration-300 cursor-pointer border border-transparent hover:border-[#00ffca]/30">
@@ -92,29 +107,35 @@ export default function Landing() {
             <div className="absolute inset-0 bg-[#00ffca] blur-md opacity-20 group-hover:opacity-60 transition-opacity" />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-data font-black uppercase tracking-[0.1em] text-white leading-none glitch-hover">CONVOSPAN [SYS]</span>
-            <span className="text-[10px] font-data font-black uppercase tracking-[0.2em] text-[#00ffca] mt-0.5 opacity-90">GLOBAL_INTEL_NET</span>
+            <span className="text-lg font-data font-black uppercase tracking-[0.1em] text-white leading-none glitch-hover">{t("convospan_sys")}</span>
+            <span className="text-[10px] font-data font-black uppercase tracking-[0.2em] text-[#00ffca] mt-0.5 opacity-90">{t("global_intel_net")}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-10">
           <div className="hidden md:flex items-center gap-8 font-data">
-            {["Protocol", "Nodes", "Security", "Beta", "Metrics"].map((item) => (
-              <a key={item} href="#" className="text-[11px] font-bold uppercase tracking-[0.1em] text-white/50 hover:text-[#00ffca] transition-all hover:bg-[#00ffca]/10 px-2 py-1 rounded-sm border border-transparent hover:border-[#00ffca]/30 glitch-hover">{'['}{item}{']'}</a>
+            {[
+              ["Protocol", "#protocol"],
+              ["Nodes", "#nodes"],
+              ["Security", "#security"],
+              ["Beta", "/setup"],
+              ["Metrics", "#metrics"],
+            ].map(([item, href]) => (
+              <a key={item} href={href} className="text-[11px] font-bold uppercase tracking-[0.1em] text-white/50 hover:text-[#00ffca] transition-all hover:bg-[#00ffca]/10 px-2 py-1 rounded-sm border border-transparent hover:border-[#00ffca]/30 glitch-hover">{'['}{item}{']'}</a>
             ))}
           </div>
           <div className="h-4 w-px bg-white/10 hidden md:block" />
           <div className="flex items-center gap-6 font-data">
             <SignedOut>
               <SignInButton mode="modal">
-                <button className="text-[11px] font-black uppercase tracking-[0.1em] text-white/60 hover:text-[#00ffca] transition-colors glitch-hover">Auth_Node</button>
+                <button className="text-[11px] font-black uppercase tracking-[0.1em] text-white/60 hover:text-[#00ffca] transition-colors glitch-hover">{t("auth_node")}</button>
               </SignInButton>
               <Link to="/app/dashboard" className="px-6 py-2 bg-[#00ffca]/10 border border-[#00ffca]/50 text-[#00ffca] text-[11px] font-black uppercase tracking-[0.2em] rounded-sm shadow-[0_0_10px_rgba(0,255,202,0.2)] hover:bg-[#00ffca] hover:text-black transition-all">
-                Initialize_SYS
+                {t("initialize_sys")}
               </Link>
             </SignedOut>
             <SignedIn>
-              <Link to="/app/dashboard" className="text-[11px] font-black uppercase tracking-[0.1em] text-[#00ffca] hover:bg-[#00ffca]/20 px-3 py-1 rounded-sm border border-[#00ffca]/50 transition-colors">Launch_Terminal</Link>
+              <Link to="/app/dashboard" className="text-[11px] font-black uppercase tracking-[0.1em] text-[#00ffca] hover:bg-[#00ffca]/20 px-3 py-1 rounded-sm border border-[#00ffca]/50 transition-colors">{t("launch_terminal")}</Link>
               <div className="p-0.5 rounded-sm border border-[#00ffca]/20">
                 <UserButton afterSignOutUrl="/" />
               </div>
@@ -124,20 +145,21 @@ export default function Landing() {
       </nav>
 
       {/* High-Density Terminal Core */}
-      <main className="relative z-10 max-w-[1600px] w-full mx-auto px-4 pt-12 pb-24 grid lg:grid-cols-4 gap-4 items-start">
-        
+      <main id="nodes" className="relative z-10 max-w-[1600px] w-full mx-auto px-4 pt-12 pb-24 grid lg:grid-cols-4 gap-4 items-start">
+
         {/* Sidebar Telemetry */}
-        <motion.div 
+        <motion.div
+          id="metrics"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="col-span-1 border border-white/10 bg-black/40 rounded-sm p-4 space-y-6 bg-scanlines"
         >
           <div className="flex items-center justify-between border-b border-white/10 pb-2">
-            <span className="text-[10px] font-data font-bold text-white/60">SYSTEM_TELEMETRY</span>
+            <span className="text-[10px] font-data font-bold text-white/60">{t("system_telemetry")}</span>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[#00ffca] animate-pulse shadow-[0_0_8px_rgba(0,255,202,0.8)]" />
-              <span className="text-[10px] font-data text-[#00ffca]">SYNC_ACTIVE</span>
+              <span className="text-[10px] font-data text-[#00ffca]">{t("sync_active")}</span>
             </div>
           </div>
 
@@ -156,9 +178,9 @@ export default function Landing() {
           </div>
 
           <div className="pt-6 border-t border-white/10">
-            <button className="w-full py-2 bg-[#00ffca]/10 border border-[#00ffca]/30 text-[#00ffca] font-data text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#00ffca] hover:text-black transition-all">
+            <Link to="/setup" className="block text-center w-full py-2 bg-[#00ffca]/10 border border-[#00ffca]/30 text-[#00ffca] font-data text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#00ffca] hover:text-black transition-all">
               &gt; OVERRIDE_CONFIG
-            </button>
+            </Link>
           </div>
         </motion.div>
 
@@ -170,7 +192,7 @@ export default function Landing() {
           className="col-span-3 relative group"
         >
           <div className="absolute -inset-1 bg-[#00ffca]/10 blur-xl opacity-20 pointer-events-none" />
-          
+
           <div className="relative bg-[#02040A] border border-[#00ffca]/30 rounded-sm overflow-hidden flex flex-col h-[600px]">
             {/* Terminal Matrix Header */}
             <div className="px-4 py-3 border-b border-[#00ffca]/30 bg-[#00ffca]/5 flex items-center justify-between">
@@ -185,11 +207,11 @@ export default function Landing() {
 
             {/* Data Table Header */}
             <div className="grid grid-cols-12 gap-4 px-6 py-2 bg-white/5 border-b border-white/10 text-[10px] font-data font-bold uppercase text-white/50 tracking-wider">
-              <div className="col-span-1">SYS_ID</div>
-              <div className="col-span-4">TARGET_ORGANIZATION</div>
-              <div className="col-span-4">DETECTED_INTENT_VECTOR</div>
-              <div className="col-span-2 text-right">CONFiDENCE_SCORE</div>
-              <div className="col-span-1 text-right">STAT</div>
+              <div className="col-span-1">{t("sys_id")}</div>
+              <div className="col-span-4">{t("target_organization")}</div>
+              <div className="col-span-4">{t("detected_intent_vector")}</div>
+              <div className="col-span-2 text-right">{t("confidence_score")}</div>
+              <div className="col-span-1 text-right">{t("stat")}</div>
             </div>
 
             {/* Signal Feed Array */}
@@ -206,39 +228,43 @@ export default function Landing() {
               `}</style>
 
               <AnimatePresence mode="popLayout">
-                {liveLeads.map((sig, i) => (
-                  <motion.div
-                    key={`${sig.lead_id || sig.id}-${signalIdx}`}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    className={`grid grid-cols-12 gap-4 px-4 py-3 items-center border-l-2 ${
-                      i === 0 ? "border-[#00ffca] bg-[#00ffca]/5" : "border-white/10 bg-transparent opacity-80"
-                    } hover:bg-white/5 transition-colors font-data cursor-crosshair`}
-                  >
-                    <div className="col-span-1 text-[10px] text-white/30">#{ (sig.lead_id || sig.id).toString().substring(0,4) }</div>
-                    <div className={`col-span-4 text-xs font-bold ${i === 0 ? "text-[#00ffca]" : "text-gray-200"} truncate uppercase`}>
-                      {sig.company_name || sig.org}
-                    </div>
-                    <div className="col-span-4 text-[10px] text-white/60 truncate">
-                      {sig.procurement_category || sig.intent}
-                    </div>
-                    <div className="col-span-2 text-right">
-                      <div className={`text-sm font-bold ${ (sig.intent_score || sig.score) > 90 ? 'text-[#00ffca]' : 'text-yellow-400'}`}>
-                        {sig.intent_score || sig.score}.00
+                {liveLeads.map((sig, i) => {
+                  const signalId = sig.lead_id || sig.id || `sig-${i}`;
+                  const score = sig.intent_score ?? sig.score ?? 0;
+                  return (
+                    <motion.div
+                      key={`${signalId}-${signalIdx}`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      className={`grid grid-cols-12 gap-4 px-4 py-3 items-center border-l-2 ${
+                        i === 0 ? "border-[#00ffca] bg-[#00ffca]/5" : "border-white/10 bg-transparent opacity-80"
+                      } hover:bg-white/5 transition-colors font-data cursor-crosshair`}
+                    >
+                      <div className="col-span-1 text-[10px] text-white/30">#{signalId.toString().substring(0,4)}</div>
+                      <div className={`col-span-4 text-xs font-bold ${i === 0 ? "text-[#00ffca]" : "text-gray-200"} truncate uppercase`}>
+                        {sig.company_name || sig.org}
                       </div>
-                    </div>
-                    <div className="col-span-1 text-right">
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-sm border ${
-                        (sig.intent_score || sig.score) >= 80 ? 'border-[#ff3366] text-[#ff3366] bg-[#ff3366]/10' : 
-                        (sig.intent_score || sig.score) >= 60 ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' :
-                        'border-white/20 text-white/40'
-                      }`}>
-                        {(sig.intent_score || sig.score) >= 80 ? 'HOT' : (sig.intent_score || sig.score) >= 60 ? 'WARM' : 'COLD'}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
+                      <div className="col-span-4 text-[10px] text-white/60 truncate">
+                        {sig.procurement_category || sig.intent}
+                      </div>
+                      <div className="col-span-2 text-right">
+                        <div className={`text-sm font-bold ${score > 90 ? 'text-[#00ffca]' : 'text-yellow-400'}`}>
+                          {score}.00
+                        </div>
+                      </div>
+                      <div className="col-span-1 text-right">
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-sm border ${
+                          score >= 80 ? 'border-[#ff3366] text-[#ff3366] bg-[#ff3366]/10' :
+                          score >= 60 ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' :
+                          'border-white/20 text-white/40'
+                        }`}>
+                          {score >= 80 ? 'HOT' : score >= 60 ? 'WARM' : 'COLD'}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
 
@@ -249,18 +275,18 @@ export default function Landing() {
                   <div className="w-2 h-2 rounded-none bg-[#00ffca] animate-pulse" />
                   <span className="text-[10px] text-[#00ffca]">[ ONLINE ]</span>
                 </div>
-                <div className="text-[10px] text-white/40">NODE: DXB_CORE_04</div>
+                <div className="text-[10px] text-white/40">{t("node_dxb_core_04")}</div>
               </div>
-              <button className="text-[10px] text-white/60 hover:text-[#00ffca] border border-transparent hover:border-[#00ffca]/30 px-2 py-0.5 glitch-hover transition-colors">
+              <Link to="/app/dashboard" className="text-[10px] text-white/60 hover:text-[#00ffca] border border-transparent hover:border-[#00ffca]/30 px-2 py-0.5 glitch-hover transition-colors">
                 [X] FORCEPULL_DATA
-              </button>
+              </Link>
             </div>
           </div>
         </motion.div>
       </main>
 
       {/* System Features Matrix */}
-      <section className="relative z-10 px-4 py-16 grid md:grid-cols-3 gap-4 border-t border-white/10 bg-black/40 font-data">
+      <section id="protocol" className="relative z-10 px-4 py-16 grid md:grid-cols-3 gap-4 border-t border-white/10 bg-black/40 font-data">
         {[
           { icon: Zap, label: "LATENCY_ZERO", desc: "Interceptors scan GeM/MCA clusters in < 200ms." },
           { icon: Cpu, label: "ADVERSARIAL_AUDIT", desc: "Multi-agent consensus scoring before terminal display." },
@@ -281,7 +307,7 @@ export default function Landing() {
       </section>
 
       {/* Global Trust Footer */}
-      <footer className="relative z-10 py-20 px-8 border-t border-white/5 flex flex-col items-center gap-8">
+      <footer id="security" className="relative z-10 py-20 px-8 border-t border-white/5 flex flex-col items-center gap-8">
         <div className="flex gap-12 opacity-30 grayscale contrast-125">
           {["IndiaMART", "mca.gov.in", "gem.gov.in", "zauba_trade"].map(p => (
             <span key={p} className="text-[10px] font-black uppercase tracking-[4px] text-white underline underline-offset-8 decoration-white/20">{p}</span>
@@ -289,9 +315,9 @@ export default function Landing() {
         </div>
         <div className="flex flex-col items-center gap-4 text-[9px] font-black uppercase tracking-[3px] text-white/20">
           <div className="flex gap-8">
-            <a href="#" className="hover:text-white transition-colors">Protocol_Doc</a>
-            <a href="#" className="hover:text-white transition-colors">Privacy_Guard</a>
-            <a href="#" className="hover:text-white transition-colors">Compliance</a>
+            <Link to="/help" className="hover:text-white transition-colors">{t("protocol_doc")}</Link>
+            <Link to="/help" className="hover:text-white transition-colors">{t("privacy_guard")}</Link>
+            <Link to="/help" className="hover:text-white transition-colors">{t("compliance")}</Link>
           </div>
           <p>© 2026 CONVOSPAN INTEL — ALL RIGHTS RESERVED SECTOR_01</p>
         </div>
@@ -299,4 +325,89 @@ export default function Landing() {
     </div>
   );
 }
- bitumen: 121
+
+const ONBOARDING_COMPLETE_KEY = "netjana_onboarding_complete";
+
+export default function Landing() {
+  const isSetupComplete = localStorage.getItem(ONBOARDING_COMPLETE_KEY) === "true";
+
+  if (isSetupComplete) {
+    return <TerminalExperience />;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#020813] text-white overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center opacity-35"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=2400&q=80')",
+        }}
+      />
+      <div className="absolute inset-0 bg-[#020813]/55" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:64px_64px] opacity-30" />
+
+      <nav className="relative z-10 flex items-center justify-between px-6 md:px-10 py-6">
+        <Link to="/" className="flex items-center gap-3">
+          <Terminal className="w-7 h-7 text-[#00ffca]" />
+          <div>
+            <div className="text-sm font-black uppercase tracking-[0.25em] text-white">ConvoSpan Intel</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-[#00ffca]">Buyer Signal OS</div>
+          </div>
+        </Link>
+        <Link
+          to="/login"
+          className="px-5 py-2 border border-[#00ffca]/40 bg-[#00ffca]/10 text-[#00ffca] text-[10px] font-black uppercase tracking-[0.25em] hover:bg-[#00ffca] hover:text-black transition-all"
+        >
+          Login
+        </Link>
+      </nav>
+
+      <main className="relative z-10 min-h-[calc(100vh-96px)] flex items-center px-6 md:px-10 pb-16">
+        <section className="max-w-5xl">
+          <div className="inline-flex items-center gap-2 border border-[#00ffca]/30 bg-black/30 px-3 py-1 mb-8">
+            <div className="w-1.5 h-1.5 bg-[#00ffca] animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#00ffca]">
+              Procurement intent before the market sees it
+            </span>
+          </div>
+
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tight leading-[0.9] max-w-5xl">
+            Build your private buyer-intent radar.
+          </h1>
+          <p className="mt-8 max-w-2xl text-base md:text-lg text-white/65 leading-relaxed">
+            Configure your industry, watch keywords, and source mix once. ConvoSpan then turns registry activity into a live terminal of qualified B2B demand signals.
+          </p>
+
+          <div className="mt-10 flex flex-col sm:flex-row gap-4">
+            <Link
+              to="/login"
+              className="inline-flex items-center justify-center px-8 py-4 bg-[#00ffca] text-black text-xs font-black uppercase tracking-[0.25em] hover:bg-white transition-colors"
+            >
+              Start Setup
+            </Link>
+            <Link
+              to="/help"
+              className="inline-flex items-center justify-center px-8 py-4 border border-white/15 bg-white/5 text-white text-xs font-black uppercase tracking-[0.25em] hover:border-white/40 transition-colors"
+            >
+              View Protocol
+            </Link>
+          </div>
+
+          <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">
+            {[
+              ["Sources", "GeM, MCA, IndiaMART, Zauba"],
+              ["Setup", "Industry, regions, keywords"],
+              ["Output", "Live lead terminal"],
+            ].map(([label, value]) => (
+              <div key={label} className="border border-white/10 bg-black/35 px-4 py-3">
+                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-white/35">{label}</div>
+                <div className="mt-1 text-xs font-bold text-white/80">{value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}

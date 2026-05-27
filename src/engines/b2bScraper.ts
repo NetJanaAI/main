@@ -34,7 +34,7 @@ export async function scrapeB2BSignals(
     const startTime = Date.now();
     const proxy = ProxyManager.getProxyForRegion(targetUrl);
     const region = proxy?.region || 'GLOBAL';
-    
+
     scrapeCount.inc({ status: 'initiated', region });
 
     // 1. Compliance & Network Guard
@@ -44,7 +44,7 @@ export async function scrapeB2BSignals(
     if (!isSafe || !validation.isValid) {
         complianceVetoCount.inc();
         scrapeCount.inc({ status: 'vetoed', region });
-        
+
         await AuditTrail.log({
             actorId: 'system:sentinel',
             organizationId: organizationId || 'default',
@@ -52,7 +52,7 @@ export async function scrapeB2BSignals(
             resource: targetUrl,
             metadata: { reason: validation.error || 'Legal Risk' }
         });
-        
+
         throw new Error(`Security/Compliance Veto: ${validation.error || 'Legal Risk'}`);
     }
 
@@ -87,7 +87,7 @@ export async function scrapeB2BSignals(
 
             const actualJobId = jobId || `job_${Date.now()}`;
             let urlsToScrape = spiderMode ? await discoverUrls(targetUrl, maxPages, intent) : [targetUrl];
-            
+
             if (hunterMode && !spiderMode) {
                  // Initial hunters scan of just the homepage to decide if we deeper-dive
                  urlsToScrape = [targetUrl];
@@ -112,7 +112,7 @@ export async function scrapeB2BSignals(
 
                 for (const url of urlsToScrape) {
                     if (onProgress && spiderMode) onProgress(`Scraping page: ${url}...`, 'info');
-                    
+
                     const page = await context.newPage();
                     const isFirstPage = url === targetUrl && !screenshotPath;
 
@@ -132,7 +132,7 @@ export async function scrapeB2BSignals(
                     // 1.5 Intent-Based Metadata Check (Phase 7)
                     const title = await page.title();
                     const metaDesc = await page.evaluate(() => document.querySelector('meta[name="description"]')?.getAttribute('content') || '');
-                    
+
                     if (intent && url !== targetUrl) {
                         const score = (title.toLowerCase().includes(intent.toLowerCase()) || metaDesc.toLowerCase().includes(intent.toLowerCase())) ? 1 : 0;
                         if (score === 0 && !spiderMode) { // If explicitly intent-filtering but no match in meta
@@ -187,9 +187,9 @@ export async function scrapeB2BSignals(
                         try {
                             const filename = `${new URL(targetUrl).hostname.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.png`;
                             const fullPath = require('path').join(process.cwd(), 'data', 'screenshots', filename);
-                            
+
                             require('fs').mkdirSync(require('path').join(process.cwd(), 'data', 'screenshots'), { recursive: true });
-                            
+
                             await page.screenshot({ path: fullPath, fullPage: false });
                             screenshotPath = `/screenshots/${filename}`;
                             if (onProgress) onProgress(`Captured visual signal screenshot.`, 'success');
@@ -199,7 +199,7 @@ export async function scrapeB2BSignals(
                     }
 
                     allText += `\n--- Content from ${url} ---\n` + (bodyContent || '');
-                    
+
                     // Index for RAG (Phase 7/9) - Securely isolated & Region-aware
                     if (bodyContent) {
                         const store = new TenantRAGStore(organizationId || 'default');
@@ -212,55 +212,68 @@ export async function scrapeB2BSignals(
                 // 3. Adversarial Analysis
                 const critic = new AdversarialCritic();
                 if (onProgress) onProgress('Adversarial Critic Engaged with RAG & TOON. Initiating Multi-Agent Reflection...', 'info');
-                
+
                 // Keep input within sane context bounds
                 if (allText.length > 50000) allText = allText.substring(0, 50000);
-                
+
+                const contentWithoutHeaders = allText.replace(/--- Content from .* ---/g, '').trim();
+                if (contentWithoutHeaders.length < 100) {
+                    throw new Error(
+                        `[Scraper] Insufficient content (${contentWithoutHeaders.length} chars). ` +
+                        `Page may be bot-protected, blank, or JS-rendered. Aborting — no lead emitted.`
+                    );
+                }
+
                 const analysis = await critic.analyze(allText, actualJobId, targetUrl, organizationId);
 
                 // 3.5 Stage 8: Autonomous Deep-Dive (Hunter Mode)
                 if (hunterMode && (analysis as any).frictionScore > 60 && !spiderMode) {
                     if (onProgress) onProgress(`Autonomous Hunter triggered. High-potential detected (Score: ${(analysis as any).frictionScore}). Deep-diving...`, 'success');
-                    
+
                     const hunterUrls = await discoverUrls(targetUrl, 3, (analysis as any).intentSummary);
                     const newUrls = hunterUrls.filter(u => u !== targetUrl);
-                    
+
                     if (newUrls.length > 0) {
                          const hunterContext = await browser.newContext({ userAgent: getRandomUserAgent() });
-                         for (const hUrl of newUrls) {
-                             const hPage = await hunterContext.newPage();
-                            if (onProgress) onProgress(`Sovereign Alpha: Engaging Anti-Fingerprint Mesh for ${hUrl}`, 'info');
-                    
-                            // 2.1 Stage 3 Stealth: Captcha Bypassing Layer
-                            const hasCaptcha = await hPage.evaluate(() => {
-                                return !!(document.querySelector('iframe[src*="captcha"]') || document.querySelector('.g-recaptcha'));
-                            });
-                            
-                            if (hasCaptcha) {
-                                if (onProgress) onProgress('Shield Triggered: Captcha detected. Engaging Cloud-Solver Mesh...', 'warning');
-                                // Simulation: In prod, call 2cap/capsolver API here
-                                await new Promise(r => setTimeout(r, 2000)); 
-                                if (onProgress) onProgress('Shield Neutralized: Captcha bypassed.', 'success');
-                            }
+                         try {
+                             for (const hUrl of newUrls) {
+                                 const hPage = await hunterContext.newPage();
+                                if (onProgress) onProgress(`Sovereign Alpha: Engaging Anti-Fingerprint Mesh for ${hUrl}`, 'info');
 
-                            // 2.2 Stage 3 Stealth: JS De-obfuscation & SPA Recovery
-                            await hPage.evaluate(() => {
-                                // Neutralize common de-obfuscation traps or "headless" detectors
-                                (window as any).__PHANTOMJS__ = undefined;
-                                (window as any).__nightmare = undefined;
-                            });
+                                 await hPage.goto(hUrl, { waitUntil: 'networkidle', timeout: 30000 });
 
-                             await hPage.goto(hUrl, { waitUntil: 'networkidle', timeout: 30000 });
-                             const hText = await hPage.evaluate(() => document.body.innerText.substring(0, 5000));
-                             allText += `\n--- Hunter Signal from ${hUrl} ---\n` + hText;
-                             const store = new TenantRAGStore(organizationId || 'default');
-                             await store.upsert('hunter_signal', hUrl, hText, { type: 'hunter' }, actualJobId, region);
-                             await hPage.close();
+                                // 2.1 Stage 3 Stealth: Captcha Bypassing Layer
+                                const hasCaptcha = await hPage.evaluate(() => {
+                                    return !!(document.querySelector('iframe[src*="captcha"]') || document.querySelector('.g-recaptcha'));
+                                });
+
+                                if (hasCaptcha) {
+                                    if (onProgress) onProgress('Shield Triggered: Captcha detected. Engaging Cloud-Solver Mesh...', 'warning');
+                                    // Simulation: In prod, call 2cap/capsolver API here
+                                    await new Promise(r => setTimeout(r, 2000));
+                                    if (onProgress) onProgress('Shield Neutralized: Captcha bypassed.', 'success');
+                                }
+
+                                // 2.2 Stage 3 Stealth: JS De-obfuscation & SPA Recovery
+                                await hPage.evaluate(() => {
+                                    // Neutralize common de-obfuscation traps or "headless" detectors
+                                    (window as any).__PHANTOMJS__ = undefined;
+                                    (window as any).__nightmare = undefined;
+                                });
+
+                                 const hText = await hPage.evaluate(() => document.body.innerText.substring(0, 5000));
+                                 allText += `\n--- Hunter Signal from ${hUrl} ---\n` + hText;
+                                 const store = new TenantRAGStore(organizationId || 'default');
+                                 await store.upsert('hunter_signal', hUrl, hText, { type: 'hunter' }, actualJobId, region);
+                                 await hPage.close();
+                             }
+                             // Re-analyze with new deeper signals
+                             if (onProgress) onProgress('Re-analyzing with deep-dive signals...', 'info');
+                             const deeperAnalysis = await critic.analyze(allText, actualJobId, targetUrl, organizationId);
+                             Object.assign(analysis, deeperAnalysis);
+                         } finally {
+                             await hunterContext.close();
                          }
-                         // Re-analyze with new deeper signals
-                         if (onProgress) onProgress('Re-analyzing with deep-dive signals...', 'info');
-                         const deeperAnalysis = await critic.analyze(allText, actualJobId, targetUrl, organizationId);
-                         Object.assign(analysis, deeperAnalysis);
                     }
                 }
 
@@ -275,7 +288,7 @@ export async function scrapeB2BSignals(
                 }
 
                 // 4. Geo-Sovereignty Fix
-                const geo = geoipLite.lookup(validation.resolvedIp!);
+                const geo = validation.resolvedIp ? geoipLite.lookup(validation.resolvedIp) : null;
 
                 const signalsCount = (analysis.painPoints.technicalDebt?.length || 0) +
                     (analysis.painPoints.operationalBottlenecks?.length || 0) +
@@ -324,7 +337,7 @@ export async function scrapeB2BSignals(
                 if (IS_STANDALONE && organizationId) {
                     const status = await UsageTracker.increment(organizationId, 'scrapes');
                     const isNudge = await UsageTracker.isNudgeThreshold(organizationId, 'scrapes');
-                    
+
                     // Attach usage info to response for real-time UI updates
                     (result as any).usage = status;
                     (result as any).showNudge = isNudge;
@@ -338,7 +351,7 @@ export async function scrapeB2BSignals(
                 });
 
                 console.log('[Engine] Returning result:', JSON.stringify(result).substring(0, 50));
-                
+
                 // Cleanup RAG store securely
                 const store = new TenantRAGStore(organizationId || 'default');
                 await store.clearJobData(actualJobId);

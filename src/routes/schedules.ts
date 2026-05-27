@@ -33,7 +33,7 @@ router.post('/', async (req: TenantRequest, res) => {
         const result = await query(`
             INSERT INTO scrape_schedules (domain, cron_expression, use_online_ai, spider_mode, max_pages, organization_id)
             VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (domain) DO UPDATE
+            ON CONFLICT (organization_id, domain) DO UPDATE
             SET cron_expression = $2, use_online_ai = $3, spider_mode = $4, max_pages = $5, organization_id = $6
             RETURNING *
         `, [domain, cron_expression, use_online_ai || false, spider_mode || false, max_pages || 5, orgId || null]);

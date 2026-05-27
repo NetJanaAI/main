@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X, Shield, Activity } from 'lucide-react';
+import { api } from '../lib/api';
 
 interface Source {
     source_id: string;
@@ -18,7 +19,7 @@ const SourceControl: React.FC = () => {
 
     const fetchSources = async () => {
         try {
-            const resp = await fetch('/api/sources');
+            const resp = await api.get('/api/sources');
             const data = await resp.json();
             setSources(data);
         } catch (e) {
@@ -31,11 +32,7 @@ const SourceControl: React.FC = () => {
     const toggleSource = async (sourceId: string, currentState: boolean) => {
         setToggling(sourceId);
         try {
-            const resp = await fetch('/api/sources/toggle', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sourceId, enabled: !currentState })
-            });
+            const resp = await api.post('/api/sources/toggle', { sourceId, enabled: !currentState });
             if (resp.ok) {
                 setSources(prev => prev.map(s => 
                     s.source_id === sourceId ? { ...s, is_enabled: !currentState } : s

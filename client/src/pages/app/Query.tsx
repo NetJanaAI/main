@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Search, Filter, ArrowRight, Activity, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { LeadCard } from '../../types';
+import { api } from '../../lib/api';
 
 export default function Query() {
   const [industry, setIndustry] = useState('');
@@ -8,22 +10,24 @@ export default function Query() {
   const [loading, setLoading] = useState(false);
   const [matches, setMatches] = useState<any[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchMatches = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setHasSearched(true);
+    setError(null);
     try {
       const qs = new URLSearchParams();
       if (industry) qs.append('industry', industry);
       if (query) qs.append('query', query);
 
-      const res = await fetch(`/api/leads/match?${qs.toString()}`);
+      const res = await api.get(`/api/leads/match?${qs.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch matches');
       const data = await res.json();
       setMatches(data.matches || []);
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : 'Intent matcher request failed');
     } finally {
       setLoading(false);
     }
@@ -83,7 +87,15 @@ export default function Query() {
       <div className="space-y-6">
         {loading && <div className="text-center text-[10px] font-black uppercase tracking-[4px] text-[#D4AF37] py-24 animate-pulse">Initializing Signal Alignment Sequence...</div>}
         
-        {!loading && hasSearched && matches.length === 0 && (
+        {!loading && error && (
+          <div className="text-center bg-red-950/30 border border-red-500/30 rounded-2xl p-10 flex flex-col items-center">
+            <Activity className="w-12 h-12 text-red-400/60 mb-6" />
+            <h3 className="text-red-300 font-black uppercase tracking-widest text-lg mb-2">Matcher Unavailable</h3>
+            <p className="text-red-200/60 text-[10px] font-bold uppercase tracking-[2px] max-w-sm">{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && hasSearched && matches.length === 0 && (
           <div className="text-center bg-white/5 border border-white/10 rounded-2xl p-24 flex flex-col items-center">
             <Activity className="w-12 h-12 text-white/10 mb-6 animate-pulse" />
             <h3 className="text-white/60 font-black uppercase tracking-widest text-lg mb-2">Zero Matching Constraints Found</h3>
@@ -91,7 +103,7 @@ export default function Query() {
           </div>
         )}
 
-        {!loading && hasSearched && matches.length > 0 && (
+        {!loading && !error && hasSearched && matches.length > 0 && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             {matches.map((lead: LeadCard, idx: number) => (
               <div key={idx} className="bg-black/40 border border-white/5 p-8 rounded-2xl group hover:border-[#D4AF37]/40 transition-all flex flex-col justify-between backdrop-blur-md">
@@ -118,12 +130,12 @@ export default function Query() {
                 </div>
 
                 <div className="flex justify-between items-center pt-2">
-                   <button className="text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white flex items-center gap-2 transition-colors">
+                   <Link to="/app/signals" className="text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white flex items-center gap-2 transition-colors">
                      View Signal Matrix <ArrowRight className="w-3 h-3" />
-                   </button>
-                   <button className="bg-white/5 border border-white/10 hover:bg-white/10 px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white transition-all leading-none">
+                   </Link>
+                   <Link to="/app/signals" className="bg-white/5 border border-white/10 hover:bg-white/10 px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white transition-all leading-none">
                      Generate Outreach
-                   </button>
+                   </Link>
                 </div>
               </div>
             ))}

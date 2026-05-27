@@ -1,5 +1,5 @@
 {
-  "name": "b2b-friction-scraper",
+  "name": "convospan-intel",
   "version": "1.0.0",
   "description": "Robust B2B Web Scraper with Compliance Sentinel",
   "main": "dist/index.js",
@@ -31,13 +31,14 @@
     "@sentry/node": "^10.48.0",
     "@sentry/profiling-node": "^10.48.0",
     "@types/node-cron": "^3.0.11",
-    "@upstash/redis": "^1.37.0",
+    "@upstash/redis": "^1.38.0",
     "axios": "^1.6.2",
     "axios-retry": "^3.8.0",
     "bullmq": "^5.71.0",
     "clsx": "^2.1.1",
     "concurrently": "^8.2.2",
     "cors": "^2.8.6",
+    "csv-parse": "^6.2.1",
     "dotenv": "^17.2.3",
     "double-metaphone": "^2.0.1",
     "express": "^4.22.1",
@@ -68,6 +69,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
     "@types/express-rate-limit": "^6.0.0",
@@ -82,10 +84,12 @@
     "@types/uuid": "^9.0.7",
     "autoprefixer": "^10.4.23",
     "cross-env": "^10.1.0",
+    "eslint": "^10.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.60.0"
   }
 }

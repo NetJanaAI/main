@@ -1,4 +1,4 @@
-import { UserButton, OrganizationSwitcher } from "@clerk/clerk-react";
+import { UserButton, OrganizationSwitcher } from "../lib/auth";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { 
   Shield, 
@@ -11,15 +11,19 @@ import {
   X,
   Send,
   User,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
+import TenderNotifications from "../components/TenderNotifications";
+import SocketBridge from "../components/SocketBridge";
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Terminal Index', icon: Activity, path: '/app/dashboard' },
   { id: 'signals', label: 'Signal Matrix', icon: HeartPulse, path: '/app/signals' },
   { id: 'query', label: 'Intent Matcher', icon: Target, path: '/app/query' },
+  { id: 'watch', label: 'Tender Watch', icon: Eye, path: '/app/watch' },
   { id: 'reports', label: 'Alpha Reports', icon: PieChart, path: '/app/reports' },
   { id: 'api', label: 'Registry Keys', icon: Settings, path: '/app/api' },
   { id: 'sync', label: 'Sync Node', icon: Send, path: '/app/sync' },
@@ -34,6 +38,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex h-screen bg-[#020813] text-gray-200 overflow-hidden font-serif">
+      <SocketBridge />
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/5 via-[#020813] to-black z-0" />
       
       {/* Desktop Sidebar (Left) */}
@@ -109,6 +114,7 @@ export default function AppLayout() {
           </div>
 
           <div className="flex items-center gap-4">
+             <TenderNotifications />
              <UserButton 
                appearance={{
                  elements: {

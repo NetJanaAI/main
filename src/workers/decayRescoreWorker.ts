@@ -1,13 +1,11 @@
-import { Worker, Job, Queue } from 'bullmq';
-import { connection } from '../lib/queue';
+import { Worker, Job } from 'bullmq';
+import { connection, scrapeQueue } from '../lib/queue';
 import { query } from '../lib/database';
 import { calculateDecay } from '../core/signals/intentDecay';
 import { SecureLogger } from '../utils/logger';
 import { Server } from 'socket.io';
 import { IS_COVOSPAN } from '../config/mode';
 import { isFeatureEnabled, Feature } from '../config/featureFlags';
-
-const scrapeQueue = new Queue('scrape', { connection });
 
 export async function startDecayRescoreWorker(io: Server) {
     const worker = new Worker('decay-rescore', async (job: Job) => {
@@ -16,7 +14,7 @@ export async function startDecayRescoreWorker(io: Server) {
         
         // 1. Rescore scrape_results (web-scrape originated leads)
         const leads = await query(
-            "SELECT id, organization_id, company_name, base_score, signal_captured_at, decay_status, previous_decay_status FROM scrape_results WHERE decay_status != 'Dead'"
+            "SELECT job_id AS id, organization_id, domain AS company_name, domain AS url, base_score, signal_captured_at, decay_status, previous_decay_status FROM scrape_results WHERE decay_status != 'Dead'"
         );
 
         for (const lead of leads.rows) {
@@ -33,7 +31,7 @@ export async function startDecayRescoreWorker(io: Server) {
                     decay_status = $2, 
                     last_decay_calc = NOW(), 
                     previous_decay_status = $3
-                 WHERE id = $4`,
+                 WHERE job_id = $4`,
                 [decay.decayedScore, decay.status, statusChanged ? lead.decay_status : lead.previous_decay_status, lead.id]
             );
 
@@ -69,10 +67,10 @@ export async function startDecayRescoreWorker(io: Server) {
             // 6. Handle Death (Archiving)
             if (decay.status === 'Dead') {
                 await query(
-                    "INSERT INTO archived_scrape_results SELECT *, NOW(), 'Signal expired (Dead status)' FROM scrape_results WHERE id = $1",
+                    "INSERT INTO archived_scrape_results SELECT *, NOW(), 'Signal expired (Dead status)' FROM scrape_results WHERE job_id = $1",
                     [lead.id]
                 );
-                await query("DELETE FROM scrape_results WHERE id = $1", [lead.id]);
+                await query("DELETE FROM scrape_results WHERE job_id = $1", [lead.id]);
                 io.to(`org:${lead.organization_id}`).emit('lead:archived', { leadId: lead.id });
             }
         }

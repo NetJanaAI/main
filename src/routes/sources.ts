@@ -3,6 +3,7 @@ import { db } from '../lib/database';
 import { cache } from '../lib/cache';
 
 const router = Router();
+const DEFAULT_SOURCES = ['indiamart', 'gem', 'mca', 'zauba', 'webscrape', 'funding', 'naukri', 'rera', 'parivesh'];
 
 /**
  * GET /api/sources
@@ -15,6 +16,9 @@ router.get('/', async (req: any, res: Response) => {
             `SELECT source_id, is_enabled FROM source_configs WHERE org_id = $1`,
             [orgId]
         );
+        if (results.rows.length === 0) {
+            return res.json(DEFAULT_SOURCES.map(source_id => ({ source_id, is_enabled: true })));
+        }
         res.json(results.rows);
     } catch (e: any) {
         res.status(500).json({ error: e.message });

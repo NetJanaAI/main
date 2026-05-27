@@ -10,13 +10,11 @@ interface RequestWithSocket extends Request {
     io: Server;
 }
 
-import { scrapeQueue, SCRAPE_QUEUE_NAME, getRegionalQueueName, connection } from '../lib/queue';
-import { Queue } from 'bullmq';
-import { ProxyManager } from '../lib/stealth/ProxyManager';
+import { scrapeQueue } from '../lib/queue';
 
 const MIN_FREE_MEMORY_MB = 256;
 
-router.post('/scrape', async (req, res) => {
+const enqueueScrape = async (req: Request, res: any) => {
     // 1. Zod Validation
     const validationResult = ScrapeRequestSchema.safeParse(req.body);
     if (!validationResult.success) {
@@ -40,33 +38,26 @@ router.post('/scrape', async (req, res) => {
         });
     }
 
-    // 2. Regional Routing Logic
     const jobId = uuidv4();
-    const region = ProxyManager.getProxyForRegion(url)?.region || 'GLOBAL';
-    const regionalQueueName = getRegionalQueueName(SCRAPE_QUEUE_NAME, region);
-    
-    // Create a temporary queue instance to push to the correct regional channel
-    // In a high-volume prod, we'd cache these instances
-    const targetQueue = new Queue(regionalQueueName, { connection });
 
     // Enqueue Job for Persistent Execution
-    await targetQueue.add('scrape', {
+    await scrapeQueue.add('scrape', {
         jobId,
         url,
         forceFailure,
         useOnlineAI,
         spiderMode,
         maxPages,
-        organizationId,
-        region
+        organizationId
     }, { jobId });
-
-    await targetQueue.close();
 
     console.log(`[API] Scrape Enqueued for ${url} (Job ID: ${jobId})`);
 
     res.json({ message: 'Scrape job enqueued', jobId });
-});
+};
+
+router.post('/', enqueueScrape);
+router.post('/scrape', enqueueScrape);
 
 // Job Status Endpoint
 router.get('/status/:jobId', async (req, res) => {

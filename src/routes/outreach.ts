@@ -1,11 +1,8 @@
 import express from 'express';
-import { Queue } from 'bullmq';
-import { connection } from '../lib/queue';
+import { outreachQueue } from '../lib/queue';
 import { UsageTracker } from '../standalone/services/UsageTracker';
 import { featureGate } from '../standalone/middleware/featureGate';
 import { IS_STANDALONE } from '../config/mode';
-
-const outreachQueue = new Queue('outreach-tasks', { connection });
 
 const router = express.Router();
 
@@ -17,7 +14,7 @@ router.post('/:id/generate-outreach', featureGate, async (req, res) => {
     try {
         const leadId = req.params.id;
         const tone = req.query.tone as string || 'direct';
-        const organizationId = (req as any).user?.organizationId;
+        const organizationId = (req as any).organizationId || (req as any).user?.organizationId;
 
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
 

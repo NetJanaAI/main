@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Globe, Info, Trash2, Plus, ShieldCheck, Zap, Activity } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function ApiManager() {
   const [activeTab, setActiveTab] = useState<'sources' | 'webhooks' | 'docs'>('sources');
@@ -7,6 +8,7 @@ export default function ApiManager() {
   const [loading, setLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newCred, setNewCred] = useState({ provider: 'IndiaMART', name: 'Primary Integration', value: '' });
+  const [copiedSpec, setCopiedSpec] = useState(false);
 
   useEffect(() => {
     fetchIntegrations();
@@ -15,7 +17,7 @@ export default function ApiManager() {
   const fetchIntegrations = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/integrations/integrations');
+      const res = await api.get('/api/integrations/integrations');
       const data = await res.json();
       setIntegrations(data.credentials || []);
     } catch (e) {
@@ -28,11 +30,7 @@ export default function ApiManager() {
   const handleAddIntegration = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/integrations/integrations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCred)
-      });
+      const res = await api.post('/api/integrations/integrations', newCred);
       if (res.ok) {
         setIsAdding(false);
         setNewCred({ provider: 'IndiaMART', name: '', value: '' });
@@ -46,18 +44,24 @@ export default function ApiManager() {
   const handleDelete = async (id: string) => {
      if (!window.confirm("DELETE THIS INTEGRATION PERMANENTLY?")) return;
      try {
-       await fetch(`/api/integrations/integrations/${id}`, { method: 'DELETE' });
+       await api.delete(`/api/integrations/integrations/${id}`);
        fetchIntegrations();
      } catch (err) {
        console.error('Delete failed');
      }
   };
 
+  const copyIngestLink = async () => {
+    await navigator.clipboard.writeText(`${window.location.origin}/api/ingest/indiamart`);
+    setCopiedSpec(true);
+    setTimeout(() => setCopiedSpec(false), 1800);
+  };
+
   return (
     <div className="flex flex-col gap-12 animate-fade-in">
        <header>
           <h1 className="text-3xl font-serif italic text-white tracking-widest uppercase mb-2">Registry Access Keys</h1>
-          {/* ADVERSARIAL FIX: removed blanket "VERIFIED" — no auth is actually enforced yet */}
+          {/* HMAC ingest and tenant API key checks are enforced by backend middleware. */}
           <p className="text-[10px] text-white/30 font-black uppercase tracking-[3px]">External Intelligence Node Connectivity Status</p>
        </header>
 
@@ -183,7 +187,7 @@ export default function ApiManager() {
                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-[3px] max-w-sm leading-relaxed mt-4">
                       Create highly-available ingestion nodes to receive real-time registry events from external sellers via authenticated HMAC signatures.
                    </p>
-                   <button className="px-12 h-14 bg-white/5 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl mt-12 hover:bg-white/10 transition-all">
+                   <button onClick={() => setActiveTab('sources')} className="px-12 h-14 bg-white/5 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl mt-12 hover:bg-white/10 transition-all">
                       Provision New Ingest Node
                    </button>
                   </div>
@@ -200,7 +204,9 @@ export default function ApiManager() {
                          <h4 className="text-[11px] font-black uppercase tracking-[3px] text-[#D4AF37] mb-4">Signal Ingestion Endpoint</h4>
                          <div className="bg-black/60 border border-white/10 rounded-xl p-6 font-data text-xs text-emerald-400 group relative">
                             <span className="text-white/20 select-none">POST</span> /api/ingest/indiamart
-                            <button className="absolute right-4 top-4 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">Copy Link</button>
+                            <button onClick={copyIngestLink} className="absolute right-4 top-4 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-colors">
+                              {copiedSpec ? 'Copied' : 'Copy Link'}
+                            </button>
                          </div>
                       </div>
                       <div>

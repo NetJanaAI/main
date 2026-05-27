@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { Copy, Link, Mail, Linkedin, Phone, Sparkles, RefreshCcw } from 'lucide-react';
+import { ApiError, api } from '../lib/api';
 
 interface OutreachAsset {
     coldEmail: { subject: string; body: string };
@@ -38,18 +39,14 @@ const TakeActionPanel: React.FC<{ leadId: string; organizationId: string }> = ({
     const generateOutreach = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/outreach/${leadId}/generate-outreach?tone=${tone}`, {
-                method: 'POST',
-                headers: { 'x-organization-id': organizationId }
-            });
-            if (res.status === 402) {
-                alert("Freemium limit reached. Upgrade for more generations.");
-                setLoading(false);
-            }
+            await api.post(`/api/outreach/${leadId}/generate-outreach?tone=${tone}`, {});
             // Success depends on socket event 'lead:outreach_ready'
             // But we add a safety timeout to prevent indefinite loading
             setTimeout(() => setLoading(false), 15000); 
         } catch (e) {
+            if (e instanceof ApiError && e.status === 402) {
+                alert("Freemium limit reached. Upgrade for more generations.");
+            }
             setLoading(false);
         }
     };
@@ -61,7 +58,7 @@ const TakeActionPanel: React.FC<{ leadId: string; organizationId: string }> = ({
     };
 
     const shareOutreach = async () => {
-        const res = await fetch(`/api/share/${leadId}`, { method: 'POST', headers: { 'x-organization-id': organizationId } });
+        const res = await api.post(`/api/share/${leadId}`, {});
         const data = await res.json();
         copyToClipboard(`${window.location.origin}${data.shareUrl}`);
         alert("Public share link copied to clipboard!");

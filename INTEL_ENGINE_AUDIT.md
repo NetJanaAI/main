@@ -10,7 +10,7 @@ ConvoSpan Intel is an institutional-grade B2B intelligence engine designed for h
 ## 2. Repository Structure
 The system is modularized for resilience:
 - `src/lib`: Core infrastructure (managed `cache.ts`, durable `database.ts`, `model-api.ts` abstraction).
-- `src/core`: 
+- `src/core`:
   - `entity-resolver.ts`: Durable Postgres organization registry with phonetic matching.
   - `gemini-chain.ts`: Multi-stage intelligence workers (Gate -> Qualifier -> Writer).
   - `signal-formatter.ts`: Structured fact extraction (Fact Cards).
@@ -55,6 +55,14 @@ Intelligence is derived through structured analysis:
 - **Durable Registry**: Postgres-based entity store ensures data is never lost to cache eviction.
 - **Memory Guards**: Local health checks prevent worker oversubscription.
 - **Stateless Intelligence**: The core intelligence logic is stateless, allowing for rapid horizontal scaling of ingestion nodes.
+
+---
+
+## §15. Data Provenance & Legal Standing
+ConvoSpan Intel exclusively processes information from public registries, open data portals, and mandated corporate filings. By avoiding the scraping of private websites or proprietary databases:
+- **Copyright & TOS Immunity**: The system does not violate the terms of service of private networks (e.g., LinkedIn, proprietary news aggregators).
+- **GDPR / DPDP Compliance**: Extracted data relates strictly to B2B entities and authorized corporate representatives, minimizing personal data footprint.
+- **Verifiable Auditability**: Every ingested fact is traceable back to a government or regulatory source URI, ensuring full legal defensibility and provenance for all generated intelligence.
 
 ---
 **ConvoSpan Intel | Government Registry Intelligence Engine Audit | v2.5**

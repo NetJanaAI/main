@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { Shield, Zap, Activity, LayoutGrid, HeartPulse, PieChart, Target } from 'lucide-react';
+import { Shield, Zap, Activity, LayoutGrid, HeartPulse, PieChart, Target, type LucideIcon } from 'lucide-react';
 import type { LeadCard } from './types';
+import { api } from './lib/api';
 
 // We'll lazy-load or import components for the 4 views later
 import LiveFeed from './components/views/LiveFeed';
@@ -10,16 +11,18 @@ import SourceHealth from './components/views/SourceHealth';
 import Analytics from './components/views/Analytics';
 import IntentMatcher from './components/views/IntentMatcher';
 import SystemHealthWidget from './components/SystemHealthWidget';
+import DeadLetterQueue from './components/views/DeadLetterQueue';
 
 const socket: Socket = io();
 
-type Tab = 'live' | 'pipeline' | 'health' | 'analytics' | 'matcher';
+type Tab = 'live' | 'pipeline' | 'health' | 'analytics' | 'matcher' | 'dlq';
 
-const TABS: { id: Tab; label: string; icon: any }[] = [
+const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'live', label: 'Live Registry Signals', icon: Activity },
   { id: 'matcher', label: 'Intent Matcher', icon: Target },
   { id: 'pipeline', label: 'Organization Registry', icon: LayoutGrid },
   { id: 'health', label: 'Registry Sync Health', icon: HeartPulse },
+  { id: 'dlq', label: 'Dead Letter Queue', icon: Target },
   { id: 'analytics', label: 'Performance Analytics', icon: PieChart },
 ];
 
@@ -47,9 +50,14 @@ function App() {
     });
 
     // Initial Alpha Sync
-    fetch('/api/leads/stats').then(res => res.json()).then(data => {
-      setTotalAlpha(data.alpha_sum || 0);
-    });
+    api.get('/api/leads/stats')
+      .then(res => res.json())
+      .then(data => {
+        setTotalAlpha(data.alpha_sum || 0);
+      })
+      .catch(error => {
+        console.warn('[App] Initial alpha sync failed:', error);
+      });
 
     // Listen to new lead cards emitted by the backend Lead Emitter
     socket.on('new_lead', (data: { lead: LeadCard }) => {
@@ -157,9 +165,10 @@ function App() {
       <main className="w-full max-w-7xl relative z-10 flex-1">
         {activeTab === 'live' && <LiveFeed market={market} />}
         {activeTab === 'pipeline' && <IntentPipeline market={market} />}
-        {activeTab === 'health' && <SourceHealth />}
-        {activeTab === 'analytics' && <Analytics />}
-        {activeTab === 'matcher' && <IntentMatcher />}
+        { activeTab === 'health' && <SourceHealth /> }
+        { activeTab === 'analytics' && <Analytics /> }
+        { activeTab === 'matcher' && <IntentMatcher /> }
+        { activeTab === 'dlq' && <DeadLetterQueue /> }
       </main>
     </div>
   );

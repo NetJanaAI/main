@@ -1,4 +1,5 @@
 import { db } from '../../lib/database';
+import { getHmacSecret } from '../../lib/secrets';
 import crypto from 'crypto';
 
 export interface AuditEvent {
@@ -20,7 +21,7 @@ export class AuditTrail {
         
         // HMAC signature for tamper-evidence (SOC2 requirement)
         const signature = crypto
-            .createHmac('sha256', process.env.HMAC_SECRET || 'audit_secret')
+            .createHmac('sha256', getHmacSecret('audit trail signing'))
             .update(`${timestamp}|${payload}`)
             .digest('hex');
 

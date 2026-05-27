@@ -1,10 +1,9 @@
 import * as cron from 'node-cron';
-import { scrapeQueue } from './queue';
+import { connection, scrapeQueue } from './queue';
 import { query } from './database';
 import { Queue } from 'bullmq';
 
-const redisHost = process.env.REDIS_HOST || 'localhost';
-const decayQueue = new Queue('decay-rescore', { connection: { host: redisHost, port: 6379 } });
+const decayQueue = new Queue('decay-rescore', { connection });
 
 type ScheduleEntry = {
     id: string;
@@ -90,6 +89,37 @@ export async function bootstrapSchedules() {
             console.log('[Scheduler] Triggering daily intent decay rescore...');
             await decayQueue.add('rescore', {});
         }, { timezone: 'Asia/Kolkata' });
+
+        // Schedule Canary Heartbeat (Every 5 minutes)
+        cron.schedule('*/5 * * * *', async () => {
+            console.log('[Scheduler] Triggering HACanary heartbeat...');
+            const { HACanary } = await import('./canary');
+            await HACanary.runHeartbeat();
+        });
+
+        // Schedule Signal Drought Monitor (Every hour)
+        cron.schedule('0 * * * *', async () => {
+            console.log('[Scheduler] Triggering Signal Drought Monitor...');
+            const { SignalDroughtMonitor } = await import('./canary');
+            await SignalDroughtMonitor.checkDrought();
+        });
+
+        // Schedule Tender Watch Engine (Every 30 minutes)
+        cron.schedule('*/30 * * * *', async () => {
+            console.log('[Scheduler] Triggering Tender Watch Engine...');
+            const { fetchGeMXMLFeed } = await import('../core/collectors/gem-xml');
+            const { WatchProfileMatcher } = await import('../core/tender-watch/matcher');
+
+            const feedUrl = process.env.GEM_XML_FEED_URL || 'https://gem.gov.in/rss_feed';
+
+            const payloads = await fetchGeMXMLFeed(feedUrl);
+            if (payloads.length === 0) return;
+
+            const profiles = await WatchProfileMatcher.getActiveProfiles();
+            for (const payload of payloads) {
+                await WatchProfileMatcher.processGeMSignal(payload, profiles);
+            }
+        });
 
     } catch (e: any) {
         console.warn(`[Scheduler] Could not bootstrap schedules (DB unavailable):`, e.message);

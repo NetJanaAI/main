@@ -1,17 +1,21 @@
-import { 
-  Search, 
-  Filter, 
-  ChevronRight
+import {
+  Search,
+  Filter,
+  ChevronRight,
+  Shield
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import SignalRow from '../../components/SignalRow';
 import { useAppStore } from '../../store/appStore';
 import type { LeadCard } from '../../types';
+import { api } from '../../lib/api';
 
 export default function Signals() {
   const { market } = useAppStore();
   const [leads, setLeads] = useState<LeadCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<LeadCard | null>(null);
 
   useEffect(() => {
@@ -20,12 +24,13 @@ export default function Signals() {
 
   const fetchLeads = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const resp = await fetch(`/api/leads/match?query=`); 
+      const resp = await api.get(`/api/leads/match?query=`);
       const data = await resp.json();
       setLeads(data.matches || []);
     } catch (e) {
-      console.error('Fetch leads failed', e);
+      setError(e instanceof Error ? e.message : 'Signal matrix request failed');
     } finally {
       setLoading(false);
     }
@@ -41,9 +46,9 @@ export default function Signals() {
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
              <Search className="absolute left-3 top-2.5 w-4 h-4 text-white/20" />
-             <input 
-               type="text" 
-               placeholder="SEARCH ENTITIES..." 
+             <input
+               type="text"
+               placeholder="SEARCH ENTITIES..."
                className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-[#D4AF37]/50"
              />
           </div>
@@ -78,6 +83,22 @@ export default function Signals() {
                         <td className="py-6 px-6"><div className="h-4 w-24 bg-white/5 rounded ms-auto" /></td>
                      </tr>
                    ))
+                ) : error ? (
+                  <tr>
+                    <td colSpan={5} className="py-24 px-6 text-center">
+                      <div className="inline-flex flex-col items-center gap-3 rounded-xl border border-red-500/30 bg-red-950/20 px-8 py-6">
+                        <Shield className="w-8 h-8 text-red-400" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-red-300">Signal Matrix Unavailable</span>
+                        <span className="text-xs text-red-200/60">{error}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : leads.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-24 px-6 text-center text-[10px] font-black uppercase tracking-widest text-white/30">
+                      No active signals matched this market.
+                    </td>
+                  </tr>
                 ) : leads.map((lead, idx) => (
                   <SignalRow key={idx} lead={lead} onClick={setSelectedLead} />
                 ))}
@@ -131,12 +152,12 @@ export default function Signals() {
               </div>
 
               <div className="flex flex-col gap-3 pt-8">
-                <button className="w-full h-12 bg-[#D4AF37] text-black text-xs font-black uppercase tracking-[3px] rounded-lg shadow-[0_0_20px_rgba(212,175,55,0.15)] hover:bg-[#D4AF37]/80 transition-all leading-none">
+                <Link to="/app/reports" className="w-full h-12 bg-[#D4AF37] text-black text-xs font-black uppercase tracking-[3px] rounded-lg shadow-[0_0_20px_rgba(212,175,55,0.15)] hover:bg-[#D4AF37]/80 transition-all leading-none flex items-center justify-center">
                   Draft Intelligence Briefing
-                </button>
-                <button className="w-full h-12 bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-[3px] rounded-lg hover:bg-white/10 transition-all leading-none">
+                </Link>
+                <Link to="/app/query" className="w-full h-12 bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-[3px] rounded-lg hover:bg-white/10 transition-all leading-none flex items-center justify-center">
                   Launch Outreach Node
-                </button>
+                </Link>
               </div>
             </div>
           </aside>
@@ -144,10 +165,4 @@ export default function Signals() {
       </div>
     </div>
   );
-}
-
-function Shield(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shield"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
-  )
 }

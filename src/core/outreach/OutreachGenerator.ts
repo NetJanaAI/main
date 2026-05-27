@@ -4,8 +4,7 @@ import { SecureLogger } from "../../utils/logger";
 import { injectInfluenceContext } from "../toon/influenceInjector";
 import { cache } from "../../lib/cache";
 import { callModel, parseModelJson } from "../../lib/model-api";
-
-const HMAC_SECRET = process.env.HMAC_SECRET || 'outreach-dev-secret';
+import { getHmacSecret } from "../../lib/secrets";
 
 export interface OutreachPayload {
     coldEmail: { subject: string; body: string };
@@ -84,7 +83,7 @@ export class OutreachGenerator {
         payload.metadata.signature = this.signPayload(payload, leadId, organizationId);
 
         // 5. Cache in Upstash
-        await cache.set(`outreach:${organizationId}:${leadId}:latest`, JSON.stringify(payload), 'EX', 30 * 24 * 60 * 60);
+        await cache.set(`outreach:${organizationId}:${leadId}:latest`, JSON.stringify(payload), { ex: 30 * 24 * 60 * 60 });
 
         return payload;
     }
@@ -92,15 +91,16 @@ export class OutreachGenerator {
     private buildToonPrompt(lead: any, influenceMap: any, tone: string): string {
         const frictionSignals = lead.signals || [];
         const touchpoints = influenceMap ? (influenceMap.tradeBodies || []).concat(influenceMap.events || []) : [];
+        const isTender = lead.source_id === 'gem_xml' || lead.watch_profile_id || (lead.rawPayload && lead.rawPayload.bid_id);
 
         return `[TOON:OUTREACH_GEN_v1]
 ROLE: Expert B2B outreach writer, India/UAE corridor specialist
 TONE: ${tone}
 
 TARGET:
-  company=${lead.companyName || lead.domain}
-  industry=${lead.industry || 'B2B'}
-  region=${lead.region || 'India/UAE'}
+  company=${lead.companyName || lead.domain || lead.company_name}
+  industry=${lead.industry || lead.sector || 'B2B'}
+  region=${lead.region || lead.geo_state || 'India/UAE'}
 
 FRICTION_SIGNALS:
 ${frictionSignals.map((s: any) => `  - ${s.type || 'Signal'}: ${s.description || s.value} (strength: ${s.score || 80})`).join('\n')}
@@ -109,6 +109,7 @@ RULES:
 - Reference AT LEAST ONE friction signal explicitly in each asset
 - UAE region: reference GITEX/DIFC context if present
 - Zero generic phrases
+${isTender ? '- Context: This is a Tender Watch Match. Highlight our capacity to fulfill the tender requirements and reference the tender ID if available.' : ''}
 
 OUTPUT: JSON only
 {
@@ -141,7 +142,7 @@ Output JSON: { "score": number, "issues": string[], "rewrite": boolean, "rewritt
 
     private signPayload(payload: any, leadId: string, organizationId: string): string {
         const dataToSign = `${leadId}:${organizationId}:${JSON.stringify(payload.coldEmail)}`;
-        return crypto.createHmac('sha256', HMAC_SECRET)
+        return crypto.createHmac('sha256', getHmacSecret('outreach payload signing'))
             .update(dataToSign)
             .digest('hex');
     }

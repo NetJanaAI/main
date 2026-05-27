@@ -83,22 +83,90 @@ export class OutreachDispatcher {
     private async dispatchWaba(body: string, phone: string): Promise<DispatchResult> {
         if (!phone) return { success: false, channel: 'WABA', error: 'No phone number found' };
 
-        console.warn(`[Dispatcher:WABA] MISSION FAILED: Channel SDK not integrated (STUB) for ${phone}`);
-        return { 
-            success: false, 
-            channel: 'WABA', 
-            error: 'STUB_UNIMPLEMENTED: WhatsApp Business API SDK not integrated. Please configure WABA_TOKEN and provider endpoint.' 
-        };
+        const token = process.env.WABA_TOKEN;
+        const phoneNumberId = process.env.WABA_PHONE_NUMBER_ID;
+
+        if (!token || !phoneNumberId) {
+            console.warn(`[Dispatcher:WABA] Missing credentials for ${phone}. Falling back to STUB.`);
+            return {
+                success: false,
+                channel: 'WABA',
+                error: 'STUB_UNIMPLEMENTED: WhatsApp Business API credentials (WABA_TOKEN, WABA_PHONE_NUMBER_ID) not configured.'
+            };
+        }
+
+        try {
+            const response = await axios.post(
+                `https://graph.facebook.com/v17.0/${phoneNumberId}/messages`,
+                {
+                    messaging_product: 'whatsapp',
+                    to: phone.replace(/[^0-9]/g, ''),
+                    type: 'text',
+                    text: { body }
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            console.log(`[Dispatcher:WABA] Sent to ${phone}. MessageId: ${response.data.messages?.[0]?.id}`);
+            return { success: true, channel: 'WABA', messageId: response.data.messages?.[0]?.id };
+        } catch (error: any) {
+            console.error(`[Dispatcher:WABA] Failed:`, error.response?.data || error.message);
+            return { success: false, channel: 'WABA', error: error.response?.data?.error?.message || error.message };
+        }
     }
 
     private async dispatchLinkedIn(note: string, profile: string): Promise<DispatchResult> {
         if (!profile) return { success: false, channel: 'LINKEDIN', error: 'No LinkedIn profile found' };
 
-        console.warn(`[Dispatcher:LinkedIn] MISSION FAILED: Channel SDK not integrated (STUB) for ${profile}`);
-        return { 
-            success: false, 
-            channel: 'LINKEDIN', 
-            error: 'STUB_UNIMPLEMENTED: LinkedIn Messaging API SDK not integrated. Requires OAuth connection for this organization.' 
-        };
+        const token = process.env.LINKEDIN_TOKEN;
+        const authorUrn = process.env.LINKEDIN_URN;
+
+        if (!token || !authorUrn) {
+            console.warn(`[Dispatcher:LinkedIn] Missing credentials for ${profile}. Falling back to STUB.`);
+            return {
+                success: false,
+                channel: 'LINKEDIN',
+                error: 'STUB_UNIMPLEMENTED: LinkedIn Messaging API credentials (LINKEDIN_TOKEN, LINKEDIN_URN) not configured.'
+            };
+        }
+
+        // Note: Sending a message directly to a profile URL requires resolving the profile URL to a LinkedIn Member URN.
+        // For simplicity in this implementation, we assume `profile` is the target Member URN if it starts with 'urn:li:person:',
+        // otherwise we simulate a failure or a resolution step.
+        let targetUrn = profile;
+        if (!targetUrn.startsWith('urn:li:person:')) {
+             // In a real scenario, we'd look up the URN. For now, we'll try to extract it or fallback.
+             targetUrn = `urn:li:person:${profile.split('/').pop() || 'unknown'}`;
+        }
+
+        try {
+            const response = await axios.post(
+                'https://api.linkedin.com/v2/messages',
+                {
+                    recipients: [targetUrn],
+                    subject: 'NetJana Intent Outreach',
+                    body: note,
+                    messageType: 'MEMBER_TO_MEMBER'
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'X-Restli-Protocol-Version': '2.0.0'
+                    }
+                }
+            );
+
+            console.log(`[Dispatcher:LinkedIn] Sent to ${profile}. MessageId: ${response.data.id}`);
+            return { success: true, channel: 'LINKEDIN', messageId: response.data.id };
+        } catch (error: any) {
+            console.error(`[Dispatcher:LinkedIn] Failed:`, error.response?.data || error.message);
+            return { success: false, channel: 'LINKEDIN', error: error.response?.data?.message || error.message };
+        }
     }
 }

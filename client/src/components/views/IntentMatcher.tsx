@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Target, Search, Filter, AlertCircle, ArrowRight, ShieldAlert } from 'lucide-react';
+import { api } from '../../lib/api';
 
 export default function IntentMatcher() {
   const [industry, setIndustry] = useState('');
@@ -20,7 +21,7 @@ export default function IntentMatcher() {
       if (industry) qs.append('industry', industry);
       if (query) qs.append('query', query);
 
-      const res = await fetch(`/api/leads/match?${qs.toString()}`);
+      const res = await api.get(`/api/leads/match?${qs.toString()}`);
       if (!res.ok) {
         let errMsg = `HTTP ${res.status}: ${res.statusText}`;
         try { const body = await res.json(); errMsg = body.error || body.message || errMsg; } catch {}

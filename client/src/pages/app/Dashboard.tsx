@@ -1,5 +1,6 @@
 import { Activity, Zap, Target, PieChart, Shield, ArrowUpRight, Cpu } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import StatCard from '../../components/StatCard';
 import TokenTelemetry from '../../components/TokenTelemetry';
 import VerityBadge from '../../components/VerityBadge';
@@ -7,6 +8,7 @@ import IntelligenceModal from '../../components/IntelligenceModal';
 import { useAppStore } from '../../store/appStore';
 import type { LeadCard } from '../../types';
 import SourceControl from '../../components/SourceControl';
+import { api } from '../../lib/api';
 
 export default function Dashboard() {
   const { market, socket, creditUsed } = useAppStore();
@@ -32,7 +34,7 @@ export default function Dashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/leads/stats');
+        const res = await api.get('/api/leads/stats');
         const data = await res.json();
         setDbStats(data);
       } catch {
@@ -50,7 +52,7 @@ export default function Dashboard() {
   useEffect(() => {
     const loadSources = async () => {
       try {
-        const res = await fetch('/api/sources');
+        const res = await api.get('/api/sources');
         const data: { source_id: string; is_enabled: boolean }[] = await res.json();
         const sourcesMap = { ...activeSources };
         data.forEach(s => {
@@ -142,7 +144,7 @@ export default function Dashboard() {
                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
                <h3 className="text-[10px] font-black uppercase tracking-[3px] text-white/60">Registry Signal Matrix</h3>
              </div>
-             <button className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] hover:text-white transition-colors flex items-center gap-1">View Full Feed <ArrowUpRight className="w-3 h-3" /></button>
+             <Link to="/app/signals" className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] hover:text-white transition-colors flex items-center gap-1">View Full Feed <ArrowUpRight className="w-3 h-3" /></Link>
            </div>
            
            <div className="flex-1 overflow-x-auto min-h-[400px]">

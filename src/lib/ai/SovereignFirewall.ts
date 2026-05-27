@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'fs';
+import path from 'path';
 import Redis from 'ioredis';
 import { query } from '../database';
 
@@ -20,7 +20,12 @@ class RegionalVault {
     constructor(regionId: string, organizationId?: string) {
         this.regionId = regionId;
         this.organizationId = organizationId || null;
-        this.vaultPath = path.join(process.cwd(), 'data', `vault_${regionId.toLowerCase()}.json`);
+        const basePath = path.join(process.cwd(), 'data');
+        const rawVaultPath = path.join(basePath, `vault_${regionId.toLowerCase()}.json`);
+        this.vaultPath = path.normalize(rawVaultPath);
+        if (!this.vaultPath.startsWith(basePath)) {
+            throw new Error(`Invalid regionId specified, path traversal detected: ${regionId}`);
+        }
 
         const redisUrl = process.env.REDIS_URL;
         if (redisUrl) {

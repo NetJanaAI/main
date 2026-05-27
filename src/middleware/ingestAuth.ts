@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { query } from '../lib/database';
+import { DEV_HMAC_SECRET, getHmacSecret } from '../lib/secrets';
 
 /**
  * Secures /api/ingest/* webhooks against fake data injection.
@@ -46,8 +47,7 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
 
     // 2. HMAC Signature Verification — REQUIRED when secret is configured
     const hmacSecret = process.env.HMAC_SECRET;
-    const devFallback = 'dev-safety-fallback-do-not-use-in-prod';
-    const isRealSecret = hmacSecret && hmacSecret !== devFallback;
+    const isRealSecret = hmacSecret && hmacSecret !== DEV_HMAC_SECRET;
 
     if (isRealSecret) {
         const incomingSignature = req.headers['x-source-signature'] as string | undefined;
@@ -97,7 +97,7 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
 
     // Validate apiKey against tenants.api_key_hash in Postgres
     // Note: We hash the incoming API key to compare with the stored hash
-    const ADMIN_SECRET = process.env.HMAC_SECRET || devFallback;
+    const ADMIN_SECRET = getHmacSecret('ingest API key verification');
     const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(apiKey).digest('hex');
 
     try {
@@ -114,4 +114,3 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
         res.status(500).json({ error: 'Internal Server Error during authentication' });
     }
 };
-

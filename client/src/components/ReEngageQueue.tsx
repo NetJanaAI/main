@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCcw, Sparkles, Globe, Clock, ChevronRight } from 'lucide-react';
 import FreshnessBadge from './FreshnessBadge';
+import { api } from '../lib/api';
 
 interface Lead {
     id: string;
@@ -26,7 +27,7 @@ const ReEngageQueue: React.FC<{ organizationId: string }> = ({ organizationId })
         setLoading(true);
         try {
             const url = `/api/leads/re-engage-queue?organizationId=${organizationId}${region !== 'All' ? `&region=${region}` : ''}`;
-            const res = await fetch(url);
+            const res = await api.get(url);
             const data = await res.json();
             setLeads(data);
         } catch (e) {
@@ -36,17 +37,14 @@ const ReEngageQueue: React.FC<{ organizationId: string }> = ({ organizationId })
         }
     };
 
-    const triggerRescrape = async (id: string) => {
-        await fetch(`/api/scrape`, {
-            method: 'POST',
-            body: JSON.stringify({ url: leads.find(l => l.id === id)?.domain, organizationId }),
-            headers: { 'Content-Type': 'application/json' }
-        });
-        alert("Re-scrape queued for timing optimization.");
+    const triggerReingest = async (domain: string) => {
+        const url = domain.startsWith('http') ? domain : `https://${domain}`;
+        await api.post('/api/scrape', { url });
+        alert("Signal refresh queued for timing optimization.");
     };
 
     const generateOutreach = (id: string) => {
-        window.location.href = `/leads/${id}?tab=action`;
+        window.location.href = `/app/signals?lead=${encodeURIComponent(id)}&tab=action`;
     };
 
     return (
@@ -125,8 +123,8 @@ const ReEngageQueue: React.FC<{ organizationId: string }> = ({ organizationId })
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={() => triggerRescrape(lead.id)} className="flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition-all">
-                                        <RefreshCcw className="w-3 h-3" /> Rescrape Signal
+                                    <button onClick={() => triggerReingest(lead.domain)} className="flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition-all">
+                                        <RefreshCcw className="w-3 h-3" /> Refresh Signal
                                     </button>
                                     <button onClick={() => generateOutreach(lead.id)} className="flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20">
                                         <Sparkles className="w-3 h-3" /> Take Action <ChevronRight className="w-3 h-3" />

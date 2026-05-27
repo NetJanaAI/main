@@ -11,7 +11,7 @@ interface AppStore {
   
   setMarket: (m: 'IN' | 'AE') => void;
   setCredits: (used: number, limit: number) => void;
-  setSocket: (s: Socket) => void;
+  setSocket: (s: Socket | null) => void;
   setOrganizationId: (id: string | null) => void;
   incrementUnread: () => void;
   clearUnread: () => void;

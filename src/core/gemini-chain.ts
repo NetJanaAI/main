@@ -109,11 +109,12 @@ export function setupGeminiWorkers(io: Server) {
         const spendKey = `gemini_calls:${dateStr}`;
 
         // ModelAPI manages the daily limit check, but we can also perform it here for io.emit
-        const countStr = await cache.get(spendKey);
-        const count = countStr ? parseInt(countStr, 10) : 0;
-        if (count > 400) {
+        const newCount = await cache.incr(spendKey);
+        await cache.expire(spendKey, 86_400); // 24h TTL
+        if (newCount > 400) {
+            await cache.decr(spendKey); // rollback so limit is accurate
             io.emit('cost_alert', { message: 'Daily Gemini spend guard triggered (>400 calls). TIER_2 paused.' });
-            throw new Error('Daily Gemini spend guard triggered.');
+            throw new Error('[SpendGuard] Daily Gemini limit of 400 reached.');
         }
 
         // H-05: Handle empty TOON payload
@@ -140,11 +141,11 @@ RULES:
 OUT: { "is_buyer": bool, "confidence": num, "valid": bool, "reason": "str" }
 [/TOON]`;
 
-        const gateTokensSaved = TokenTracker.calculateToonSavings(signal.raw_payload || {}, toonPayload);
+        const tokensSaved = TokenTracker.calculateToonSavings(signal.raw_payload || {}, toonPayload);
         
         let gateResult;
         try {
-            const gateRaw = await callModel({ role: 'gate', system: gateSysPrompt, user: gateUserPrompt, orgId, spendKey, tokensSaved: gateTokensSaved });
+            const gateRaw = await callModel({ role: 'gate', system: gateSysPrompt, user: gateUserPrompt, orgId, spendKey, tokensSaved });
             gateResult = parseModelJson(gateRaw);
         } catch (e) { throw new Error('Gate prompt failure: ' + (e as Error).message); }
 
@@ -173,11 +174,9 @@ TASKS:
 OUT: { "procurement_category": "str", "procurement_timeline": "enum", "buying_stage": "enum", "pain_point": "str", "confidence": "enum" }
 [/TOON]`;
 
-        const qualTokensSaved = TokenTracker.calculateToonSavings(signal.raw_payload || {}, toonPayload);
-
         let qualResult;
         try {
-            const qualRaw = await callModel({ role: 'qualifier', system: qualSysPrompt, user: qualUserPrompt, orgId, spendKey, tokensSaved: qualTokensSaved });
+            const qualRaw = await callModel({ role: 'qualifier', system: qualSysPrompt, user: qualUserPrompt, orgId, spendKey, tokensSaved });
             qualResult = parseModelJson(qualRaw);
         } catch (e) { throw new Error('Qualifier prompt failure: ' + (e as Error).message); }
 
@@ -228,11 +227,9 @@ OUT: { "company": "Name · Target", "why_now": "Citing multiple sources <2s", "w
 [/TOON]`;
         }
 
-        const writerTokensSaved = TokenTracker.calculateToonSavings(signal.raw_payload || {}, toonPayload);
-
         let writerResult;
         try {
-            const writerRaw = await callModel({ role: 'writer', system: writerSysPrompt, user: writerUserPrompt, orgId, spendKey, tokensSaved: writerTokensSaved });
+            const writerRaw = await callModel({ role: 'writer', system: writerSysPrompt, user: writerUserPrompt, orgId, spendKey, tokensSaved });
             writerResult = parseModelJson(writerRaw);
         } catch (e) { throw new Error('Lead Writer prompt failure: ' + (e as Error).message); }
 
@@ -278,6 +275,6 @@ OUT: { "company": "Name · Target", "why_now": "Citing multiple sources <2s", "w
     }, { connection, concurrency: 2 });
 }
 
-export async function queueIndiaMARTSignal(lead: any): Promise<void> {
-    await safeQueueIndiaMARTLead(lead);
+export async function queueIndiaMARTSignal(lead: any, organizationId: string): Promise<void> {
+    await safeQueueIndiaMARTLead(lead, organizationId);
 }

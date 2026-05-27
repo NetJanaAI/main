@@ -1,5 +1,6 @@
 import { db } from '../../lib/database';
 import { TenantRAGStore } from './TenantRAGStore';
+import { AuditTrail } from '../compliance/AuditTrail';
 
 export class VanishProtocol {
     private static DEFAULT_RETENTION_DAYS = 90;
@@ -64,18 +65,42 @@ export class VanishProtocol {
             // 2. Clear all RAG embeddings
             const store = new TenantRAGStore(organizationId);
             await store.clearStore();
-            await db.query('DELETE FROM rag_namespaces WHERE namespace = $1', [organizationId]);
+            const ragNamespaceTable = await db.query(`SELECT to_regclass('public.rag_namespaces') AS table_name`);
+            if (ragNamespaceTable.rows[0]?.table_name) {
+                await db.query('DELETE FROM rag_namespaces WHERE namespace = $1', [organizationId]);
+            }
 
-            // 3. Clear Scrape Results / Leads
+            // 3. Clear tenant-owned product data. Order matters for FK constraints.
+            await db.query('DELETE FROM approval_queue WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM outreach_logs WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM lead_influence_data WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM roi_exports WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM campaigns WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM capsule_log WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM graph_edges WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM graph_nodes WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM source_configs WHERE org_id = $1', [organizationId]);
+            await db.query('DELETE FROM watch_profiles WHERE org_id = $1', [organizationId]);
+            await db.query('DELETE FROM covospan_configs WHERE org_id = $1', [organizationId]);
+            await db.query('DELETE FROM covospan_push_log WHERE org_id = $1', [organizationId]);
+            await db.query('DELETE FROM llm_usage_logs WHERE org_id = $1', [organizationId]);
+            await db.query('DELETE FROM data_source_credentials WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM dead_letter_queue WHERE organization_id = $1', [organizationId]);
+            await db.query('DELETE FROM lead_cards WHERE org_id = $1', [organizationId]);
             await db.query('DELETE FROM scrape_results WHERE organization_id = $1', [organizationId]);
 
-            // 4. Archive deletion request in Audit
-            await db.query(`
-                INSERT INTO audit_log (organization_id, action, target) 
-                VALUES ($1, 'GDPR_PURGE_EXECUTE', 'ALL_DATA')
-            `, [organizationId]);
-
             await db.query('COMMIT');
+            try {
+                await AuditTrail.log({
+                    actorId: 'system',
+                    organizationId,
+                    action: 'GDPR_PURGE_EXECUTE',
+                    resource: `tenant:${organizationId}`,
+                    metadata: { scope: 'tenant_data' }
+                });
+            } catch (auditError: any) {
+                console.warn(`[Vanish] Purge completed but audit write failed: ${auditError.message}`);
+            }
             console.warn(`[Vanish] Org ${organizationId} totally annihilated.`);
             return { status: 'success', deleted: true };
         } catch (e: any) {

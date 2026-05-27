@@ -22,7 +22,7 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
  */
 async function getSourceWeight(sourceId: string, tierBoost: boolean = false): Promise<number> {
     try {
-        const stored = await cache.get(`source_weights:${sourceId}`);
+        const stored = await cache.get<string>(`source_weights:${sourceId}`);
         if (stored) {
             const weight = parseFloat(stored);
             if (!isNaN(weight) && weight >= 0.1 && weight <= 1.0) return weight;

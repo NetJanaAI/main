@@ -1,8 +1,9 @@
-import { UserButton, useUser, useOrganization } from "@clerk/clerk-react";
+import { UserButton, useUser, useOrganization } from "../../lib/auth";
 import { Key, Trash2, Activity } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import CreditMeter from '../../components/CreditMeter';
 import { useAppStore } from '../../store/appStore';
+import { api } from '../../lib/api';
 
 export default function Profile() {
   const { user } = useUser();
@@ -18,7 +19,7 @@ export default function Profile() {
 
   const fetchCredits = async () => {
      try {
-       const res = await fetch('/api/profile/credits');
+       const res = await api.get('/api/profile/credits');
        const data = await res.json();
        if (data.limit) {
          setCredits(data.used, data.limit);
@@ -32,7 +33,7 @@ export default function Profile() {
     if (!window.confirm('WARNING: REGENERATING YOUR PROTOCOL KEY WILL IMMEDIATELY DISCONNECT ALL ACTIVE INTELLIGENCE NODES. PROCEED?')) return;
     setIsRegenerating(true);
     try {
-      const res = await fetch('/api/profile/regenerate-key', { method: 'POST' });
+      const res = await api.post('/api/profile/regenerate-key', {});
       const data = await res.json();
       setApiKey(data.apiKey);
       setShowKey(true);

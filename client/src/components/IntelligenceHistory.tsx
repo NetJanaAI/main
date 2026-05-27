@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { BarChart2, RefreshCw, Globe, TrendingUp, DollarSign } from 'lucide-react';
 import { api } from '../lib/api';
 
-interface ScrapeResult {
+interface RegistrySignalResult {
     job_id: string;
     domain: string;
     friction_score: number;
@@ -10,12 +10,11 @@ interface ScrapeResult {
     estimated_roi: number;
     compliance_verified: boolean;
     timestamp: string;
-    screenshot_path?: string;
     critic_analysis?: any;
 }
 
 export const IntelligenceHistory: React.FC = () => {
-    const [results, setResults] = useState<ScrapeResult[]>([]);
+    const [results, setResults] = useState<RegistrySignalResult[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState<'timestamp' | 'friction_score' | 'estimated_roi'>('timestamp');
@@ -129,16 +128,7 @@ export const IntelligenceHistory: React.FC = () => {
                                     </span>
                                 </div>
 
-                                {result.screenshot_path && (
-                                    <div className="relative rounded-xl overflow-hidden border border-white/5 group-hover:border-primary/20 transition-all">
-                                        <img
-                                            src={result.screenshot_path}
-                                            alt={result.domain}
-                                            className="w-full h-32 object-cover opacity-30 group-hover:opacity-60 transition-all duration-700 scale-100 group-hover:scale-110"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60" />
-                                    </div>
-                                )}
+
                             </div>
                         </div>
                     ))}

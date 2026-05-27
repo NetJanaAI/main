@@ -20,7 +20,7 @@ async function isDuplicatePayload(source: string, payload: any): Promise<boolean
     const hash = createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 24);
     const dedupKey = `ingest_dedup:${source}:${hash}`;
     try {
-        const wasSet = await cache.set(dedupKey, '1', 'EX', 3600, 'NX');
+        const wasSet = await cache.set(dedupKey, '1', { ex: 3600, nx: true });
         return wasSet === null; // null means key already existed = duplicate
     } catch (_) {
         return false; // Redis unavailable — allow through (fail-open for availability)

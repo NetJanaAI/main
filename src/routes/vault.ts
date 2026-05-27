@@ -2,9 +2,9 @@ import { Router, Response } from 'express';
 import { query } from '../lib/database';
 import { TenantRequest } from '../middleware/tenant';
 import crypto from 'crypto';
+import { getHmacSecret } from '../lib/secrets';
 
 const router = Router();
-const HMAC_SECRET = process.env.HMAC_SECRET || 'dev-safety-fallback-do-not-use-in-prod';
 
 /**
  * GET /api/vault/export - Export all results for the tenant as a signed CSV.
@@ -31,7 +31,7 @@ router.get('/export', async (req: TenantRequest, res: Response) => {
         const csvContent = `${headers}\n${rows}`;
         
         // Institutional Verity: HMAC Sign the entire export
-        const signature = crypto.createHmac('sha256', HMAC_SECRET)
+        const signature = crypto.createHmac('sha256', getHmacSecret('vault export signing'))
             .update(csvContent)
             .digest('hex');
 

@@ -176,6 +176,21 @@ export const EtimadCollectorPayloadSchema = z.object({
     deadline: z.string().optional()
 }).passthrough();
 
+export const WatchProfileSchema = z.object({
+    profile_id: z.string().uuid().optional(),
+    org_id: z.string(),
+    keywords: z.array(z.string()).default([]),
+    regions: z.array(z.string()).default([]),
+    min_amount: z.number().optional().default(0),
+    is_active: z.boolean().optional().default(true)
+});
+
+export const WatchProfileMatchSchema = z.object({
+    profile_id: z.string().uuid(),
+    matched_keywords: z.array(z.string()),
+    score: z.number()
+});
+
 export type ScrapeRequest = z.infer<typeof ScrapeRequestSchema>;
 export type ScrapeResult = z.infer<typeof ScrapeResultSchema>;
 export type RawSignal = z.infer<typeof RawSignalSchema>;
@@ -192,3 +207,5 @@ export type ZawyaCollectorPayload = z.infer<typeof ZawyaCollectorPayloadSchema>;
 export type AdgmCollectorPayload = z.infer<typeof AdgmCollectorPayloadSchema>;
 export type GulfNewsCollectorPayload = z.infer<typeof GulfNewsCollectorPayloadSchema>;
 export type EtimadCollectorPayload = z.infer<typeof EtimadCollectorPayloadSchema>;
+export type WatchProfile = z.infer<typeof WatchProfileSchema>;
+export type WatchProfileMatch = z.infer<typeof WatchProfileMatchSchema>;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FileDown, Share2, CheckCircle2, ShieldAlert, Download, ExternalLink, RefreshCw } from 'lucide-react';
+import { api } from '../lib/api';
 
 const ROIExportPanel: React.FC<{ campaignId: string; organizationId: string }> = ({ campaignId, organizationId }) => {
     const [avgDealSize, setAvgDealSize] = useState<number>(5000);
@@ -11,7 +12,14 @@ const ROIExportPanel: React.FC<{ campaignId: string; organizationId: string }> =
         setExporting(true);
         try {
             const url = `/api/campaign/${campaignId}/export/roi-report?organizationId=${organizationId}&avgDealSize=${avgDealSize}`;
-            window.location.href = url;
+            const res = await api.get(url);
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = `netjana-roi-${campaignId}.pdf`;
+            link.click();
+            URL.revokeObjectURL(objectUrl);
             setLastExport(new Date().toLocaleTimeString());
         } catch (e) {
             console.error(e);
@@ -23,7 +31,7 @@ const ROIExportPanel: React.FC<{ campaignId: string; organizationId: string }> =
     const handleShare = async () => {
         setExporting(true);
         try {
-            const res = await fetch(`/api/campaign/${campaignId}/export/roi-report?organizationId=${organizationId}&avgDealSize=${avgDealSize}&share=true`);
+            const res = await api.get(`/api/campaign/${campaignId}/export/roi-report?organizationId=${organizationId}&avgDealSize=${avgDealSize}&share=true`);
             const data = await res.json();
             setShareUrl(data.shareUrl);
             navigator.clipboard.writeText(`${window.location.origin}${data.shareUrl}`);

@@ -7,15 +7,13 @@ SecureLogger.init();
 
 // Environment Validation: Fail-fast if critical keys are missing
 function validateEnv() {
-    const required = [
-        'GOOGLE_API_KEY',
-        'DATABASE_URL',
-        'CLERK_SECRET_KEY',
-        'UPSTASH_REDIS_REST_URL',
-        'HMAC_SECRET',
-        'ALLOWED_INGEST_IPS'
-    ];
-    const missing = required.filter(k => !process.env[k]);
+    const missing: string[] = [];
+    if (!process.env.GOOGLE_API_KEY) missing.push('GOOGLE_API_KEY');
+    if (!process.env.DATABASE_URL) missing.push('DATABASE_URL');
+    if (!process.env.CLERK_SECRET_KEY) missing.push('CLERK_SECRET_KEY');
+    if (!process.env.UPSTASH_REDIS_REST_URL) missing.push('UPSTASH_REDIS_REST_URL');
+    if (!process.env.HMAC_SECRET) missing.push('HMAC_SECRET');
+    if (!process.env.ALLOWED_INGEST_IPS) missing.push('ALLOWED_INGEST_IPS');
     if (missing.length > 0) {
         const isStandalone = process.env.NETJANA_MODE === 'standalone';
         const isDev = process.env.NODE_ENV !== 'production'; // More inclusive check
@@ -31,10 +29,14 @@ function validateEnv() {
 }
 validateEnv();
 
-// Initialize DB Schema asynchronously
-initDb().catch(e => console.error("Database initialization failed", e));
+const dbReady = initDb().catch(e => {
+    console.error("Database initialization failed", e);
+    if (process.env.NODE_ENV === 'production') {
+        process.exit(1);
+    }
+});
 
-import * as Sentry from "@sentry/node";
+import Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import express from 'express';
 import 'express-async-errors'; // Centralized async error handling
@@ -57,38 +59,48 @@ import adminRoutes from './routes/admin';
 import ingestRoutes from './routes/ingest';
 import leadsRoutes from './routes/leads';
 import profileRoutes from './routes/profile';
+import watchProfilesRoutes from './routes/watch-profiles';
 import apiManagerRoutes from './routes/api-manager';
 import reportsRoutes from './routes/reports';
+import outreachRoutes from './routes/outreach';
+import shareRoutes from './routes/share';
 import covospanRoutes from './routes/covospan';
 import telemetryRoutes from './routes/telemetry';
 import sourceRoutes from './routes/sources';
 import webhookRoutes from './routes/webhooks';
 import usageRoutes from './routes/usage';
 import netjanaIntelRoutes from './routes/netjana-intel';
+import analyticsRoutes from './routes/analytics';
+import dlqRoutes from './routes/dlq';
 
 import { bootstrapSchedules } from './lib/scheduler';
 import { setupRecalibrationCron } from './lib/recalibration';
-import { setupScrapeWorker } from './workers/scrapeWorker';
-import { setupDlqWorker } from './workers/dlqWorker';
-import { setupRouterWorker } from './core/router';
-import { setupGeminiWorkers } from './core/gemini-chain';
 import { tenantContext } from './middleware/tenant';
 import { HACanary } from './lib/canary';
 import { errorHandler } from './middleware/error-handler';
 import { register, getSystemHealth } from './lib/telemetry';
+import { setupScrapeWorker } from './workers/scrapeWorker';
+import { setupDlqWorker } from './workers/dlqWorker';
+import { startOutreachWorker } from './workers/outreach_worker';
+import { startInfluenceWorker } from './workers/influenceMapWorker';
+import { startDecayRescoreWorker } from './workers/decayRescoreWorker';
+import { setupRouterWorker } from './core/router';
+import { setupGeminiWorkers } from './core/gemini-chain';
 
 const app = express();
 const httpServer = createServer(app);
 
 // Sentry Initialization
-Sentry.init({
-  dsn: process.env.SENTRY_DSN || "https://placeholder-dsn@sentry.io/0",
-  integrations: [
-    nodeProfilingIntegration(),
-  ],
-  tracesSampleRate: 1.0,
-  profilesSampleRate: 1.0,
-});
+if (process.env.SENTRY_DSN && !process.env.SENTRY_DSN.includes('placeholder')) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    integrations: [
+      nodeProfilingIntegration(),
+    ],
+    tracesSampleRate: 1.0,
+    profilesSampleRate: 1.0,
+  });
+}
 
 // Use raw body for Clerk webhooks before global json parsing
 app.use('/api/webhooks', express.raw({ type: 'application/json' }), (req: any, res, next) => {
@@ -96,7 +108,7 @@ app.use('/api/webhooks', express.raw({ type: 'application/json' }), (req: any, r
     next();
 }, webhookRoutes);
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : "*";
 
@@ -110,11 +122,38 @@ const io = new Server(httpServer, {
 
 // globalLimiter has been replaced by tenantRateLimiter below
 
-setupScrapeWorker(io);
-setupDlqWorker();
-setupRouterWorker();
-setupGeminiWorkers(io);
-setupRecalibrationCron(io);
+import Redis from 'ioredis';
+async function waitForRedis(maxMs = 30_000): Promise<void> {
+    const host = process.env.REDIS_HOST || 'localhost';
+    const port = parseInt(process.env.REDIS_PORT || '6379');
+    const client = new Redis({ host, port, lazyConnect: true });
+    const start = Date.now();
+    while (Date.now() - start < maxMs) {
+        try { await client.ping(); await client.quit(); return; }
+        catch { await new Promise(r => setTimeout(r, 1000)); }
+    }
+    throw new Error('[Startup] Redis not available after 30s. Aborting.');
+}
+
+async function startWorkers(ioInstance: Server) {
+    try {
+        await waitForRedis();
+
+        setupScrapeWorker(ioInstance);
+        setupDlqWorker();
+        await startOutreachWorker(ioInstance);
+        await startInfluenceWorker(ioInstance);
+        await startDecayRescoreWorker(ioInstance);
+        setupRouterWorker();
+        setupGeminiWorkers(ioInstance);
+        setupRecalibrationCron(ioInstance);
+        console.log('[Startup] Workers initialized successfully.');
+    } catch (err) {
+        console.error('[Startup] Failed to start workers:', err);
+    }
+}
+
+startWorkers(io);
 
 app.use(helmet({
     contentSecurityPolicy: {
@@ -126,7 +165,7 @@ app.use(helmet({
             "worker-src": ["'self'", "blob:"]
         },
     },
-})); 
+}));
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -178,27 +217,36 @@ app.use('/api/scrape', scrapeLimiter, scrapeRoutes);
 app.use('/api/results', resultsRoutes);
 app.use('/api/capsules', capsulesRoutes);
 app.use('/api/campaigns', campaignsRoutes);
+app.use('/api/campaign', campaignsRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/vault', vaultRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/usage', usageRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/outreach', outreachRoutes);
+app.use('/api/share', shareRoutes);
 app.use('/api/ingest', (req: any, res, next) => {
     // Ensure rawBody is preserved for ingest routes specifically
     // express.json() with verify is already global, but this is a safety layer
     next();
 }, ingestRoutes);
 app.use('/api/leads', leadsRoutes);
+app.use('/api/lead', leadsRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/watch-profiles', watchProfilesRoutes);
 app.use('/api/integrations', apiManagerRoutes);
 app.use('/api/covospan', covospanRoutes);
 app.use('/api/telemetry', telemetryRoutes);
 app.use('/api/sources', sourceRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/dlq', dlqRoutes);
 
 // NetJana Intel Pull API — external pull endpoint for full lead card details.
 // Mounted at /v1 (not /api) to clearly distinguish it from internal APIs.
 // Auth: x-api-key: NETJANA_PULL_API_KEY  |  Rate-limited: 60 req/min per key.
 app.use('/v1/intel', netjanaIntelRoutes);
+app.use('/share', shareRoutes);
 
 // Error Handling (Must be last)
 app.use(errorHandler);
@@ -232,14 +280,14 @@ if (process.env.NODE_ENV === 'production' || process.env.SERVE_FRONTEND === 'tru
 
 const PORT = process.env.PORT || 3000;
 
-httpServer.listen(PORT, () => {
+dbReady.finally(() => httpServer.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     // Bootstrap all persisted cron schedules from DB
     bootstrapSchedules().catch(e => console.warn('[Startup] Scheduler bootstrap failed:', e.message));
-    
+
     // Wire HA Canary Heartbeat
     setInterval(() => HACanary.runHeartbeat(), 5 * 60 * 1000);
-});
+}));
 
 // --- Graceful Shutdown & Process Monitoring ---
 process.on('uncaughtException', (err) => {

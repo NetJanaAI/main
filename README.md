@@ -1,8 +1,12 @@
 # ConvoSpan Intel — Government Registry Intelligence Layer
 
-> *The only B2B intelligence platform that triangulates India & UAE government registries to surface verified, time-bounded buying intent — before companies issue an RFP.*
+ConvoSpan Intel is the only B2B intelligence platform that triangulates Indian and UAE
+government registries to surface companies with verified, time-bounded buying intent —
+before they issue an RFP.
 
-Zero scraping of private websites. 100% legally sourced data. Compliance-first by architecture.
+Sources: MCA21 · GeM Portal · RERA · DGFT · Naukri · UAE DMCC · ADGM
+
+Zero scraping of private websites. 100% legally sourced. Compliance-first by architecture.
 
 ---
 
@@ -188,7 +192,7 @@ src/
 │   ├── database.ts      # Postgres connection + schema
 │   └── queue.ts         # BullMQ queue definitions
 ├── routes/
-│   ├── ingest.ts        # Webhook ingestion endpoints (unprotected — TODO: add HMAC)
+�   +-- ingest.ts        # Webhook ingestion endpoints (HMAC + API key + IP allowlist)
 │   ├── leads.ts, results.ts, campaigns.ts ...
 ├── standalone/
 │   └── services/        # CampaignROIAggregator, ROIPDFGenerator, RazorpayService
@@ -216,9 +220,9 @@ client/
 | Audit trail | RAGAuditLog + AuditTrail.ts | ✅ Active |
 | Compliance matrix | GDPR/DPDP/UAE PDPL | ✅ Active |
 | HMAC data integrity | SHA-256 signed capsules & ROI PDFs | ✅ Active |
-| Webhook HMAC verification | `x-source-signature` middleware | ⚠️ Pending |
-| IP whitelisting on `/api/ingest` | CIDR block middleware | ⚠️ Pending |
-| Tenant API key auth | `x-api-key` → `api_key_hash` lookup | ⚠️ Pending |
+| Webhook HMAC verification | `x-source-signature` middleware | Active |
+| IP allowlisting on `/api/ingest` | CIDR/env/DB allowlist middleware | Active |
+| Tenant API key auth | `x-api-key` to `api_key_hash` lookup | Active |
 
 ---
 

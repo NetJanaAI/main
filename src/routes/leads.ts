@@ -150,6 +150,46 @@ router.post('/:id/enrich-influence', async (req, res) => {
 });
 
 /**
+ * GET /api/leads/:id/influence
+ * Returns the latest influence map for a lead.
+ */
+router.get('/:id/influence', async (req, res) => {
+    try {
+        const leadId = req.params.id;
+        const organizationId = (req as any).organizationId || req.query.organizationId || (req as any).user?.organizationId;
+
+        if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
+
+        const result = await query(`
+            SELECT influence_map
+            FROM lead_influence_data
+            WHERE lead_id = $1 AND organization_id = $2
+            ORDER BY enriched_at DESC
+            LIMIT 1
+        `, [leadId, organizationId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Influence data not found" });
+        }
+
+        const map = result.rows[0].influence_map || {};
+        res.json({
+            map,
+            scores: {
+                tradeBodies: map.tradeBodies?.length || 0,
+                publications: map.publications?.length || 0,
+                events: map.events?.length || 0,
+                podcasts: map.podcasts?.length || 0
+            },
+            overallScore: map.influenceScore || 0,
+            alphaScore: map.alphaScore || map.influenceScore || 0
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: "InternalError", message: error.message });
+    }
+});
+
+/**
  * PATCH /api/leads/:id/feedback
  * ML Recalibration loop insertion.
  */

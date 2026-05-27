@@ -14,7 +14,7 @@ ConvoSpan Intel triangulates public government registry data across the **India/
 
 ```mermaid
 graph TB
-    subgraph "Ingestion Layer"
+    subgraph "Registry Ingestion Layer"
         WH["/api/ingest/* Webhook Endpoints"]
         INDIAMART["IndiaMART Push Webhook"]
         GEM["GeM Tender Bridge"]
@@ -161,7 +161,7 @@ Inspired by the Google Research TurboQuant paper (ICLR 2026), the `TenantRAGStor
 
 | Route Group | File | Auth | Description |
 |---|---|---|---|
-| `POST /api/ingest/*` | `routes/ingest.ts` | ⚠️ None | Webhook endpoints for all data sources |
+| `POST /api/ingest/*` | `routes/ingest.ts` | HMAC + API key + IP allowlist | Webhook endpoints for all data sources |
 | `GET /api/results` | `routes/results.ts` | Tenant | Paginated lead card feed |
 | `GET/POST /api/leads` | `routes/leads.ts` | Tenant | Lead management and Re-Engage Queue |
 | `POST /api/outreach` | `routes/outreach.ts` | Tenant | Approve outreach and trigger dispatch |
@@ -185,9 +185,9 @@ Inspired by the Google Research TurboQuant paper (ICLR 2026), the `TenantRAGStor
 | Audit logging | `AuditTrail.ts` + `RAGAuditLog.ts` | ✅ Active |
 | Compliance matrix | GDPR, DPDP (India), UAE PDPL | ✅ Active |
 | RAG cross-contamination guard | Namespace validation in `TenantRAGStore` | ✅ Active |
-| **Webhook HMAC signature verification** | `x-source-signature` middleware | ⚠️ Pending |
-| **IP/CIDR whitelisting on ingestion** | Express middleware on `/api/ingest` | ⚠️ Pending |
-| **Tenant API key authentication** | `x-api-key` → `api_key_hash` in Postgres | ⚠️ Pending |
+| Webhook HMAC verification | `x-source-signature` middleware | Active |
+| IP allowlisting on `/api/ingest` | CIDR/env/DB allowlist middleware | Active |
+| Tenant API key auth | `x-api-key` to `api_key_hash` lookup | Active |
 | Proxy mesh for scrapers | `ProxyManager.ts` → Bright Data / Oxylabs | ⚠️ Creds Required |
 
 ---

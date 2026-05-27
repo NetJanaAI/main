@@ -11,17 +11,19 @@ interface HealthData {
 
 const SystemHealthWidget: React.FC = () => {
     const [health, setHealth] = useState<HealthData | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchHealth = async () => {
             try {
+                setError(null);
                 const res = await api.get('/api/telemetry/health');
                 if (res.ok) {
                     const data = await res.json();
                     setHealth(data);
                 }
             } catch (e) {
-                console.warn('[HealthWidget] Failed to fetch health telemetry.');
+                setError(e instanceof Error ? e.message : 'Health telemetry unavailable');
             }
         };
 
@@ -29,6 +31,16 @@ const SystemHealthWidget: React.FC = () => {
         const interval = setInterval(fetchHealth, 30000); // 30s heartbeat
         return () => clearInterval(interval);
     }, []);
+
+    if (!health && error) {
+        return (
+            <div className="w-full max-w-7xl flex gap-3 px-4 py-3 bg-red-950/20 border border-red-500/20 rounded-xl mb-6 items-center">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-red-300">Health telemetry unavailable</span>
+                <span className="text-xs text-red-200/60 truncate">{error}</span>
+            </div>
+        );
+    }
 
     if (!health) return null;
 

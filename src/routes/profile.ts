@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../lib/database';
 import { cache } from '../lib/cache';
 import crypto from 'crypto';
+import { getHmacSecret } from '../lib/secrets';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.get('/credits', async (req: any, res) => {
         // For now, let's use the global one or a tenant-specific one if we want to be accurate.
         const tenantSpendKey = `gemini_calls:${orgId}:${dateStr}`;
         
-        const countStr = await cache.get(tenantSpendKey);
+        const countStr = await cache.get<string>(tenantSpendKey);
         const used = countStr ? parseInt(countStr, 10) : 0;
 
         res.json({
@@ -39,7 +40,7 @@ router.post('/regenerate-key', async (req: any, res) => {
 
     try {
         const rawApiKey = `sk_live_${crypto.randomBytes(24).toString('hex')}`;
-        const ADMIN_SECRET = process.env.HMAC_SECRET || 'dev-safety-fallback-do-not-use-in-prod';
+        const ADMIN_SECRET = getHmacSecret('profile API key regeneration');
         const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(rawApiKey).digest('hex');
 
         await query('UPDATE tenants SET api_key_hash = $1 WHERE id = $2', [apiKeyHash, orgId]);

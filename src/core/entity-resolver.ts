@@ -19,13 +19,16 @@ const INDUSTRY_NOISE = [
     'DISTRIBUTORS', 'DISTRIBUTION', 'LOGISTICS', 'VENTURES',
 ];
 
+const LEGAL_SUFFIXES_REGEX = LEGAL_SUFFIXES.map(suffix => {
+    const escaped = suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`,?\\s*${escaped}\\s*$`, 'i');
+});
+
 export function cleanCompanyName(raw: string): string {
     let name = raw.toUpperCase().trim();
 
-    for (const suffix of LEGAL_SUFFIXES) {
-        // Escape regex-special chars in suffixes (e.g. "PVT. LTD." has dots)
-        const escaped = suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        name = name.replace(new RegExp(`,?\\s*${escaped}\\s*$`, 'i'), '').trim();
+    for (const suffixRegex of LEGAL_SUFFIXES_REGEX) {
+        name = name.replace(suffixRegex, '').trim();
     }
 
     const words = name.split(/\s+/);
@@ -60,7 +63,7 @@ export async function resolveEntity(
 
     // 1. Exact match on clean name + state (Read-through Cache)
     const exactKey = `entity:exact:${cleanName}:${stateCode}`;
-    const cachedId = await cache.get(exactKey);
+    const cachedId = await cache.get<string>(exactKey);
     if (cachedId) {
         await touchOrgLastSeen(cachedId);
         return cachedId;
@@ -73,7 +76,7 @@ export async function resolveEntity(
     );
     if (exactRes.rows[0]) {
         const orgId = exactRes.rows[0].org_id;
-        await cache.set(exactKey, orgId, 'EX', 86400); // 24h cache
+        await cache.set(exactKey, orgId, { ex: 86400 }); // 24h cache
         await touchOrgLastSeen(orgId);
         return orgId;
     }
@@ -81,24 +84,24 @@ export async function resolveEntity(
     // 2. CIN lookup (Read-through Cache)
     if (cinHint) {
         const cinKey = `entity:cin:${cinHint}`;
-        const cachedCin = await cache.get(cinKey);
+        const cachedCin = await cache.get<string>(cinKey);
         if (cachedCin) {
-            await cache.set(exactKey, cachedCin, 'EX', 86400);
+            await cache.set(exactKey, cachedCin, { ex: 86400 });
             return cachedCin;
         }
 
         const cinRes = await query('SELECT org_id FROM org_registry WHERE cin = $1 LIMIT 1', [cinHint]);
         if (cinRes.rows[0]) {
             const orgId = cinRes.rows[0].org_id;
-            await cache.set(cinKey, orgId, 'EX', 86400);
-            await cache.set(exactKey, orgId, 'EX', 86400);
+            await cache.set(cinKey, orgId, { ex: 86400 });
+            await cache.set(exactKey, orgId, { ex: 86400 });
             return orgId;
         }
 
         // New Org with CIN
         await registerOrg(cinHint, cleanName, geoState, phoneticKey, 'CIN', cinHint);
-        await cache.set(exactKey, cinHint, 'EX', 86400);
-        await cache.set(cinKey, cinHint, 'EX', 86400);
+        await cache.set(exactKey, cinHint, { ex: 86400 });
+        await cache.set(cinKey, cinHint, { ex: 86400 });
         return cinHint;
     }
 
@@ -111,7 +114,7 @@ export async function resolveEntity(
     if (phoneticRes.rows.length > 0) {
         const bestMatchId = selectBestPhoneticMatch(cleanName, phoneticRes.rows);
         if (bestMatchId) {
-            await cache.set(exactKey, bestMatchId, 'EX', 86400);
+            await cache.set(exactKey, bestMatchId, { ex: 86400 });
             await logMerge(rawName, cleanName, bestMatchId, 'PHONETIC');
             await touchOrgLastSeen(bestMatchId);
             return bestMatchId;
@@ -129,8 +132,8 @@ export async function resolveEntity(
             if (data?.data?.cin || data?.data?.id) {
                 const orgId = data.data.cin || data.data.id;
                 await registerOrg(orgId, cleanName, geoState, phoneticKey, 'MCA_API', data.data.cin || null);
-                await cache.set(exactKey, orgId, 'EX', 86400);
-                if (data.data.cin) await cache.set(`entity:cin:${data.data.cin}`, orgId, 'EX', 86400);
+                await cache.set(exactKey, orgId, { ex: 86400 });
+                if (data.data.cin) await cache.set(`entity:cin:${data.data.cin}`, orgId, { ex: 86400 });
                 return orgId;
             }
         } catch (e) {
@@ -146,7 +149,7 @@ export async function resolveEntity(
         .slice(0, 12);
 
     await registerOrg(localId, cleanName, geoState, phoneticKey, 'LOCAL');
-    await cache.set(exactKey, localId, 'EX', 86400);
+    await cache.set(exactKey, localId, { ex: 86400 });
     return localId;
 }
 

@@ -4,12 +4,10 @@ import {
     AlertCircle, 
     RefreshCcw, 
     Trash2, 
-    ExternalLink, 
     Clock, 
     Database,
     ChevronRight,
-    Search,
-    Filter
+    Search
 } from 'lucide-react';
 
 interface FailedSignal {

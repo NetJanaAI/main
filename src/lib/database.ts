@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import format from 'pg-format';
 
 // Read database configuration from environment
@@ -57,7 +57,7 @@ export async function initDb() {
 
     console.log('[Database] Running idempotency migration check...');
 
-    const client = await pool.connect();
+    const client = await connectWithRetry(pool);
     try {
         await client.query('BEGIN');
 
@@ -105,7 +105,11 @@ export async function initDb() {
 
         // Get the default organization ID to use as a default for other tables
         const defaultOrgRes = await client.query("SELECT id FROM tenants WHERE name = 'Default Organization' LIMIT 1");
-        const defaultOrgId = defaultOrgRes.rows[0].id;
+        const defaultOrgId = defaultOrgRes.rows[0]?.id;
+
+        if (!defaultOrgId) {
+            throw new Error('[Database] FATAL: Default org not found — migration cannot continue.');
+        }
 
         // 1.4 Webhook Secrets & Allowed IPs
         await client.query(`
@@ -172,7 +176,7 @@ export async function initDb() {
                 spider_stats JSONB,
                 organization_id UUID REFERENCES tenants(id) DEFAULT '${defaultOrgId}',
                 timestamp TIMESTAMPTZ DEFAULT NOW(),
-                
+
                 -- Intent Decay Tracking (Phase 5)
                 base_score DECIMAL(5,2) DEFAULT 0,
                 signal_captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -180,7 +184,7 @@ export async function initDb() {
                 decay_status VARCHAR(10) DEFAULT 'Hot',
                 last_decay_calc TIMESTAMPTZ,
                 previous_decay_status VARCHAR(10),
-                
+
                 -- Influence & Alpha Scoring (Phase 6)
                 influence_score DECIMAL(5,2) DEFAULT 0,
                 influence_enriched_at TIMESTAMPTZ,
@@ -230,6 +234,9 @@ export async function initDb() {
                 last_run TIMESTAMPTZ
             );
         `);
+        // Multi-tenant remediation: schedules are unique per org/domain, not globally.
+        try { await client.query("ALTER TABLE scrape_schedules DROP CONSTRAINT IF EXISTS scrape_schedules_domain_key"); } catch(e) {}
+        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_scrape_schedules_org_domain ON scrape_schedules (organization_id, domain);`);
 
         // 6. Campaigns Table (Stage 6) — must exist before roi_exports
         await client.query(`
@@ -244,6 +251,9 @@ export async function initDb() {
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );
         `);
+        // Multi-tenant remediation: campaign domains must only be unique per org.
+        try { await client.query("ALTER TABLE campaigns DROP CONSTRAINT IF EXISTS campaigns_domain_key"); } catch(e) {}
+        await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_campaigns_org_domain ON campaigns (organization_id, domain);`);
 
         // 7. Lead Influence Data Table (Phase 6) — requires scrape_results
         await client.query(`
@@ -514,7 +524,17 @@ export async function initDb() {
         await client.query(`CREATE INDEX IF NOT EXISTS idx_llm_usage_org ON llm_usage_logs (org_id, timestamp DESC);`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_llm_usage_role ON llm_usage_logs (role);`);
 
-        await client.query('COMMIT');
+        // 18A. System Canaries / Worker Heartbeats
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS system_canaries (
+                type           TEXT PRIMARY KEY,
+                status         TEXT NOT NULL DEFAULT 'UNKNOWN',
+                last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                metadata       JSONB,
+                updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `);
+
 
         // Enable RLS on core multi-tenant tables
         await client.query(`ALTER TABLE scrape_results ENABLE ROW LEVEL SECURITY;`);
@@ -528,10 +548,10 @@ export async function initDb() {
         const rlsTables = ['scrape_results', 'lead_influence_data', 'roi_exports', 'campaigns', 'organization_seats', 'audit_logs', 'graph_nodes', 'graph_edges', 'outreach_logs', 'approval_queue'];
         for (const table of rlsTables) {
             await client.query(`
-                DO $$ 
-                BEGIN 
+                DO $$
+                BEGIN
                     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = '${table}' AND policyname = 'org_isolation_policy') THEN
-                        CREATE POLICY org_isolation_policy ON ${table} 
+                        CREATE POLICY org_isolation_policy ON ${table}
                         USING (organization_id = current_setting('app.current_organization_id')::uuid);
                     END IF;
                 END $$;
@@ -540,10 +560,10 @@ export async function initDb() {
 
         // Separate policy for llm_usage_logs using org_id instead of organization_id
         await client.query(`
-            DO $$ 
-            BEGIN 
+            DO $$
+            BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'llm_usage_logs' AND policyname = 'org_isolation_policy_usage') THEN
-                    CREATE POLICY org_isolation_policy_usage ON llm_usage_logs 
+                    CREATE POLICY org_isolation_policy_usage ON llm_usage_logs
                     USING (org_id = current_setting('app.current_organization_id'));
                 END IF;
             END $$;
@@ -565,10 +585,36 @@ export async function initDb() {
 
         // Source Config RLS using org_id
         await client.query(`
-            DO $$ 
-            BEGIN 
+            DO $$
+            BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'source_configs' AND policyname = 'org_isolation_policy_sources') THEN
-                    CREATE POLICY org_isolation_policy_sources ON source_configs 
+                    CREATE POLICY org_isolation_policy_sources ON source_configs
+                    USING (org_id = current_setting('app.current_organization_id'));
+                END IF;
+            END $$;
+        `);
+
+        // 20. Tender Watch Profiles (Phase 2)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS watch_profiles (
+                profile_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                org_id       TEXT NOT NULL,
+                keywords     JSONB NOT NULL DEFAULT '[]',
+                regions      JSONB NOT NULL DEFAULT '[]',
+                min_amount   INT DEFAULT 0,
+                is_active    BOOLEAN DEFAULT TRUE,
+                created_at   TIMESTAMPTZ DEFAULT NOW(),
+                updated_at   TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_watch_profiles_org ON watch_profiles (org_id) WHERE is_active = TRUE;`);
+        await client.query(`ALTER TABLE watch_profiles ENABLE ROW LEVEL SECURITY;`);
+
+        await client.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'watch_profiles' AND policyname = 'org_isolation_policy_watch') THEN
+                    CREATE POLICY org_isolation_policy_watch ON watch_profiles
                     USING (org_id = current_setting('app.current_organization_id'));
                 END IF;
             END $$;
@@ -583,6 +629,23 @@ export async function initDb() {
     } finally {
         client.release();
     }
+}
+
+async function connectWithRetry(targetPool: Pool, attempts = 3): Promise<PoolClient> {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+            return await targetPool.connect();
+        } catch (error) {
+            lastError = error;
+            if (attempt < attempts) {
+                await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+            }
+        }
+    }
+
+    throw lastError;
 }
 
 export const db = {
