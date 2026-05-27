@@ -91,7 +91,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                         <div className="institution-badge mb-6 text-primary">Intelligence Output</div>
                         <h3 className="text-white/20 text-[9px] font-black uppercase tracking-[4px] mb-2">Alpha score (Composite)</h3>
                         <div className="flex items-baseline gap-4">
-                            <span className="text-7xl font-serif italic tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">{(data as any).alphaScore || data.frictionScore || 0}</span>
+                            <span className="text-7xl font-sans italic tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">{(data as any).alphaScore || data.frictionScore || 0}</span>
                             <span className="text-white/20 text-[9px] font-black uppercase tracking-[3px]">Sovereign Indices</span>
                         </div>
 
@@ -130,7 +130,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                         </div>
                         <div>
                             <h3 className="text-white/20 text-[9px] font-black uppercase tracking-[4px] mb-1">Ingress Location</h3>
-                            <p className="text-3xl font-serif italic tracking-tighter text-white">{data.geoCountry || 'GLOBAL'}</p>
+                            <p className="text-3xl font-sans italic tracking-tighter text-white">{data.geoCountry || 'GLOBAL'}</p>
                         </div>
                     </div>
 
@@ -141,7 +141,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                                     <Zap className="w-3 h-3 text-primary animate-pulse" />
                                     <h4 className="text-[10px] font-black uppercase tracking-[4px] text-primary/60">CEO Icebreaker Intent</h4>
                                 </div>
-                                <p className="font-serif italic text-2xl text-white leading-tight">
+                                <p className="font-sans italic text-2xl text-white leading-tight">
                                     "{data.criticAnalysis.ceoIcebreaker}"
                                 </p>
                             </div>
@@ -150,7 +150,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                         <div className="flex items-center justify-between mb-10">
                             <div className="flex items-center gap-4 text-primary">
                                 <Server className="w-6 h-6" />
-                                <h3 className="text-xl font-serif italic tracking-tighter uppercase text-white">Adversarial Signal Extraction</h3>
+                                <h3 className="text-xl font-sans italic tracking-tighter uppercase text-white">Adversarial Signal Extraction</h3>
                             </div>
                         </div>
 
@@ -226,7 +226,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                     ) : (
                         <div className="lg:col-span-2 h-[400px] flex flex-col items-center justify-center text-white/20">
                             <Zap className="w-12 h-12 mb-4" />
-                            <p className="font-serif italic text-xl">No influence data identified for this ingress.</p>
+                            <p className="font-sans italic text-xl">No influence data identified for this ingress.</p>
                         </div>
                     )}
                 </div>

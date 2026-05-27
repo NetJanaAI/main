@@ -40,9 +40,9 @@ export default function IntentMatcher() {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       <div className="flex items-center gap-3 mb-2">
-        <Target className="w-8 h-8 text-[#D4AF37]" />
+        <Target className="w-8 h-8 text-[#00ffca]" />
         <div>
-          <h2 className="text-2xl font-serif tracking-tight text-white mb-1">Semantic Intent Matcher</h2>
+          <h2 className="text-2xl font-sans tracking-tight text-white mb-1">Semantic Intent Matcher</h2>
           <p className="text-sm text-white/50">Cross-reference active registry signals directly against your target market criteria.</p>
         </div>
       </div>
@@ -50,7 +50,7 @@ export default function IntentMatcher() {
       <div className="bg-white/5 border border-white/10 p-6 rounded-xl backdrop-blur-md">
         <form onSubmit={fetchMatches} className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1 w-full">
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#D4AF37] mb-2">Industry / Sector</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#00ffca] mb-2">Industry / Sector</label>
             <div className="relative">
               <Filter className="absolute left-3 top-2.5 w-4 h-4 text-white/30" />
               <input 
@@ -58,12 +58,12 @@ export default function IntentMatcher() {
                 value={industry}
                 onChange={e => setIndustry(e.target.value)}
                 placeholder="e.g. IT Services, Construction"
-                className="w-full bg-black/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-white focus:outline-none focus:border-[#D4AF37]/50"
+                className="w-full bg-black/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-white focus:outline-none focus:border-[#00ffca]/50"
               />
             </div>
           </div>
           <div className="flex-1 w-full">
-            <label className="block text-xs font-bold uppercase tracking-widest text-[#D4AF37] mb-2">Product Query / Company Focus</label>
+            <label className="block text-xs font-bold uppercase tracking-widest text-[#00ffca] mb-2">Product Query / Company Focus</label>
             <div className="relative">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-white/30" />
               <input 
@@ -71,14 +71,14 @@ export default function IntentMatcher() {
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="e.g. Cloud Infrastructure, Heavy Machinery"
-                className="w-full bg-black/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-white focus:outline-none focus:border-[#D4AF37]/50"
+                className="w-full bg-black/40 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-white focus:outline-none focus:border-[#00ffca]/50"
               />
             </div>
           </div>
           <button 
             type="submit" 
             disabled={loading}
-            className="h-10 px-6 bg-[#D4AF37] hover:bg-[#D4AF37]/80 text-black font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center min-w-[140px]"
+            className="h-10 px-6 bg-[#00ffca] hover:bg-[#00ffca]/80 text-black font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center min-w-[140px]"
           >
             {loading ? 'Scanning...' : 'Match Alpha'}
           </button>
@@ -113,11 +113,11 @@ export default function IntentMatcher() {
         {!loading && hasSearched && matches.length > 0 && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {matches.map((lead, idx) => (
-              <div key={idx} className="bg-black/40 border border-[#D4AF37]/20 p-5 rounded-xl hover:border-[#D4AF37]/50 transition-colors flex flex-col justify-between">
+              <div key={idx} className="bg-black/40 border border-[#00ffca]/20 p-5 rounded-xl hover:border-[#00ffca]/50 transition-colors flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h3 className="text-lg font-bold text-[#D4AF37] truncate">{lead.company_name}</h3>
+                      <h3 className="text-lg font-bold text-[#00ffca] truncate">{lead.company_name}</h3>
                       <div className="flex gap-2 items-center text-xs text-white/40 mt-1 uppercase tracking-wider">
                         <span>{lead.geo_state}</span>
                         <span>•</span>
@@ -131,7 +131,7 @@ export default function IntentMatcher() {
                   
                   <div className="bg-white/5 p-3 rounded border border-white/5 mb-4">
                     <p className="text-sm text-white/80 line-clamp-2"><span className="text-white/40 font-bold mr-2">CONTEXT:</span>{lead.card_why_now}</p>
-                    <p className="text-sm text-[#D4AF37] font-semibold mt-2 truncate"><span className="text-white/40 font-bold mr-2">NEEDS:</span>{lead.card_what_they_need}</p>
+                    <p className="text-sm text-[#00ffca] font-semibold mt-2 truncate"><span className="text-white/40 font-bold mr-2">NEEDS:</span>{lead.card_what_they_need}</p>
                   </div>
                 </div>
 

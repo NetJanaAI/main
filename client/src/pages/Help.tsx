@@ -31,10 +31,10 @@ export default function Help() {
       <div className="max-w-4xl mx-auto relative z-10">
         <header className="mb-16">
           <Link to="/" className="flex items-center gap-2 mb-8 opacity-60 hover:opacity-100 transition-opacity">
-            <Shield className="w-5 h-5 text-[#D4AF37]" strokeWidth={2.5} />
-            <span className="text-xs font-black uppercase tracking-widest text-[#D4AF37] font-serif">Back to Alpha</span>
+            <Shield className="w-5 h-5 text-[#00ffca]" strokeWidth={2.5} />
+            <span className="text-xs font-black uppercase tracking-widest text-[#00ffca] font-sans">Back to Alpha</span>
           </Link>
-          <h1 className="text-4xl font-black uppercase tracking-widest text-white mb-2 font-serif italic">Support & Protocol Docs</h1>
+          <h1 className="text-4xl font-black uppercase tracking-widest text-white mb-2 font-sans italic">Support & Protocol Docs</h1>
           <p className="text-sm text-white/40 uppercase tracking-[2px]">NetJana.AI Intelligence Layer Helpdesk</p>
         </header>
 
@@ -44,7 +44,7 @@ export default function Help() {
             <input 
               type="text" 
               placeholder="SEARCH PROTOCOLS OR ENTITY TYPES..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-[#D4AF37]/50"
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-[#00ffca]/50"
             />
           </div>
 
@@ -56,7 +56,7 @@ export default function Help() {
                    className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-white/5 transition-colors"
                  >
                    <span className="text-sm font-bold uppercase tracking-wide text-white/80">{item.k}</span>
-                   {openIndex === idx ? <ChevronUp className="w-4 h-4 text-[#D4AF37]" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
+                   {openIndex === idx ? <ChevronUp className="w-4 h-4 text-[#00ffca]" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
                  </button>
                  {openIndex === idx && (
                    <div className="px-6 pb-6 pt-0 text-sm text-white/40 leading-relaxed max-w-2xl">
@@ -69,11 +69,11 @@ export default function Help() {
         </section>
 
         <div className="grid md:grid-cols-2 gap-8">
-           <div className="p-8 bg-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-2xl">
-             <BookOpen className="w-8 h-8 text-[#D4AF37] mb-6" />
+           <div className="p-8 bg-[#00ffca]/5 border border-[#00ffca]/20 rounded-2xl">
+             <BookOpen className="w-8 h-8 text-[#00ffca] mb-6" />
              <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">Developer API</h3>
              <p className="text-xs text-white/40 leading-loose mb-6">Integrate your CRM directly with our intelligence layer via our authenticated REST endpoints and HMAC webhook signatures.</p>
-             <Link to="/app/api" className="text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37] border-b border-[#D4AF37]/30 pb-0.5 hover:border-[#D4AF37] transition-all">Explore API Docs</Link>
+             <Link to="/app/api" className="text-[10px] font-black uppercase tracking-[3px] text-[#00ffca] border-b border-[#00ffca]/30 pb-0.5 hover:border-[#00ffca] transition-all">Explore API Docs</Link>
            </div>
            
            <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">

@@ -50,7 +50,7 @@ export default function TenderNotifications() {
           <div className="absolute right-0 top-full mt-2 w-80 bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
             <div className="p-3 border-b border-white/5 bg-white/[0.02]">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-white/60 flex items-center gap-2">
-                    <Target className="w-3 h-3 text-[#D4AF37]" />
+                    <Target className="w-3 h-3 text-[#00ffca]" />
                     Tender Matches
                 </h3>
             </div>
@@ -64,7 +64,7 @@ export default function TenderNotifications() {
                         <div key={i} className="p-3 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors">
                             <div className="flex justify-between items-start mb-1">
                                 <span className="font-bold text-[11px] text-white truncate max-w-[200px]">{m.company_name}</span>
-                                <span className="text-[8px] text-[#D4AF37] px-1.5 py-0.5 bg-[#D4AF37]/10 rounded uppercase tracking-wider">Matched</span>
+                                <span className="text-[8px] text-[#00ffca] px-1.5 py-0.5 bg-[#00ffca]/10 rounded uppercase tracking-wider">Matched</span>
                             </div>
                             <p className="text-[9px] text-white/40 truncate">{m.sector || 'Unclassified Sector'}</p>
                         </div>

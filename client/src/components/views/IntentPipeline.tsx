@@ -40,7 +40,7 @@ export default function IntentPipeline({ market }: { market: 'IN' | 'AE' }) {
     const pipelineSteps = [
         { id: 1, name: 'Registry Ingestion', icon: Filter, count: data?.pipeline.ingested || 0, color: 'text-blue-400', desc: 'Raw signals acquired' },
         { id: 2, name: 'Entity Resolution', icon: Cpu, count: data?.pipeline.merged || 0, color: 'text-purple-400', desc: 'Deduplicated & merged' },
-        { id: 3, name: 'Intent Scoring', icon: Target, count: data?.pipeline.scored || 0, color: 'text-[#D4AF37]', desc: 'High-friction signals' },
+        { id: 3, name: 'Intent Scoring', icon: Target, count: data?.pipeline.scored || 0, color: 'text-[#00ffca]', desc: 'High-friction signals' },
         { id: 4, name: 'Lead Dispatched', icon: Send, count: data?.pipeline.dispatched || 0, color: 'text-emerald-400', desc: 'Routed to CRM' },
     ];
 
@@ -50,9 +50,9 @@ export default function IntentPipeline({ market }: { market: 'IN' | 'AE' }) {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <header className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
-                    <LayoutGrid className="w-6 h-6 text-[#D4AF37]" />
-                    <h1 className="text-2xl font-black uppercase tracking-widest text-[#D4AF37]">Intent Pipeline</h1>
-                    <span className="ml-4 px-2 py-1 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded text-[#D4AF37] text-[10px] font-black uppercase tracking-widest">
+                    <LayoutGrid className="w-6 h-6 text-[#00ffca]" />
+                    <h1 className="text-2xl font-black uppercase tracking-widest text-[#00ffca]">Intent Pipeline</h1>
+                    <span className="ml-4 px-2 py-1 bg-[#00ffca]/10 border border-[#00ffca]/20 rounded text-[#00ffca] text-[10px] font-black uppercase tracking-widest">
                         {market} Region
                     </span>
                 </div>
@@ -76,7 +76,7 @@ export default function IntentPipeline({ market }: { market: 'IN' | 'AE' }) {
                                     <Icon className="w-6 h-6" />
                                 </div>
                                 <h3 className="text-xs font-black uppercase tracking-widest text-white/60 mb-1">{step.name}</h3>
-                                <p className="text-3xl font-serif italic text-white mb-2">{loading ? '...' : step.count.toLocaleString()}</p>
+                                <p className="text-3xl font-sans italic text-white mb-2">{loading ? '...' : step.count.toLocaleString()}</p>
                                 <p className="text-[10px] uppercase tracking-widest text-white/30">{step.desc}</p>
 
                                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -96,7 +96,7 @@ export default function IntentPipeline({ market }: { market: 'IN' | 'AE' }) {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-12">
                 <div className="glass-panel p-6 border-white/5 bg-black/40">
-                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37] mb-6">Recent Dispatches</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#00ffca] mb-6">Recent Dispatches</h4>
                     <div className="space-y-4">
                         {loading && <div className="text-white/40 text-xs text-center py-10">Loading dispatches...</div>}
                         {!loading && recentDispatches.length === 0 && (
@@ -120,7 +120,7 @@ export default function IntentPipeline({ market }: { market: 'IN' | 'AE' }) {
                 </div>
 
                 <div className="glass-panel p-6 border-white/5 bg-black/40">
-                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37] mb-6">Pipeline Anomalies</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#00ffca] mb-6">Pipeline Anomalies</h4>
                     <div className="flex flex-col items-center justify-center h-full py-12 opacity-50">
                         <Activity className="w-12 h-12 text-white/20 mb-4" />
                         <p className="text-[10px] uppercase tracking-widest text-white/40">No anomalies detected in active signals</p>

@@ -50,7 +50,7 @@ export default function SourceHealth() {
                 <div className="glass-panel p-6 border-primary/20 bg-primary/5">
                     <span className="text-[10px] font-black uppercase tracking-[3px] text-primary/60 mb-2 block">Global Ingestion Efficiency</span>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-serif italic text-white">
+                        <span className="text-4xl font-sans italic text-white">
                             {data?.summary.total_duplicates ? Math.round((data.summary.total_duplicates / (data.summary.total_queued + data.summary.total_duplicates)) * 100) : 0}%
                         </span>
                         <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Deduplication Rate</span>
@@ -59,14 +59,14 @@ export default function SourceHealth() {
                 <div className="glass-panel p-6 border-white/5">
                     <span className="text-[10px] font-black uppercase tracking-[3px] text-white/30 mb-2 block">Active Collectors</span>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-serif italic text-white">3</span>
+                        <span className="text-4xl font-sans italic text-white">3</span>
                         <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Sources Syncing</span>
                     </div>
                 </div>
                 <div className="glass-panel p-6 border-white/5">
                     <span className="text-[10px] font-black uppercase tracking-[3px] text-white/30 mb-2 block">Last Heartbeat</span>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-black text-[#D4AF37] uppercase tracking-widest">
+                        <span className="text-sm font-black text-[#00ffca] uppercase tracking-widest">
                             {data?.summary.last_updated ? new Date(data.summary.last_updated).toLocaleTimeString() : 'N/A'}
                         </span>
                     </div>
@@ -79,7 +79,7 @@ export default function SourceHealth() {
                 <div className="glass-panel p-8 border-white/5">
                     <div className="flex items-center gap-3 mb-8">
                         <Database className="w-5 h-5 text-primary" />
-                        <h3 className="text-lg font-serif italic text-white">IndiaMART Funnel Diagnostics</h3>
+                        <h3 className="text-lg font-sans italic text-white">IndiaMART Funnel Diagnostics</h3>
                     </div>
                     
                     <div className="space-y-6">
@@ -108,7 +108,7 @@ export default function SourceHealth() {
                 <div className="glass-panel p-8 border-white/5">
                     <div className="flex items-center gap-3 mb-8">
                         <Zap className="w-5 h-5 text-emerald-400" />
-                        <h3 className="text-lg font-serif italic text-white">Orchestration Worker Status</h3>
+                        <h3 className="text-lg font-sans italic text-white">Orchestration Worker Status</h3>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4">

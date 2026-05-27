@@ -29,11 +29,11 @@ export default function Analytics() {
 
     const stats = data ? [
         { label: 'Total ROI Discovered', val: data.roi, trend: '+12.5%', icon: DollarSign, color: 'text-emerald-400' },
-        { label: 'Signal Accuracy', val: data.accuracy, trend: '+1.2%', icon: Target, color: 'text-[#D4AF37]' },
+        { label: 'Signal Accuracy', val: data.accuracy, trend: '+1.2%', icon: Target, color: 'text-[#00ffca]' },
         { label: 'Active Monitored Entities', val: data.activeEntities, trend: '+140', icon: Activity, color: 'text-blue-400' },
     ] : [
         { label: 'Total ROI Discovered', val: '---', trend: '---', icon: DollarSign, color: 'text-emerald-400' },
-        { label: 'Signal Accuracy', val: '---', trend: '---', icon: Target, color: 'text-[#D4AF37]' },
+        { label: 'Signal Accuracy', val: '---', trend: '---', icon: Target, color: 'text-[#00ffca]' },
         { label: 'Active Monitored Entities', val: '---', trend: '---', icon: Activity, color: 'text-blue-400' },
     ];
 
@@ -43,8 +43,8 @@ export default function Analytics() {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
             <header className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
-                    <PieChart className="w-6 h-6 text-[#D4AF37]" />
-                    <h1 className="text-2xl font-black uppercase tracking-widest text-[#D4AF37]">Performance Analytics</h1>
+                    <PieChart className="w-6 h-6 text-[#00ffca]" />
+                    <h1 className="text-2xl font-black uppercase tracking-widest text-[#00ffca]">Performance Analytics</h1>
                 </div>
                 <p className="text-xs uppercase tracking-widest text-white/40">
                     Sovereign insights into ROI, conversion velocity, and registry yield.
@@ -70,7 +70,7 @@ export default function Analytics() {
                                     <ArrowUpRight className="w-3 h-3" /> {stat.trend}
                                 </span>
                             </div>
-                            <h4 className="text-3xl font-serif italic text-white mb-1">{loading ? '...' : stat.val}</h4>
+                            <h4 className="text-3xl font-sans italic text-white mb-1">{loading ? '...' : stat.val}</h4>
                             <p className="text-[10px] font-black uppercase tracking-widest text-white/40">{stat.label}</p>
                         </motion.div>
                     );
@@ -79,7 +79,7 @@ export default function Analytics() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 glass-panel p-6 border-white/5 bg-black/40 min-h-[400px] flex flex-col">
-                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37] mb-6 flex items-center gap-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#00ffca] mb-6 flex items-center gap-2">
                         <TrendingUp className="w-4 h-4" /> Signal Yield Velocity
                     </h4>
 
@@ -92,7 +92,7 @@ export default function Analytics() {
                                 initial={{ height: 0 }}
                                 animate={{ height: `${h}%` }}
                                 transition={{ delay: 0.5 + (i * 0.05), duration: 0.8, ease: "easeOut" }}
-                                className="flex-1 bg-gradient-to-t from-[#D4AF37]/20 to-[#D4AF37] rounded-t-sm opacity-80 hover:opacity-100 transition-opacity relative group"
+                                className="flex-1 bg-gradient-to-t from-[#00ffca]/20 to-[#00ffca] rounded-t-sm opacity-80 hover:opacity-100 transition-opacity relative group"
                             >
                                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-[10px] font-black text-white bg-black/80 px-2 py-1 rounded border border-white/10 transition-all">
                                     {h * 12}
@@ -117,7 +117,7 @@ export default function Analytics() {
                 </div>
 
                 <div className="glass-panel p-6 border-white/5 bg-black/40">
-                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37] mb-6">Top Discovered Sectors</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#00ffca] mb-6">Top Discovered Sectors</h4>
                     <div className="space-y-6">
                         {loading && <div className="text-white/40 text-xs text-center py-10">Loading sectors...</div>}
                         {!loading && sectors.map((sector: any, i: number) => (

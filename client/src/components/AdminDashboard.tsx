@@ -66,7 +66,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex justify-between items-end">
                 <div>
-                    <h2 className="text-3xl font-serif italic mb-2">Institutional Administration</h2>
+                    <h2 className="text-3xl font-sans italic mb-2">Institutional Administration</h2>
                     <p className="text-[10px] font-black uppercase tracking-[4px] text-white/30">
                         Sovereign Governance & Multi-Tenant Management
                     </p>
@@ -144,7 +144,7 @@ export const AdminDashboard: React.FC = () => {
                         <div className="space-y-6">
                             <div className="flex items-center gap-4 text-primary">
                                 <ShieldCheck className="w-8 h-8" />
-                                <h3 className="text-xl font-serif italic">Access Provisioned Successfully</h3>
+                                <h3 className="text-xl font-sans italic">Access Provisioned Successfully</h3>
                             </div>
                             <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-xl">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-red-400 mb-4">
@@ -188,7 +188,7 @@ export const AdminDashboard: React.FC = () => {
                                     <Building2 className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
-                                    <h4 className="text-lg font-serif italic mb-1">{tenant.name}</h4>
+                                    <h4 className="text-lg font-sans italic mb-1">{tenant.name}</h4>
                                     <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-widest text-white/30">
                                         <span>ID: {tenant.id.substring(0, 8)}...</span>
                                         <span className="w-1 h-1 bg-white/10 rounded-full" />
@@ -257,7 +257,7 @@ export const AdminDashboard: React.FC = () => {
             {/* System Integrations & API Keys */}
             <div className="mt-12 glass-panel p-8 border-primary/10 bg-black/40">
                 <div className="mb-6 border-b border-white/10 pb-4">
-                    <h3 className="text-xl font-serif italic text-white flex items-center gap-3">
+                    <h3 className="text-xl font-sans italic text-white flex items-center gap-3">
                         <Key className="w-5 h-5 text-primary" />
                         System Integrations & Keys
                     </h3>

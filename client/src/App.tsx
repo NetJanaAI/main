@@ -85,16 +85,16 @@ function App() {
       {/* Header Bar */}
       <div className="relative w-full max-w-7xl flex flex-col md:flex-row justify-between items-start md:items-center mb-10 z-20 gap-4">
         <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl backdrop-blur-md bg-white/5 flex items-center justify-center border border-white/10 ${isConnected ? 'text-[#D4AF37]' : 'text-red-500/50'}`}>
+          <div className={`w-12 h-12 rounded-xl backdrop-blur-md bg-white/5 flex items-center justify-center border border-white/10 ${isConnected ? 'text-[#00ffca]' : 'text-red-500/50'}`}>
             <Shield className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-black uppercase tracking-widest text-[#D4AF37] font-serif">NetJana.AI</h1>
+            <h1 className="text-xl font-black uppercase tracking-widest text-[#00ffca] font-sans">NetJana.AI</h1>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black uppercase tracking-[3px] text-white/40">
                 Sovereign Alpha
               </span>
-              <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-[#D4AF37] animate-pulse shadow-[0_0_8px_rgba(212,175,55,1)]' : 'bg-red-500'}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-[#00ffca] animate-pulse shadow-[0_0_8px_rgba(0,255,202,1)]' : 'bg-red-500'}`} />
               {socketError && (
                 <span className="text-[10px] font-bold text-red-400 ml-2 animate-pulse truncate max-w-[200px]">
                   {socketError}
@@ -109,13 +109,13 @@ function App() {
           <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
             <button
               onClick={() => setMarket('IN')}
-              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${market === 'IN' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'text-white/40 hover:text-white/60'}`}
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${market === 'IN' ? 'bg-[#00ffca]/20 text-[#00ffca]' : 'text-white/40 hover:text-white/60'}`}
             >
               IN
             </button>
             <button
               onClick={() => setMarket('AE')}
-              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${market === 'AE' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'text-white/40 hover:text-white/60'}`}
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors ${market === 'AE' ? 'bg-[#00ffca]/20 text-[#00ffca]' : 'text-white/40 hover:text-white/60'}`}
             >
               AE
             </button>
@@ -124,8 +124,8 @@ function App() {
           <div>
             <h2 className="text-[9px] font-black uppercase tracking-[3px] text-white/30 mb-0.5text-right">Alpha Escrow</h2>
             <div className="flex items-center gap-2 justify-end">
-              <Zap className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
-              <span className="text-2xl font-serif italic tracking-tighter text-white">
+              <Zap className="w-4 h-4 text-[#00ffca] fill-[#00ffca]" />
+              <span className="text-2xl font-sans italic tracking-tighter text-white">
                 {market === 'IN' ? '₹' : 'AED '}
                 {market === 'IN' 
                   ? ((totalAlpha * 1000) / 100000).toFixed(2) + 'L' 
@@ -149,7 +149,7 @@ function App() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 pb-4 text-xs font-bold uppercase tracking-widest transition-all duration-200 border-b-2 ${isActive
-                  ? 'border-[#D4AF37] text-[#D4AF37]'
+                  ? 'border-[#00ffca] text-[#00ffca]'
                   : 'border-transparent text-white/30 hover:text-white/60'
                   }`}
               >

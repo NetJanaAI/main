@@ -4,7 +4,16 @@ import {
   Cpu,
   Zap,
   Activity,
-  Terminal
+  Terminal,
+  Bot,
+  BarChart3,
+  Mail,
+  MessageSquare,
+  Linkedin,
+  Radio,
+  ShieldCheck,
+  ArrowRight,
+  Send
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -91,7 +100,7 @@ export function TerminalExperience() {
   }, [liveLeads.length]);
 
   return (
-    <div className="min-h-screen bg-[#020813] text-gray-200 overflow-x-hidden selection:bg-[#D4AF37]/30 selection:text-white">
+    <div className="min-h-screen bg-[#020813] text-gray-200 overflow-x-hidden selection:bg-[#00ffca]/30 selection:text-white">
       {/* Dynamic Background */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,_#1e293b_0%,_transparent_70%)] opacity-30" />
@@ -328,6 +337,183 @@ export function TerminalExperience() {
 
 const ONBOARDING_COMPLETE_KEY = "netjana_onboarding_complete";
 
+function ProductDashboardPreview() {
+  const floatingCards = [
+    {
+      className: "top-8 -left-8 md:-left-12",
+      icon: Bot,
+      label: "AI Agent Activity",
+      value: "14 active",
+      detail: "Qualifier -> Writer -> Outreach",
+      delay: 0.15,
+    },
+    {
+      className: "top-20 -right-4 md:-right-10",
+      icon: BarChart3,
+      label: "Response Rate",
+      value: "31.8%",
+      detail: "+8.4% this week",
+      delay: 0.3,
+    },
+    {
+      className: "bottom-24 -left-4 md:-left-14",
+      icon: Send,
+      label: "Outreach Performance",
+      value: "2.4k sent",
+      detail: "Email, LinkedIn, WABA",
+      delay: 0.45,
+    },
+    {
+      className: "bottom-8 -right-3 md:-right-12",
+      icon: Radio,
+      label: "Campaign Metrics",
+      value: "86 AQ",
+      detail: "4 high-intent accounts",
+      delay: 0.6,
+    },
+  ];
+
+  return (
+    <div className="relative w-full max-w-[720px] mx-auto lg:mr-0 perspective-[1400px]">
+      <motion.div
+        initial={{ opacity: 0, y: 36, rotateX: 4, rotateY: -6 }}
+        animate={{ opacity: 1, y: 0, rotateX: 0, rotateY: -4 }}
+        whileHover={{ y: -8, rotateY: -2, rotateX: 1 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="relative rounded-[22px] border border-[#00ffca]/20 bg-[#03101a]/78 shadow-[0_32px_90px_rgba(0,0,0,0.5),0_0_50px_rgba(0,255,202,0.08)] backdrop-blur-2xl overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(0,255,202,0.18),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_35%)] pointer-events-none" />
+        <div className="relative border-b border-white/10 px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl border border-[#00ffca]/30 bg-[#00ffca]/10 flex items-center justify-center">
+              <Terminal className="h-4 w-4 text-[#00ffca]" />
+            </div>
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">ConvoSpan Command</div>
+              <div className="text-sm font-black uppercase tracking-[0.16em] text-white">Outreach Orchestration</div>
+            </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]" />
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300">Live Agents</span>
+          </div>
+        </div>
+
+        <div className="relative grid lg:grid-cols-12 gap-0 min-h-[420px]">
+          <aside className="hidden lg:block lg:col-span-3 border-r border-white/10 bg-black/20 p-4 space-y-3">
+            {["Signal Intake", "Agent Chain", "Campaigns", "Analytics"].map((item, idx) => (
+              <div
+                key={item}
+                className={`rounded-xl px-3 py-3 border text-[10px] font-black uppercase tracking-[0.16em] transition-colors ${
+                  idx === 1
+                    ? "border-[#00ffca]/30 bg-[#00ffca]/10 text-[#00ffca]"
+                    : "border-white/5 bg-white/[0.03] text-white/35"
+                }`}
+              >
+                {item}
+              </div>
+            ))}
+          </aside>
+
+          <main className="lg:col-span-9 p-5 md:p-6 space-y-5">
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                ["Qualified Leads", "1,284", "+18%"],
+                ["Sequences Live", "42", "8 agents"],
+                ["Pipeline Value", "$8.7M", "+24%"],
+              ].map(([label, value, trend]) => (
+                <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                  <div className="text-[8px] font-black uppercase tracking-[0.22em] text-white/35">{label}</div>
+                  <div className="mt-3 text-xl md:text-2xl font-black tracking-tight text-white">{value}</div>
+                  <div className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#00ffca]">{trend}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid md:grid-cols-12 gap-4">
+              <section className="md:col-span-7 rounded-2xl border border-white/10 bg-black/28 p-4">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.24em] text-[#00ffca]">Agent Workflow</div>
+                    <div className="mt-1 text-sm font-bold text-white/85">Procurement signal to booked meeting</div>
+                  </div>
+                  <Bot className="h-5 w-5 text-[#00ffca]" />
+                </div>
+                <div className="space-y-3">
+                  {[
+                    ["Gate Agent", "Classified 217 buyer signals", "complete"],
+                    ["Qualifier", "Scoring buying stage and pain", "active"],
+                    ["Lead Writer", "Drafting account-specific hooks", "active"],
+                    ["Outreach Dispatcher", "Queuing multi-channel sequence", "queued"],
+                  ].map(([name, detail, state]) => (
+                    <div key={name} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] p-3">
+                      <div className={`h-2.5 w-2.5 rounded-full ${state === "complete" ? "bg-emerald-400" : state === "active" ? "bg-[#00ffca] animate-pulse" : "bg-white/25"}`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-black uppercase tracking-[0.14em] text-white">{name}</div>
+                        <div className="text-[10px] text-white/42 truncate">{detail}</div>
+                      </div>
+                      <div className="text-[8px] font-black uppercase tracking-[0.16em] text-white/30">{state}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="md:col-span-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="text-[9px] font-black uppercase tracking-[0.22em] text-white/40">Channel Distribution</div>
+                  <ShieldCheck className="h-4 w-4 text-[#00ffca]" />
+                </div>
+                <div className="space-y-4">
+                  {[
+                    ["Email", "48%", Mail],
+                    ["LinkedIn", "31%", Linkedin],
+                    ["WABA", "21%", MessageSquare],
+                  ].map(([channel, value, Icon]) => (
+                    <div key={channel as string}>
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.16em] text-white/60">
+                        <span className="flex items-center gap-2"><Icon className="h-3.5 w-3.5 text-[#00ffca]" />{channel as string}</span>
+                        <span>{value as string}</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+                        <div className="h-full rounded-full bg-[#00ffca]" style={{ width: value as string }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 rounded-xl border border-[#00ffca]/20 bg-[#00ffca]/10 p-3">
+                  <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#00ffca]">Next best action</div>
+                  <div className="mt-2 text-xs text-white/75 leading-relaxed">Prioritize LinkedIn follow-up for 9 high-verity accounts.</div>
+                </div>
+              </section>
+            </div>
+          </main>
+        </div>
+      </motion.div>
+
+      {floatingCards.map(({ icon: Icon, className, label, value, detail, delay }) => (
+        <motion.div
+          key={label}
+          initial={{ opacity: 0, y: 18, scale: 0.96 }}
+          animate={{ opacity: 1, y: [0, -7, 0], scale: 1 }}
+          transition={{ opacity: { duration: 0.5, delay }, y: { duration: 5 + delay, repeat: Infinity, ease: "easeInOut" }, scale: { duration: 0.5, delay } }}
+          className={`hidden md:block absolute ${className} w-52 rounded-2xl border border-white/[0.12] bg-[#061622]/[0.82] p-4 backdrop-blur-2xl shadow-[0_18px_55px_rgba(0,0,0,0.36)]`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-[#00ffca]/10 border border-[#00ffca]/25 flex items-center justify-center">
+              <Icon className="h-4 w-4 text-[#00ffca]" />
+            </div>
+            <div>
+              <div className="text-[8px] font-black uppercase tracking-[0.18em] text-white/35">{label}</div>
+              <div className="text-lg font-black text-white">{value}</div>
+            </div>
+          </div>
+          <div className="mt-3 text-[10px] text-white/45">{detail}</div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 export default function Landing() {
   const isSetupComplete = localStorage.getItem(ONBOARDING_COMPLETE_KEY) === "true";
 
@@ -336,16 +522,9 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-[#020813] text-white overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-center opacity-35"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=2400&q=80')",
-        }}
-      />
-      <div className="absolute inset-0 bg-[#020813]/55" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:64px_64px] opacity-30" />
+    <div className="min-h-screen bg-[#020813] text-white overflow-hidden font-sans">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_18%,rgba(0,255,202,0.14),transparent_32%),radial-gradient(circle_at_12%_22%,rgba(34,211,238,0.08),transparent_28%),linear-gradient(180deg,#020813_0%,#02040A_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[size:72px_72px] opacity-30" />
 
       <nav className="relative z-10 flex items-center justify-between px-6 md:px-10 py-6">
         <Link to="/" className="flex items-center gap-3">
@@ -363,49 +542,64 @@ export default function Landing() {
         </Link>
       </nav>
 
-      <main className="relative z-10 min-h-[calc(100vh-96px)] flex items-center px-6 md:px-10 pb-16">
-        <section className="max-w-5xl">
-          <div className="inline-flex items-center gap-2 border border-[#00ffca]/30 bg-black/30 px-3 py-1 mb-8">
+      <main className="relative z-10 min-h-[calc(100vh-96px)] px-6 md:px-10 pt-8 lg:pt-0 pb-16 flex items-start lg:items-center">
+        <section className="w-full max-w-[1500px] mx-auto grid lg:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-12 xl:gap-20 items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65, ease: "easeOut" }}
+            className="max-w-2xl"
+          >
+          <div className="inline-flex items-center gap-2 border border-[#00ffca]/30 bg-black/30 px-3 py-1 mb-5 md:mb-8 rounded-full">
             <div className="w-1.5 h-1.5 bg-[#00ffca] animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-[0.25em] text-[#00ffca]">
-              Procurement intent before the market sees it
+              AI outreach orchestration for revenue teams
             </span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tight leading-[0.9] max-w-5xl">
-            Build your private buyer-intent radar.
+          <h1 className="text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-black uppercase tracking-tight leading-[0.92]">
+            Turn buyer intent into coordinated outreach.
           </h1>
-          <p className="mt-8 max-w-2xl text-base md:text-lg text-white/65 leading-relaxed">
-            Configure your industry, watch keywords, and source mix once. ConvoSpan then turns registry activity into a live terminal of qualified B2B demand signals.
+          <p className="mt-5 md:mt-8 text-sm md:text-lg text-white/65 leading-relaxed">
+            ConvoSpan coordinates AI agents, live signal intelligence, multi-channel execution, and performance analytics in one operating layer for outbound teams.
           </p>
 
-          <div className="mt-10 flex flex-col sm:flex-row gap-4">
+          <div className="mt-7 md:mt-10 flex flex-col sm:flex-row gap-3 md:gap-4">
             <Link
               to="/login"
-              className="inline-flex items-center justify-center px-8 py-4 bg-[#00ffca] text-black text-xs font-black uppercase tracking-[0.25em] hover:bg-white transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#00ffca] text-black text-xs font-black uppercase tracking-[0.22em] rounded-xl hover:bg-white transition-colors shadow-[0_0_30px_rgba(0,255,202,0.16)]"
             >
-              Start Setup
+              Start Setup <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to="/help"
-              className="inline-flex items-center justify-center px-8 py-4 border border-white/15 bg-white/5 text-white text-xs font-black uppercase tracking-[0.25em] hover:border-white/40 transition-colors"
+              className="inline-flex items-center justify-center px-8 py-4 border border-white/15 bg-white/5 text-white text-xs font-black uppercase tracking-[0.22em] rounded-xl hover:border-[#00ffca]/50 hover:text-[#00ffca] transition-colors"
             >
               View Protocol
             </Link>
           </div>
 
-          <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">
+          <div className="hidden sm:grid mt-10 md:mt-12 grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              ["Sources", "GeM, MCA, IndiaMART, Zauba"],
-              ["Setup", "Industry, regions, keywords"],
-              ["Output", "Live lead terminal"],
+              ["Agents", "Gate, qualify, write, dispatch"],
+              ["Channels", "Email, LinkedIn, WABA"],
+              ["Analytics", "Pipeline, reply, conversion"],
             ].map(([label, value]) => (
-              <div key={label} className="border border-white/10 bg-black/35 px-4 py-3">
+              <div key={label} className="border border-white/10 bg-black/35 px-4 py-3 rounded-2xl backdrop-blur-md">
                 <div className="text-[9px] font-black uppercase tracking-[0.25em] text-white/35">{label}</div>
                 <div className="mt-1 text-xs font-bold text-white/80">{value}</div>
               </div>
             ))}
           </div>
+
+          <div className="hidden md:flex mt-8 flex-wrap items-center gap-x-6 gap-y-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">
+            <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-[#00ffca]" /> HMAC verified</span>
+            <span className="flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-[#00ffca]" /> Live agent telemetry</span>
+            <span className="flex items-center gap-2"><Radio className="h-3.5 w-3.5 text-[#00ffca]" /> Multi-source signals</span>
+          </div>
+          </motion.div>
+
+          <ProductDashboardPreview />
         </section>
       </main>
     </div>

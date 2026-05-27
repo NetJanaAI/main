@@ -118,7 +118,7 @@ export const CampaignFeed: React.FC = () => {
                 <div className="glass-panel py-20 border-dashed border-white/5 bg-primary/[0.01] flex flex-col items-center justify-center text-center">
                     <Send className="w-12 h-12 text-white/5 mb-4" />
                     <p className="text-[10px] font-black uppercase tracking-[3px] text-white/20">Awaiting Ingress...</p>
-                    <p className="font-serif italic text-lg text-white/10 mt-2">No intelligence capsules generated in this quadrant.</p>
+                    <p className="font-sans italic text-lg text-white/10 mt-2">No intelligence capsules generated in this quadrant.</p>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -132,7 +132,7 @@ export const CampaignFeed: React.FC = () => {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-4 mb-1">
-                                        <span className="text-white font-serif italic text-lg">{cap.domain}</span>
+                                        <span className="text-white font-sans italic text-lg">{cap.domain}</span>
                                         <span className={`text-[9px] font-black uppercase tracking-[2px] px-2 py-0.5 rounded-full border border-current bg-current/5 ${cfg.color}`}>
                                             {cfg.label}
                                         </span>

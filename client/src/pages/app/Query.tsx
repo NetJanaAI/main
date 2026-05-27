@@ -37,17 +37,17 @@ export default function Query() {
     <div className="flex flex-col gap-12 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-serif italic text-white tracking-widest uppercase">Intent Matcher</h1>
+          <h1 className="text-3xl font-sans italic text-white tracking-widest uppercase">Intent Matcher</h1>
           <p className="text-[10px] text-white/30 font-black uppercase tracking-[3px] mt-1">Cross-Registry Cross-Reference Node</p>
         </div>
       </div>
 
       <div className="bg-white/5 border border-white/5 p-12 rounded-2xl backdrop-blur-3xl shadow-6xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 blur-3xl pointer-events-none -mr-32 -mt-32" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#00ffca]/5 blur-3xl pointer-events-none -mr-32 -mt-32" />
         
         <form onSubmit={fetchMatches} className="relative z-10 grid lg:grid-cols-12 gap-8 items-end">
           <div className="lg:col-span-5 space-y-3">
-            <label className="block text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37]">Industry / Global Sector</label>
+            <label className="block text-[10px] font-black uppercase tracking-[3px] text-[#00ffca]">Industry / Global Sector</label>
             <div className="relative">
               <Filter className="absolute left-4 top-3.5 w-5 h-5 text-white/30" />
               <input 
@@ -55,12 +55,12 @@ export default function Query() {
                 value={industry}
                 onChange={e => setIndustry(e.target.value)}
                 placeholder="E.G. IT SERVICES, LOGISTICS..."
-                className="w-full bg-black/40 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-[#D4AF37]/50"
+                className="w-full bg-black/40 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-[#00ffca]/50"
               />
             </div>
           </div>
           <div className="lg:col-span-5 space-y-3">
-            <label className="block text-[10px] font-black uppercase tracking-[3px] text-[#D4AF37]">Product / Entity Constraints</label>
+            <label className="block text-[10px] font-black uppercase tracking-[3px] text-[#00ffca]">Product / Entity Constraints</label>
             <div className="relative">
               <Search className="absolute left-4 top-3.5 w-5 h-5 text-white/30" />
               <input 
@@ -68,7 +68,7 @@ export default function Query() {
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="E.G. CLOUD STACK, MATERIAL HANDLING..."
-                className="w-full bg-black/40 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-[#D4AF37]/50"
+                className="w-full bg-black/40 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-[#00ffca]/50"
               />
             </div>
           </div>
@@ -76,7 +76,7 @@ export default function Query() {
             <button 
               type="submit" 
               disabled={loading}
-              className="h-14 w-full bg-[#D4AF37] text-black text-xs font-black uppercase tracking-[3px] rounded-xl shadow-[0_0_20px_rgba(212,175,55,0.2)] hover:bg-[#D4AF37]/80 hover:shadow-[0_0_30px_rgba(212,175,55,0.4)] transition-all leading-none"
+              className="h-14 w-full bg-[#00ffca] text-black text-xs font-black uppercase tracking-[3px] rounded-xl shadow-[0_0_20px_rgba(0,255,202,0.2)] hover:bg-[#00ffca]/80 hover:shadow-[0_0_30px_rgba(0,255,202,0.4)] transition-all leading-none"
             >
               {loading ? 'SCALING...' : 'MATCH ALPHA'}
             </button>
@@ -85,7 +85,7 @@ export default function Query() {
       </div>
 
       <div className="space-y-6">
-        {loading && <div className="text-center text-[10px] font-black uppercase tracking-[4px] text-[#D4AF37] py-24 animate-pulse">Initializing Signal Alignment Sequence...</div>}
+        {loading && <div className="text-center text-[10px] font-black uppercase tracking-[4px] text-[#00ffca] py-24 animate-pulse">Initializing Signal Alignment Sequence...</div>}
         
         {!loading && error && (
           <div className="text-center bg-red-950/30 border border-red-500/30 rounded-2xl p-10 flex flex-col items-center">
@@ -106,26 +106,26 @@ export default function Query() {
         {!loading && !error && hasSearched && matches.length > 0 && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             {matches.map((lead: LeadCard, idx: number) => (
-              <div key={idx} className="bg-black/40 border border-white/5 p-8 rounded-2xl group hover:border-[#D4AF37]/40 transition-all flex flex-col justify-between backdrop-blur-md">
+              <div key={idx} className="bg-black/40 border border-white/5 p-8 rounded-2xl group hover:border-[#00ffca]/40 transition-all flex flex-col justify-between backdrop-blur-md">
                 <div>
                   <div className="flex justify-between items-start mb-6">
                     <div>
-                      <h3 className="text-xl font-bold font-serif text-[#D4AF37] group-hover:text-white transition-colors uppercase italic italic-strong leading-none">{lead.company_name}</h3>
+                      <h3 className="text-xl font-bold font-sans text-[#00ffca] group-hover:text-white transition-colors uppercase italic italic-strong leading-none">{lead.company_name}</h3>
                       <div className="flex gap-3 items-center text-[10px] font-black uppercase tracking-widest text-white/30 mt-3">
                         <span className="text-white/60">{lead.geo_state} Cluster</span>
                         <span>·</span>
                         <span className="truncate max-w-[150px]">{lead.sector || 'Unclassified'}</span>
                       </div>
                     </div>
-                    <div className="bg-[#D4AF37]/10 text-[#D4AF37] px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-[#D4AF37]/20">
+                    <div className="bg-[#00ffca]/10 text-[#00ffca] px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-[#00ffca]/20">
                       Score: {lead.intent_score} AQ
                     </div>
                   </div>
                   
                   <div className="bg-white/5 p-6 rounded-xl border border-white/5 mb-8 relative overflow-hidden group-hover:bg-white/[0.08] transition-colors">
                      <span className="text-[9px] font-black uppercase tracking-widest text-white/20 block mb-4 border-b border-white/10 pb-2">Verified Alpha Logic</span>
-                    <p className="text-sm text-white/80 line-clamp-3 font-serif leading-relaxed mb-4 italic italic-strong">{lead.card_why_now}</p>
-                    <p className="text-sm text-[#D4AF37] font-bold uppercase tracking-wider truncate mb-2 mt-2"><Zap className="w-3 h-3 inline-block -mt-1 mr-2" /> {lead.card_what_they_need}</p>
+                    <p className="text-sm text-white/80 line-clamp-3 font-sans leading-relaxed mb-4 italic italic-strong">{lead.card_why_now}</p>
+                    <p className="text-sm text-[#00ffca] font-bold uppercase tracking-wider truncate mb-2 mt-2"><Zap className="w-3 h-3 inline-block -mt-1 mr-2" /> {lead.card_what_they_need}</p>
                   </div>
                 </div>
 

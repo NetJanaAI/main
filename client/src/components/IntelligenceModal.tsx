@@ -68,7 +68,7 @@ export default function IntelligenceModal({ leadId, onClose }: IntelligenceModal
                 {isVerified ? 'Cluster Verified' : 'Unconfirmed Signal'}
               </div>
               {data.watch_profile_id && (
-                <div className="px-3 py-1 rounded-full border bg-[#D4AF37]/10 border-[#D4AF37]/20 text-[#D4AF37] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                <div className="px-3 py-1 rounded-full border bg-[#00ffca]/10 border-[#00ffca]/20 text-[#00ffca] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                   <Target className="w-3 h-3" />
                   Tender Match
                 </div>

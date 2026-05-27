@@ -116,14 +116,14 @@ export default function Dashboard() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-serif italic text-white tracking-widest uppercase">Protocol Terminal Index</h1>
+          <h1 className="text-2xl font-sans italic text-white tracking-widest uppercase">Protocol Terminal Index</h1>
           <p className="text-[10px] text-white/30 font-black uppercase tracking-[3px] mt-1">Real-time Registry Node Status: Synchronized</p>
         </div>
         <div className="flex gap-2 p-1 bg-white/5 border border-white/10 rounded-md backdrop-blur-md">
-           <div className={`px-2 py-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${market === 'IN' ? 'text-[#D4AF37] bg-[#D4AF37]/10' : 'text-white/40'} rounded transition-colors`}>
+           <div className={`px-2 py-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${market === 'IN' ? 'text-[#00ffca] bg-[#00ffca]/10' : 'text-white/40'} rounded transition-colors`}>
              <Shield className="w-3 h-3" /> India Cluster
            </div>
-           <div className={`px-2 py-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${market === 'AE' ? 'text-[#D4AF37] bg-[#D4AF37]/10' : 'text-white/40'} rounded transition-colors`}>
+           <div className={`px-2 py-1 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${market === 'AE' ? 'text-[#00ffca] bg-[#00ffca]/10' : 'text-white/40'} rounded transition-colors`}>
              <Shield className="w-3 h-3" /> UAE Cluster
            </div>
         </div>
@@ -144,7 +144,7 @@ export default function Dashboard() {
                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]" />
                <h3 className="text-[10px] font-black uppercase tracking-[3px] text-white/60">Registry Signal Matrix</h3>
              </div>
-             <Link to="/app/signals" className="text-[9px] font-black uppercase tracking-widest text-[#D4AF37] hover:text-white transition-colors flex items-center gap-1">View Full Feed <ArrowUpRight className="w-3 h-3" /></Link>
+             <Link to="/app/signals" className="text-[9px] font-black uppercase tracking-widest text-[#00ffca] hover:text-white transition-colors flex items-center gap-1">View Full Feed <ArrowUpRight className="w-3 h-3" /></Link>
            </div>
            
            <div className="flex-1 overflow-x-auto min-h-[400px]">
@@ -234,7 +234,7 @@ export default function Dashboard() {
 
            <div className="bg-white/5 border border-white/5 p-8 rounded-2xl backdrop-blur-md text-white">
               <div className="flex items-center gap-2 mb-8">
-                <PieChart className="w-5 h-5 text-[#D4AF37]" />
+                <PieChart className="w-5 h-5 text-[#00ffca]" />
                 <h3 className="text-[10px] font-black uppercase tracking-[3px] text-white/60">Source Attribution</h3>
               </div>
               
@@ -242,7 +242,7 @@ export default function Dashboard() {
                  {[
                    { label: 'IndiaMART', color: 'bg-emerald-400', weight: 40, id: 'indiamart' },
                    { label: 'GeM Portal', color: 'bg-cyan-400', weight: 20, id: 'gem' },
-                   { label: 'MCA Filing', color: 'bg-[#D4AF37]', weight: 15, id: 'mca' },
+                   { label: 'MCA Filing', color: 'bg-[#00ffca]', weight: 15, id: 'mca' },
                    { label: 'Zauba Trade', color: 'bg-white/20', weight: 10, id: 'zauba' },
                  ].map(source => (
                    <div key={source.id} className={`space-y-2 transition-opacity ${activeSources[source.id] ? 'opacity-100' : 'opacity-20'}`}>

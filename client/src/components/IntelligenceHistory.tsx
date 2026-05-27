@@ -80,12 +80,12 @@ export const IntelligenceHistory: React.FC = () => {
             </div>
 
             {loading && !results.length ? (
-                <div className="text-center py-20 text-white/20 animate-pulse font-serif italic text-lg">Synchronizing Sovereign Vault...</div>
+                <div className="text-center py-20 text-white/20 animate-pulse font-sans italic text-lg">Synchronizing Sovereign Vault...</div>
             ) : !filtered.length ? (
                 <div className="glass-panel py-20 border-dashed border-white/5 bg-primary/[0.01] flex flex-col items-center justify-center text-center">
                     <BarChart2 className="w-12 h-12 text-white/5 mb-4" />
                     <p className="text-[10px] font-black uppercase tracking-[3px] text-white/20">Vault Empty</p>
-                    <p className="font-serif italic text-lg text-white/10 mt-2">No intelligence signatures recorded in this organization.</p>
+                    <p className="font-sans italic text-lg text-white/10 mt-2">No intelligence signatures recorded in this organization.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -100,7 +100,7 @@ export const IntelligenceHistory: React.FC = () => {
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                             <Globe className="w-3.5 h-3.5 text-primary/60" />
-                                            <span className="text-white font-serif italic text-lg tracking-tight">{result.domain}</span>
+                                            <span className="text-white font-sans italic text-lg tracking-tight">{result.domain}</span>
                                         </div>
                                         <div className="flex items-center gap-3 text-[8px] font-black uppercase tracking-widest text-white/20">
                                             <span>{result.geo_country}</span>
@@ -115,7 +115,7 @@ export const IntelligenceHistory: React.FC = () => {
 
                                 <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-primary transition-all duration-1000 shadow-[0_0_10px_rgba(212,175,55,0.3)]"
+                                        className="h-full bg-primary transition-all duration-1000 shadow-[0_0_10px_rgba(0,255,202,0.3)]"
                                         style={{ width: `${result.friction_score}%` }}
                                     />
                                 </div>

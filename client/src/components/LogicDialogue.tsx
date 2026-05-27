@@ -25,7 +25,7 @@ export const LogicDialogue: React.FC<LogicDialogueProps> = ({ steps }) => {
                 {steps.map((step, i) => (
                     <div key={i} className={`p-6 glass-panel border-white/5 bg-white/[0.01] relative overflow-hidden transition-all duration-500
                         ${step.role === 'critic' ? 'border-primary/10 bg-primary/[0.01]' : ''}
-                        ${step.role === 'consensus' ? 'border-primary/30 bg-primary/[0.05] shadow-[0_0_20px_rgba(212,175,55,0.05)]' : ''}`}>
+                        ${step.role === 'consensus' ? 'border-primary/30 bg-primary/[0.05] shadow-[0_0_20px_rgba(0,255,202,0.05)]' : ''}`}>
                         
                         <div className="flex items-start gap-5">
                             <div className={`mt-1 shrink-0 p-2 rounded-lg bg-white/5 border border-white/5
@@ -53,7 +53,7 @@ export const LogicDialogue: React.FC<LogicDialogueProps> = ({ steps }) => {
                                         </div>
                                     )}
                                 </div>
-                                <p className="text-[11px] text-white/60 font-serif italic leading-relaxed tracking-wide">
+                                <p className="text-[11px] text-white/60 font-sans italic leading-relaxed tracking-wide">
                                     "{step.content}"
                                 </p>
                             </div>

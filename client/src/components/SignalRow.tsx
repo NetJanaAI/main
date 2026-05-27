@@ -13,10 +13,10 @@ export default function SignalRow({ lead, onClick }: SignalRowProps) {
       onClick={() => onClick(lead)}
       className="group hover:bg-white/[0.04] transition-colors border-b border-white/5 cursor-pointer"
     >
-      <td className="py-4 px-4 font-bold text-xs uppercase tracking-tight text-white group-hover:text-[#D4AF37] transition-colors max-w-[200px] truncate flex items-center gap-2">
+      <td className="py-4 px-4 font-bold text-xs uppercase tracking-tight text-white group-hover:text-[#00ffca] transition-colors max-w-[200px] truncate flex items-center gap-2">
         {lead.company_name}
         {lead.watch_profile_id && (
-          <span className="bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30 text-[8px] px-1.5 py-0.5 rounded uppercase tracking-[2px] whitespace-nowrap shrink-0">
+          <span className="bg-[#00ffca]/20 text-[#00ffca] border border-[#00ffca]/30 text-[8px] px-1.5 py-0.5 rounded uppercase tracking-[2px] whitespace-nowrap shrink-0">
             Tender Match
           </span>
         )}

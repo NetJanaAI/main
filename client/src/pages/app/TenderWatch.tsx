@@ -89,8 +89,8 @@ export default function TenderWatch() {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
-                    <Eye className="w-6 h-6 text-[#D4AF37]" />
-                    <h1 className="text-2xl font-black uppercase tracking-widest text-[#D4AF37]">Tender Watch Protocol</h1>
+                    <Eye className="w-6 h-6 text-[#00ffca]" />
+                    <h1 className="text-2xl font-black uppercase tracking-widest text-[#00ffca]">Tender Watch Protocol</h1>
                 </div>
                 <p className="text-xs uppercase tracking-widest text-white/40">
                     Automated registry monitoring and semantic pattern matching for incoming tenders.
@@ -115,7 +115,7 @@ export default function TenderWatch() {
                                     placeholder="e.g. cloud, software, CRM"
                                     value={newKeyword}
                                     onChange={e => setNewKeyword(e.target.value)}
-                                    className="w-full bg-black/50 border border-white/10 rounded-md py-2 px-3 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#D4AF37]/50 focus:ring-1 focus:ring-[#D4AF37]/50 transition-all"
+                                    className="w-full bg-black/50 border border-white/10 rounded-md py-2 px-3 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#00ffca]/50 focus:ring-1 focus:ring-[#00ffca]/50 transition-all"
                                 />
                             </div>
                             <div>
@@ -125,13 +125,13 @@ export default function TenderWatch() {
                                     placeholder="e.g. Delhi, Maharashtra, Dubai"
                                     value={newRegion}
                                     onChange={e => setNewRegion(e.target.value)}
-                                    className="w-full bg-black/50 border border-white/10 rounded-md py-2 px-3 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#D4AF37]/50 focus:ring-1 focus:ring-[#D4AF37]/50 transition-all"
+                                    className="w-full bg-black/50 border border-white/10 rounded-md py-2 px-3 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#00ffca]/50 focus:ring-1 focus:ring-[#00ffca]/50 transition-all"
                                 />
                             </div>
                             <button 
                                 onClick={handleCreateProfile}
                                 disabled={!newKeyword && !newRegion}
-                                className="w-full py-2 bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 border border-[#D4AF37]/20 text-[#D4AF37] text-[10px] font-black uppercase tracking-widest rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full py-2 bg-[#00ffca]/10 hover:bg-[#00ffca]/20 border border-[#00ffca]/20 text-[#00ffca] text-[10px] font-black uppercase tracking-widest rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Deploy Watch
                             </button>
@@ -151,7 +151,7 @@ export default function TenderWatch() {
                                 disabled={uploading}
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                             />
-                            <UploadCloud className="w-8 h-8 text-white/20 mx-auto mb-2 group-hover:text-[#D4AF37] transition-colors" />
+                            <UploadCloud className="w-8 h-8 text-white/20 mx-auto mb-2 group-hover:text-[#00ffca] transition-colors" />
                             <p className="text-[10px] uppercase tracking-widest text-white/40">
                                 {uploading ? 'Processing Matrix...' : 'Drop CSV or click to browse'}
                             </p>
@@ -173,12 +173,12 @@ export default function TenderWatch() {
                     <div className="p-6 rounded-xl border border-white/5 bg-white/[0.02] backdrop-blur-md min-h-[500px]">
                         <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-6 flex items-center justify-between">
                             <span>Active Watch Profiles</span>
-                            <span className="bg-white/5 px-2 py-1 rounded text-[#D4AF37]">{profiles.length} Nodes</span>
+                            <span className="bg-white/5 px-2 py-1 rounded text-[#00ffca]">{profiles.length} Nodes</span>
                         </h2>
 
                         {isLoading ? (
                             <div className="flex items-center justify-center h-48">
-                                <div className="w-5 h-5 rounded-full border-2 border-[#D4AF37]/30 border-t-[#D4AF37] animate-spin" />
+                                <div className="w-5 h-5 rounded-full border-2 border-[#00ffca]/30 border-t-[#00ffca] animate-spin" />
                             </div>
                         ) : profiles.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-48 text-center">
@@ -192,7 +192,7 @@ export default function TenderWatch() {
                                         <div className="flex-1 space-y-2">
                                             <div className="flex flex-wrap gap-2">
                                                 {p.keywords?.map((kw, i) => (
-                                                    <span key={i} className="px-2 py-1 rounded-md bg-[#D4AF37]/10 text-[#D4AF37] text-[9px] font-bold uppercase tracking-wider border border-[#D4AF37]/20">
+                                                    <span key={i} className="px-2 py-1 rounded-md bg-[#00ffca]/10 text-[#00ffca] text-[9px] font-bold uppercase tracking-wider border border-[#00ffca]/20">
                                                         {kw}
                                                     </span>
                                                 ))}

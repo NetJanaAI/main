@@ -37,7 +37,7 @@ export default function AppLayout() {
   const creditPercentage = Math.min((creditUsed / creditLimit) * 100, 100);
 
   return (
-    <div className="flex h-screen bg-[#020813] text-gray-200 overflow-hidden font-serif">
+    <div className="flex h-screen bg-[#020813] text-gray-200 overflow-hidden font-sans">
       <SocketBridge />
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/5 via-[#020813] to-black z-0" />
       
@@ -45,9 +45,9 @@ export default function AppLayout() {
       <aside className="hidden lg:flex flex-col w-64 border-r border-white/5 bg-black/40 backdrop-blur-xl shrink-0 z-50">
         <div className="p-6 border-b border-white/5">
           <Link to="/" className="flex items-center gap-3">
-            <Shield className="w-8 h-8 text-[#D4AF37]" strokeWidth={2.5} />
+            <Shield className="w-8 h-8 text-[#00ffca]" strokeWidth={2.5} />
             <div>
-              <h2 className="text-sm font-black uppercase tracking-widest text-[#D4AF37]">NetJana.AI</h2>
+              <h2 className="text-sm font-black uppercase tracking-widest text-[#00ffca]">NetJana.AI</h2>
               <span className="text-[9px] font-black uppercase tracking-[3px] text-white/30 truncate block">Intel Protocol</span>
             </div>
           </Link>
@@ -58,7 +58,7 @@ export default function AppLayout() {
             <NavLink 
               key={item.id} 
               to={item.path}
-              className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${isActive ? 'bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20 border-l-[3px] border-l-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.05)]' : 'text-white/30 hover:text-white/60 hover:bg-white/5 border border-transparent border-l-[3px]'}`}
+              className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${isActive ? 'bg-[#00ffca]/10 text-[#00ffca] border border-[#00ffca]/20 border-l-[3px] border-l-[#00ffca] shadow-[0_0_15px_rgba(0,255,202,0.05)]' : 'text-white/30 hover:text-white/60 hover:bg-white/5 border border-transparent border-l-[3px]'}`}
             >
               <item.icon className="w-4 h-4" />
               {item.label}
@@ -77,12 +77,12 @@ export default function AppLayout() {
         <div className="p-6 border-t border-white/5 bg-white/[0.01]">
            <div className="flex items-center justify-between mb-4">
              <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Credit Limit</span>
-             <span className="text-[10px] font-black text-[#D4AF37]">{creditUsed} / {creditLimit}</span>
+             <span className="text-[10px] font-black text-[#00ffca]">{creditUsed} / {creditLimit}</span>
            </div>
            <div className="w-full h-1 bg-white/10 rounded-full overflow-visible relative mt-2">
-             <div 
-               className={`absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ${creditPercentage > 90 ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.7)]'}`} 
-               style={{ width: `${creditPercentage}%` }} 
+             <div
+               className={`absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ${creditPercentage > 90 ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-[#00ffca] shadow-[0_0_10px_rgba(0,255,202,0.7)]'}`}
+               style={{ width: `${creditPercentage}%` }}
              />
            </div>
         </div>
@@ -108,8 +108,8 @@ export default function AppLayout() {
             </div>
             {/* Market Toggle */}
             <div className="flex bg-white/5 p-1 rounded-lg border border-white/10 scale-90 origin-left">
-              <button onClick={() => setMarket('IN')} className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-colors ${market === 'IN' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'text-white/40 hover:text-white/60'}`}>IN</button>
-              <button onClick={() => setMarket('AE')} className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-colors ${market === 'AE' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'text-white/40 hover:text-white/60'}`}>AE</button>
+              <button onClick={() => setMarket('IN')} className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-colors ${market === 'IN' ? 'bg-[#00ffca]/20 text-[#00ffca]' : 'text-white/40 hover:text-white/60'}`}>IN</button>
+              <button onClick={() => setMarket('AE')} className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-colors ${market === 'AE' ? 'bg-[#00ffca]/20 text-[#00ffca]' : 'text-white/40 hover:text-white/60'}`}>AE</button>
             </div>
           </div>
 
@@ -138,8 +138,8 @@ export default function AppLayout() {
         <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-2xl lg:hidden flex flex-col p-8">
           <div className="flex justify-between items-center mb-12">
              <div className="flex items-center gap-3">
-               <Shield className="w-8 h-8 text-[#D4AF37]" strokeWidth={2.5} />
-               <h2 className="text-sm font-black uppercase tracking-widest text-[#D4AF37]">NetJana.AI</h2>
+               <Shield className="w-8 h-8 text-[#00ffca]" strokeWidth={2.5} />
+               <h2 className="text-sm font-black uppercase tracking-widest text-[#00ffca]">NetJana.AI</h2>
              </div>
              <button onClick={() => setIsMobileMenuOpen(false)} className="text-white/40 hover:text-white"><X className="w-8 h-8" /></button>
           </div>
@@ -150,9 +150,9 @@ export default function AppLayout() {
                 key={item.id} 
                 to={item.path} 
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center gap-4 text-xl font-bold uppercase tracking-widest text-white/40 hover:text-[#D4AF37]"
+                className="flex items-center gap-4 text-xl font-bold uppercase tracking-widest text-white/40 hover:text-[#00ffca]"
               >
-                <item.icon className="w-6 h-6 text-[#D4AF37]/50" />
+                <item.icon className="w-6 h-6 text-[#00ffca]/50" />
                 {item.label}
               </NavLink>
             ))}
