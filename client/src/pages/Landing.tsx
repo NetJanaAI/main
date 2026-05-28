@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut, SignInButton, UserButton } from "../lib/auth";
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "../lib/auth";
 import { Link } from "react-router-dom";
 import {
   Cpu,
@@ -139,9 +139,11 @@ export function TerminalExperience() {
               <SignInButton mode="modal">
                 <button className="text-[11px] font-black uppercase tracking-[0.1em] text-white/60 hover:text-[#00ffca] transition-colors glitch-hover">{t("auth_node")}</button>
               </SignInButton>
-              <Link to="/app/dashboard" className="px-6 py-2 bg-[#00ffca]/10 border border-[#00ffca]/50 text-[#00ffca] text-[11px] font-black uppercase tracking-[0.2em] rounded-sm shadow-[0_0_10px_rgba(0,255,202,0.2)] hover:bg-[#00ffca] hover:text-black transition-all">
-                {t("initialize_sys")}
-              </Link>
+              <SignUpButton mode="modal">
+                <button className="px-6 py-2 bg-[#00ffca]/10 border border-[#00ffca]/50 text-[#00ffca] text-[11px] font-black uppercase tracking-[0.2em] rounded-sm shadow-[0_0_10px_rgba(0,255,202,0.2)] hover:bg-[#00ffca] hover:text-black transition-all">
+                  {t("initialize_sys")}
+                </button>
+              </SignUpButton>
             </SignedOut>
             <SignedIn>
               <Link to="/app/dashboard" className="text-[11px] font-black uppercase tracking-[0.1em] text-[#00ffca] hover:bg-[#00ffca]/20 px-3 py-1 rounded-sm border border-[#00ffca]/50 transition-colors">{t("launch_terminal")}</Link>
@@ -534,12 +536,29 @@ export default function Landing() {
             <div className="text-[9px] font-black uppercase tracking-[0.3em] text-[#00ffca]">Buyer Signal OS</div>
           </div>
         </Link>
-        <Link
-          to="/login"
-          className="px-5 py-2 border border-[#00ffca]/40 bg-[#00ffca]/10 text-[#00ffca] text-[10px] font-black uppercase tracking-[0.25em] hover:bg-[#00ffca] hover:text-black transition-all"
-        >
-          Login
-        </Link>
+        <div className="flex items-center gap-3">
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="px-5 py-2 border border-white/15 bg-white/5 text-white text-[10px] font-black uppercase tracking-[0.25em] hover:border-[#00ffca]/50 hover:text-[#00ffca] transition-all">
+                Sign in
+              </button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="px-5 py-2 border border-[#00ffca]/40 bg-[#00ffca]/10 text-[#00ffca] text-[10px] font-black uppercase tracking-[0.25em] hover:bg-[#00ffca] hover:text-black transition-all">
+                Sign up
+              </button>
+            </SignUpButton>
+          </SignedOut>
+          <SignedIn>
+            <Link
+              to="/setup"
+              className="px-5 py-2 border border-[#00ffca]/40 bg-[#00ffca]/10 text-[#00ffca] text-[10px] font-black uppercase tracking-[0.25em] hover:bg-[#00ffca] hover:text-black transition-all"
+            >
+              Setup
+            </Link>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
+        </div>
       </nav>
 
       <main className="relative z-10 min-h-[calc(100vh-96px)] px-6 md:px-10 pt-8 lg:pt-0 pb-16 flex items-start lg:items-center">
@@ -565,12 +584,21 @@ export default function Landing() {
           </p>
 
           <div className="mt-7 md:mt-10 flex flex-col sm:flex-row gap-3 md:gap-4">
-            <Link
-              to="/login"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#00ffca] text-black text-xs font-black uppercase tracking-[0.22em] rounded-xl hover:bg-white transition-colors shadow-[0_0_30px_rgba(0,255,202,0.16)]"
-            >
-              Start Setup <ArrowRight className="h-4 w-4" />
-            </Link>
+            <SignedOut>
+              <SignUpButton mode="modal">
+                <button className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#00ffca] text-black text-xs font-black uppercase tracking-[0.22em] rounded-xl hover:bg-white transition-colors shadow-[0_0_30px_rgba(0,255,202,0.16)]">
+                  Start Setup <ArrowRight className="h-4 w-4" />
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <Link
+                to="/setup"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#00ffca] text-black text-xs font-black uppercase tracking-[0.22em] rounded-xl hover:bg-white transition-colors shadow-[0_0_30px_rgba(0,255,202,0.16)]"
+              >
+                Start Setup <ArrowRight className="h-4 w-4" />
+              </Link>
+            </SignedIn>
             <Link
               to="/help"
               className="inline-flex items-center justify-center px-8 py-4 border border-white/15 bg-white/5 text-white text-xs font-black uppercase tracking-[0.22em] rounded-xl hover:border-[#00ffca]/50 hover:text-[#00ffca] transition-colors"

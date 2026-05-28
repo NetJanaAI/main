@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, Terminal } from "lucide-react";
-import { SignInButton, SignedIn, SignedOut } from "../lib/auth";
+import { SignInButton, SignUpButton, SignedIn, SignedOut } from "../lib/auth";
 
 export default function Login() {
   return (
@@ -27,11 +27,18 @@ export default function Login() {
 
         <div className="mt-8">
           <SignedOut>
-            <SignInButton mode="modal">
-              <button className="w-full h-12 bg-[#00ffca] text-black text-xs font-black uppercase tracking-[0.25em] hover:bg-white transition-colors">
-                Continue Login
-              </button>
-            </SignInButton>
+            <div className="grid gap-3">
+              <SignInButton mode="modal">
+                <button className="w-full h-12 bg-[#00ffca] text-black text-xs font-black uppercase tracking-[0.25em] hover:bg-white transition-colors">
+                  Sign In
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="w-full h-12 border border-[#00ffca]/40 bg-[#00ffca]/10 text-[#00ffca] text-xs font-black uppercase tracking-[0.25em] hover:bg-[#00ffca] hover:text-black transition-colors">
+                  Create Account
+                </button>
+              </SignUpButton>
+            </div>
           </SignedOut>
 
           <SignedIn>

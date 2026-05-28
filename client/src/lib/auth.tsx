@@ -3,6 +3,7 @@ import {
   ClerkProvider,
   OrganizationSwitcher as ClerkOrganizationSwitcher,
   SignInButton as ClerkSignInButton,
+  SignUpButton as ClerkSignUpButton,
   SignedIn as ClerkSignedIn,
   SignedOut as ClerkSignedOut,
   UserButton as ClerkUserButton,
@@ -59,6 +60,11 @@ export function OrganizationSwitcher(props: React.ComponentProps<typeof ClerkOrg
 
 export function SignInButton({ children, ...props }: React.ComponentProps<typeof ClerkSignInButton>) {
   if (!fallbackAuthEnabled) return <ClerkSignInButton {...props}>{children}</ClerkSignInButton>;
+  return <>{children}</>;
+}
+
+export function SignUpButton({ children, ...props }: React.ComponentProps<typeof ClerkSignUpButton>) {
+  if (!fallbackAuthEnabled) return <ClerkSignUpButton {...props}>{children}</ClerkSignUpButton>;
   return <>{children}</>;
 }
 
