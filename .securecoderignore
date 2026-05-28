@@ -1,0 +1,11 @@
+# SecureCoder should scan source, not generated bundles or vendored dependencies.
+# Patterns are matched against paths by the SecureCoder extension.
+
+**/node_modules/**
+**\node_modules\**
+**/dist/**
+**\dist\**
+**/build/**
+**\build\**
+**/.vite-temp/**
+**\.vite-temp\**
