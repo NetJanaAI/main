@@ -63,7 +63,7 @@ export function SignInButton({ children, ...props }: React.ComponentProps<typeof
   if (!fallbackAuthEnabled) return <ClerkSignInButton {...props}>{children}</ClerkSignInButton>;
   if (React.isValidElement<{ onClick?: () => void; title?: string }>(children) && !fallbackSignedIn) {
     return React.cloneElement(children, {
-      onClick: () => alert('Clerk is not configured for this deployment yet. Add VITE_CLERK_PUBLISHABLE_KEY in Vercel and redeploy.'),
+      onClick: () => alert('Clerk is not configured for this deployment yet. Add VITE_CLERK_PUBLISHABLE_KEY, CLERK_PUBLISHABLE_KEY, or NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in Vercel and redeploy.'),
       title: 'Clerk publishable key is missing',
     });
   }
@@ -74,7 +74,7 @@ export function SignUpButton({ children, ...props }: React.ComponentProps<typeof
   if (!fallbackAuthEnabled) return <ClerkSignUpButton {...props}>{children}</ClerkSignUpButton>;
   if (React.isValidElement<{ onClick?: () => void; title?: string }>(children) && !fallbackSignedIn) {
     return React.cloneElement(children, {
-      onClick: () => alert('Clerk is not configured for this deployment yet. Add VITE_CLERK_PUBLISHABLE_KEY in Vercel and redeploy.'),
+      onClick: () => alert('Clerk is not configured for this deployment yet. Add VITE_CLERK_PUBLISHABLE_KEY, CLERK_PUBLISHABLE_KEY, or NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in Vercel and redeploy.'),
       title: 'Clerk publishable key is missing',
     });
   }

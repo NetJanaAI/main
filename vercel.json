@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "installCommand": "npm install --prefix client",
-  "buildCommand": "cd client && VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-$CLERK_PUBLISHABLE_KEY} npm run build",
+  "buildCommand": "cd client && VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-${CLERK_PUBLISHABLE_KEY:-$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}} npm run build",
   "outputDirectory": "client/dist",
   "rewrites": [
     {
