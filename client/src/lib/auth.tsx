@@ -17,6 +17,7 @@ import {
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const isDummyPublishableKey = publishableKey?.includes('ZHVtbXlrZXk') || publishableKey?.toLowerCase().includes('dummy');
 const fallbackAuthEnabled = !publishableKey || isDummyPublishableKey;
+const fallbackSignedIn = fallbackAuthEnabled && import.meta.env.DEV;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (publishableKey && !isDummyPublishableKey) {
@@ -60,33 +61,47 @@ export function OrganizationSwitcher(props: React.ComponentProps<typeof ClerkOrg
 
 export function SignInButton({ children, ...props }: React.ComponentProps<typeof ClerkSignInButton>) {
   if (!fallbackAuthEnabled) return <ClerkSignInButton {...props}>{children}</ClerkSignInButton>;
+  if (React.isValidElement<{ onClick?: () => void; title?: string }>(children) && !fallbackSignedIn) {
+    return React.cloneElement(children, {
+      onClick: () => alert('Clerk is not configured for this deployment yet. Add VITE_CLERK_PUBLISHABLE_KEY in Vercel and redeploy.'),
+      title: 'Clerk publishable key is missing',
+    });
+  }
   return <>{children}</>;
 }
 
 export function SignUpButton({ children, ...props }: React.ComponentProps<typeof ClerkSignUpButton>) {
   if (!fallbackAuthEnabled) return <ClerkSignUpButton {...props}>{children}</ClerkSignUpButton>;
+  if (React.isValidElement<{ onClick?: () => void; title?: string }>(children) && !fallbackSignedIn) {
+    return React.cloneElement(children, {
+      onClick: () => alert('Clerk is not configured for this deployment yet. Add VITE_CLERK_PUBLISHABLE_KEY in Vercel and redeploy.'),
+      title: 'Clerk publishable key is missing',
+    });
+  }
   return <>{children}</>;
 }
 
 export function SignedIn({ children }: { children: React.ReactNode }) {
   if (!fallbackAuthEnabled) return <ClerkSignedIn>{children}</ClerkSignedIn>;
-  return <>{children}</>;
+  return fallbackSignedIn ? <>{children}</> : null;
 }
 
 export function SignedOut({ children }: { children: React.ReactNode }) {
   if (!fallbackAuthEnabled) return <ClerkSignedOut>{children}</ClerkSignedOut>;
-  return null;
+  return fallbackSignedIn ? null : <>{children}</>;
 }
 
 export function useUser() {
   if (!fallbackAuthEnabled) return useClerkUser();
   return {
-    user: {
-      fullName: 'Local Dev User',
-      primaryEmailAddress: { emailAddress: 'local.dev@example.test' },
-    },
+    user: fallbackSignedIn
+      ? {
+          fullName: 'Local Dev User',
+          primaryEmailAddress: { emailAddress: 'local.dev@example.test' },
+        }
+      : null,
     isLoaded: true,
-    isSignedIn: true,
+    isSignedIn: fallbackSignedIn,
   } as ReturnType<typeof useClerkUser>;
 }
 
@@ -103,6 +118,6 @@ export function useAuth() {
   return {
     getToken: async () => null,
     isLoaded: true,
-    isSignedIn: true,
+    isSignedIn: fallbackSignedIn,
   } as ReturnType<typeof useClerkAuth>;
 }
