@@ -25,6 +25,12 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         try {
             const res = await api.get('/api/admin/tenants');
             if (res.ok) {
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    setTenants([]);
+                    return;
+                }
+
                 const data = await res.json();
                 setTenants(data);
                 
@@ -36,7 +42,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 }
             }
         } catch (e) {
-            console.error('[TenantContext] Failed to fetch tenants:', e);
+            console.warn('[TenantContext] Tenant API unavailable; continuing without tenant list.', e);
         } finally {
             setIsLoading(false);
         }
