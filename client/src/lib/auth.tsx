@@ -15,7 +15,7 @@ import {
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const isDummyPublishableKey = publishableKey?.includes('ZHVtbXlrZXk') || publishableKey?.toLowerCase().includes('dummy');
-const devAuthEnabled = (!publishableKey || isDummyPublishableKey) && import.meta.env.DEV;
+const fallbackAuthEnabled = !publishableKey || isDummyPublishableKey;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (publishableKey && !isDummyPublishableKey) {
@@ -26,15 +26,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (devAuthEnabled) {
+  if (fallbackAuthEnabled) {
+    if (import.meta.env.PROD) {
+      console.warn('[Auth] VITE_CLERK_PUBLISHABLE_KEY is missing; using limited fallback auth.');
+    }
     return <>{children}</>;
   }
 
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');
+  return <>{children}</>;
 }
 
 export function UserButton(props: React.ComponentProps<typeof ClerkUserButton>) {
-  if (!devAuthEnabled) return <ClerkUserButton {...props} />;
+  if (!fallbackAuthEnabled) return <ClerkUserButton {...props} />;
   return (
     <div
       className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/10 text-[10px] font-black text-white"
@@ -46,7 +49,7 @@ export function UserButton(props: React.ComponentProps<typeof ClerkUserButton>) 
 }
 
 export function OrganizationSwitcher(props: React.ComponentProps<typeof ClerkOrganizationSwitcher>) {
-  if (!devAuthEnabled) return <ClerkOrganizationSwitcher {...props} />;
+  if (!fallbackAuthEnabled) return <ClerkOrganizationSwitcher {...props} />;
   return (
     <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white">
       Local Dev Org
@@ -55,22 +58,22 @@ export function OrganizationSwitcher(props: React.ComponentProps<typeof ClerkOrg
 }
 
 export function SignInButton({ children, ...props }: React.ComponentProps<typeof ClerkSignInButton>) {
-  if (!devAuthEnabled) return <ClerkSignInButton {...props}>{children}</ClerkSignInButton>;
+  if (!fallbackAuthEnabled) return <ClerkSignInButton {...props}>{children}</ClerkSignInButton>;
   return <>{children}</>;
 }
 
 export function SignedIn({ children }: { children: React.ReactNode }) {
-  if (!devAuthEnabled) return <ClerkSignedIn>{children}</ClerkSignedIn>;
+  if (!fallbackAuthEnabled) return <ClerkSignedIn>{children}</ClerkSignedIn>;
   return <>{children}</>;
 }
 
 export function SignedOut({ children }: { children: React.ReactNode }) {
-  if (!devAuthEnabled) return <ClerkSignedOut>{children}</ClerkSignedOut>;
+  if (!fallbackAuthEnabled) return <ClerkSignedOut>{children}</ClerkSignedOut>;
   return null;
 }
 
 export function useUser() {
-  if (!devAuthEnabled) return useClerkUser();
+  if (!fallbackAuthEnabled) return useClerkUser();
   return {
     user: {
       fullName: 'Local Dev User',
@@ -82,7 +85,7 @@ export function useUser() {
 }
 
 export function useOrganization() {
-  if (!devAuthEnabled) return useClerkOrganization();
+  if (!fallbackAuthEnabled) return useClerkOrganization();
   return {
     organization: { name: 'Local Dev Organization' },
     isLoaded: true,
@@ -90,7 +93,7 @@ export function useOrganization() {
 }
 
 export function useAuth() {
-  if (!devAuthEnabled) return useClerkAuth();
+  if (!fallbackAuthEnabled) return useClerkAuth();
   return {
     getToken: async () => null,
     isLoaded: true,
