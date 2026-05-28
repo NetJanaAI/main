@@ -19,17 +19,27 @@ const INDUSTRY_NOISE = [
     'DISTRIBUTORS', 'DISTRIBUTION', 'LOGISTICS', 'VENTURES',
 ];
 
-const LEGAL_SUFFIXES_REGEX = LEGAL_SUFFIXES.map(suffix => {
-    const escaped = suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`,?\\s*${escaped}\\s*$`, 'i');
-});
+function stripLegalSuffix(name: string): string {
+    let cleanName = name.trim();
+    let previous = '';
+
+    while (cleanName !== previous) {
+        previous = cleanName;
+        const withoutTrailingComma = cleanName.replace(/,\s*$/, '').trim();
+        const suffix = LEGAL_SUFFIXES
+            .map(item => item.trim())
+            .find(item => withoutTrailingComma === item || withoutTrailingComma.endsWith(` ${item}`));
+
+        if (suffix) {
+            cleanName = withoutTrailingComma.slice(0, -suffix.length).replace(/,\s*$/, '').trim();
+        }
+    }
+
+    return cleanName;
+}
 
 export function cleanCompanyName(raw: string): string {
-    let name = raw.toUpperCase().trim();
-
-    for (const suffixRegex of LEGAL_SUFFIXES_REGEX) {
-        name = name.replace(suffixRegex, '').trim();
-    }
+    let name = stripLegalSuffix(raw.toUpperCase().trim());
 
     const words = name.split(/\s+/);
     if (words.length > 1) {

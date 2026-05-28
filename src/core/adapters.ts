@@ -70,19 +70,31 @@ function hashPII(value: string | undefined | null, prefix: string): string | und
 export function cleanCompanyName(rawName: string): string {
     let clean = rawName || '';
 
-    const stripPhrases = [
-        "Private Limited", "Pvt Ltd", "Pvt\\. Ltd\\.", "Limited", "Ltd",
-        "LLP", "& Co", "Incorporated", "Corp", "Industries", "Enterprises",
-        "FZE", "FZCO", "LLC", "PJSC", "PSC"
+    const stripPhrasePatterns = [
+        /(?:^|\s)Private Limited(?:$|\s|\.|,)/gi,
+        /(?:^|\s)Pvt Ltd(?:$|\s|\.|,)/gi,
+        /(?:^|\s)Pvt\. Ltd\.(?:$|\s|\.|,)/gi,
+        /(?:^|\s)Limited(?:$|\s|\.|,)/gi,
+        /(?:^|\s)Ltd(?:$|\s|\.|,)/gi,
+        /(?:^|\s)LLP(?:$|\s|\.|,)/gi,
+        /(?:^|\s)& Co(?:$|\s|\.|,)/gi,
+        /(?:^|\s)Incorporated(?:$|\s|\.|,)/gi,
+        /(?:^|\s)Corp(?:$|\s|\.|,)/gi,
+        /(?:^|\s)Industries(?:$|\s|\.|,)/gi,
+        /(?:^|\s)Enterprises(?:$|\s|\.|,)/gi,
+        /(?:^|\s)FZE(?:$|\s|\.|,)/gi,
+        /(?:^|\s)FZCO(?:$|\s|\.|,)/gi,
+        /(?:^|\s)LLC(?:$|\s|\.|,)/gi,
+        /(?:^|\s)PJSC(?:$|\s|\.|,)/gi,
+        /(?:^|\s)PSC(?:$|\s|\.|,)/gi,
     ];
 
     // Repeatedly replace to handle consecutive matches
     let previous = '';
     while (clean !== previous) {
         previous = clean;
-        for (const phrase of stripPhrases) {
-            const regex = new RegExp(`(?:^|\\s)${phrase}(?:$|\\s|\\.|,)`, 'gi');
-            clean = clean.replace(regex, ' ');
+        for (const pattern of stripPhrasePatterns) {
+            clean = clean.replace(pattern, ' ');
         }
     }
 
