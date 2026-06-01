@@ -7,7 +7,7 @@ i18n
     resources: {
       en: {
         translation: {
-          "convospan_sys": "CONVOSPAN [SYS]",
+          "convospan_sys": "NET JANA AI [SYS]",
           "global_intel_net": "GLOBAL_INTEL_NET",
           "auth_node": "Auth_Node",
           "initialize_sys": "Initialize_SYS",

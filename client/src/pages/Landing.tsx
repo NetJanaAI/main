@@ -330,7 +330,7 @@ export function TerminalExperience() {
             <Link to="/help" className="hover:text-white transition-colors">{t("privacy_guard")}</Link>
             <Link to="/help" className="hover:text-white transition-colors">{t("compliance")}</Link>
           </div>
-          <p>© 2026 CONVOSPAN INTEL — ALL RIGHTS RESERVED SECTOR_01</p>
+          <p>© 2026 NET JANA AI — ALL RIGHTS RESERVED SECTOR_01</p>
         </div>
       </footer>
     </div>
@@ -391,7 +391,7 @@ function ProductDashboardPreview() {
               <Terminal className="h-4 w-4 text-[#00ffca]" />
             </div>
             <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">ConvoSpan Command</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">Net Jana AI Command</div>
               <div className="text-sm font-black uppercase tracking-[0.16em] text-white">Outreach Orchestration</div>
             </div>
           </div>
@@ -532,7 +532,7 @@ export default function Landing() {
         <Link to="/" className="flex items-center gap-3">
           <Terminal className="w-7 h-7 text-[#00ffca]" />
           <div>
-            <div className="text-sm font-black uppercase tracking-[0.25em] text-white">ConvoSpan Intel</div>
+            <div className="text-sm font-black uppercase tracking-[0.25em] text-white">Net Jana AI</div>
             <div className="text-[9px] font-black uppercase tracking-[0.3em] text-[#00ffca]">Buyer Signal OS</div>
           </div>
         </Link>
@@ -580,7 +580,7 @@ export default function Landing() {
             Turn buyer intent into coordinated outreach.
           </h1>
           <p className="mt-5 md:mt-8 text-sm md:text-lg text-white/65 leading-relaxed">
-            ConvoSpan coordinates AI agents, live signal intelligence, multi-channel execution, and performance analytics in one operating layer for outbound teams.
+            Net Jana AI coordinates AI agents, live signal intelligence, multi-channel execution, and performance analytics in one operating layer for outbound teams.
           </p>
 
           <div className="mt-7 md:mt-10 flex flex-col sm:flex-row gap-3 md:gap-4">
