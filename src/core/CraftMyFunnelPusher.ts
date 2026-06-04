@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { query } from '../lib/database';
 
 export type CraftMyFunnelEvent = 'LEAD_CARD_READY' | 'SIGNAL_INGESTED' | 'INTENT_UPDATED';
 export type CraftMyFunnelBuyingStage = 'AWARENESS' | 'CONSIDERATION' | 'DECISION' | 'UNKNOWN';
@@ -172,6 +173,53 @@ function redactKey(apiKey: string): string {
     return `***${apiKey.slice(-4)}`;
 }
 
+async function logCraftMyFunnelDelivery(
+    leadId: string,
+    orgId: string,
+    status: 'RECEIVED' | 'LOST' | 'DOWN' | 'SKIPPED',
+    detail: string,
+    triggeredBy: 'auto' | 'manual',
+    options: {
+        requestSent?: boolean;
+        ackReceived?: boolean;
+        responseStatus?: number;
+        attempts?: number;
+        campaignId?: string;
+        connectionStatus?: string;
+        verificationMode?: string;
+        matched?: boolean;
+        safeForAutomation?: boolean;
+    } = {}
+) {
+    try {
+        await query(
+            `INSERT INTO craftmyfunnel_push_log (
+                lead_id, org_id, status, request_sent, ack_received, response_status,
+                detail, triggered_by, attempts, campaign_id, connection_status,
+                verification_mode, matched, safe_for_automation
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+            [
+                leadId,
+                orgId,
+                status,
+                options.requestSent || false,
+                options.ackReceived || false,
+                options.responseStatus || null,
+                detail.slice(0, 500),
+                triggeredBy,
+                options.attempts || 0,
+                options.campaignId || null,
+                options.connectionStatus || null,
+                options.verificationMode || null,
+                typeof options.matched === 'boolean' ? options.matched : null,
+                typeof options.safeForAutomation === 'boolean' ? options.safeForAutomation : null,
+            ]
+        );
+    } catch (error: any) {
+        console.warn('[CraftMyFunnel] Failed to write push log:', error.message);
+    }
+}
+
 async function readResponseText(response: Response): Promise<string> {
     try {
         return await response.text();
@@ -184,9 +232,22 @@ export async function sendCraftMyFunnelLeadSignal(
     signal: any,
     options: SendOptions = {}
 ): Promise<CraftMyFunnelSuccessResponse | { ok: false; error: string; status?: number }> {
+    const leadId = String(signal?.lead_id || '');
+    const orgId = String(signal?.org_id || 'default');
+    const triggeredBy = options.triggeredBy || 'auto';
     const config = getConfig();
     if (!config) {
         console.info('[CraftMyFunnel] Skipping send because integration env vars are not fully configured.');
+        if (leadId) {
+            await logCraftMyFunnelDelivery(
+                leadId,
+                orgId,
+                'DOWN',
+                'CraftMyFunnel integration env vars are not fully configured.',
+                triggeredBy,
+                { requestSent: false, ackReceived: false, attempts: 0, campaignId: options.campaignId }
+            );
+        }
         return { ok: false, error: 'CraftMyFunnel integration is not configured' };
     }
 
@@ -237,6 +298,24 @@ export async function sendCraftMyFunnelLeadSignal(
             if (response.ok) {
                 const responseJson = await response.json() as CraftMyFunnelSuccessResponse;
                 console.info(`[CraftMyFunnel] Delivered ${payload.event} for lead ${payload.lead.lead_id} to ${endpointUrl} using key ${redactKey(config.apiKey)}.`);
+                await logCraftMyFunnelDelivery(
+                    payload.lead.lead_id,
+                    orgId,
+                    'RECEIVED',
+                    'CraftMyFunnel acknowledged webhook payload.',
+                    triggeredBy,
+                    {
+                        requestSent: true,
+                        ackReceived: true,
+                        responseStatus: 200,
+                        attempts: attempt + 1,
+                        campaignId: options.campaignId,
+                        connectionStatus: responseJson.connectionStatus,
+                        verificationMode: responseJson.verificationMode,
+                        matched: responseJson.matched,
+                        safeForAutomation: responseJson.safeForAutomation,
+                    }
+                );
                 return responseJson;
             }
 
@@ -246,6 +325,20 @@ export async function sendCraftMyFunnelLeadSignal(
             console.warn(`[CraftMyFunnel] Attempt ${attempt + 1} failed for lead ${payload.lead.lead_id}: ${lastError}`);
 
             if (!shouldRetry(response.status)) {
+                await logCraftMyFunnelDelivery(
+                    payload.lead.lead_id,
+                    orgId,
+                    'LOST',
+                    lastError,
+                    triggeredBy,
+                    {
+                        requestSent: true,
+                        ackReceived: false,
+                        responseStatus: response.status,
+                        attempts: attempt + 1,
+                        campaignId: options.campaignId,
+                    }
+                );
                 return { ok: false, error: lastError, status: response.status };
             }
         } catch (error: any) {
@@ -254,12 +347,29 @@ export async function sendCraftMyFunnelLeadSignal(
         }
     }
 
+    await logCraftMyFunnelDelivery(
+        payload.lead.lead_id,
+        orgId,
+        'DOWN',
+        lastError,
+        triggeredBy,
+        {
+            requestSent: true,
+            ackReceived: false,
+            responseStatus: lastStatus,
+            attempts: MAX_ATTEMPTS,
+            campaignId: options.campaignId,
+        }
+    );
     return { ok: false, error: lastError, status: lastStatus };
 }
 
-export async function sendSampleCraftMyFunnelSignal(overrides: Partial<CraftMyFunnelLeadPayload['lead']> = {}) {
+export async function sendSampleCraftMyFunnelSignal(
+    overrides: (Partial<CraftMyFunnelLeadPayload['lead']> & { org_id?: string }) = {}
+) {
     const now = new Date().toISOString();
     return sendCraftMyFunnelLeadSignal({
+        org_id: overrides.org_id || 'default',
         lead_id: overrides.lead_id || crypto.randomUUID(),
         company_name: overrides.company_name || 'Example Corp',
         intent_score: overrides.intent_score ?? 87,

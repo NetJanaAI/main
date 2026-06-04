@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Globe, Info, Trash2, Plus, ShieldCheck, Zap, Activity } from 'lucide-react';
+import { Globe, Info, Trash2, Plus, ShieldCheck, Zap, Activity, Send, CheckCircle2, AlertTriangle, ArrowDownCircle, RefreshCw } from 'lucide-react';
 import { api } from '../../lib/api';
 
 export default function ApiManager() {
   const [activeTab, setActiveTab] = useState<'sources' | 'webhooks' | 'docs'>('sources');
   const [integrations, setIntegrations] = useState<any[]>([]);
+  const [craftTelemetry, setCraftTelemetry] = useState<any | null>(null);
+  const [craftLoading, setCraftLoading] = useState(false);
+  const [craftTesting, setCraftTesting] = useState(false);
+  const [craftTestResult, setCraftTestResult] = useState<{ ok: boolean; error?: string; status?: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newCred, setNewCred] = useState({ provider: 'IndiaMART', name: 'Primary Integration', value: '' });
@@ -12,6 +16,9 @@ export default function ApiManager() {
 
   useEffect(() => {
     fetchIntegrations();
+    fetchCraftTelemetry();
+    const interval = setInterval(fetchCraftTelemetry, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchIntegrations = async () => {
@@ -56,6 +63,40 @@ export default function ApiManager() {
     setCopiedSpec(true);
     setTimeout(() => setCopiedSpec(false), 1800);
   };
+
+  const fetchCraftTelemetry = async () => {
+    setCraftLoading(true);
+    try {
+      const res = await api.get('/api/integrations/craftmyfunnel/telemetry');
+      const data = await res.json();
+      setCraftTelemetry(data);
+    } catch (e) {
+      console.error('CraftMyFunnel telemetry fetch failed');
+    } finally {
+      setCraftLoading(false);
+    }
+  };
+
+  const handleCraftTest = async () => {
+    setCraftTesting(true);
+    setCraftTestResult(null);
+    try {
+      const res = await api.post('/api/integrations/craftmyfunnel/test', {});
+      const data = await res.json();
+      setCraftTestResult(data);
+      fetchCraftTelemetry();
+    } catch (e: any) {
+      setCraftTestResult({ ok: false, error: e.message, status: e.status });
+    } finally {
+      setCraftTesting(false);
+    }
+  };
+
+  const nodeStatusTone = craftTelemetry?.node_status === 'UP'
+    ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10'
+    : craftTelemetry?.node_status === 'DOWN'
+      ? 'text-red-400 border-red-500/20 bg-red-500/10'
+      : 'text-amber-300 border-amber-500/20 bg-amber-500/10';
 
   return (
     <div className="flex flex-col gap-12 animate-fade-in">
@@ -171,6 +212,113 @@ export default function ApiManager() {
 
               {activeTab === 'webhooks' && (
                 <section className="space-y-6">
+                  <div className="bg-white/5 border border-white/5 rounded-2xl p-8">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                      <div>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-1">CraftMyFunnel Signal Link</h3>
+                        <p className="text-[10px] text-white/30 font-bold uppercase tracking-[2px]">Track when a signal is sent, acknowledged, lost, or when the link is down.</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest ${nodeStatusTone}`}>
+                          {craftTelemetry?.node_status || 'IDLE'}
+                        </span>
+                        <button
+                          onClick={handleCraftTest}
+                          disabled={craftTesting}
+                          className="px-4 py-2 bg-[#00ffca]/10 border border-[#00ffca]/20 rounded-lg text-[10px] font-black uppercase tracking-widest text-[#00ffca] hover:bg-[#00ffca]/20 transition-all disabled:opacity-40 flex items-center gap-2"
+                        >
+                          {craftTesting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                          Send Test Signal
+                        </button>
+                      </div>
+                    </div>
+
+                    {craftTestResult && (
+                      <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${craftTestResult.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                        {craftTestResult.ok ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                        <p className="text-[10px] font-black uppercase tracking-widest">
+                          {craftTestResult.ok ? 'CraftMyFunnel returned an acknowledgment.' : (craftTestResult.error || `HTTP ${craftTestResult.status}`)}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid md:grid-cols-4 gap-4 mb-8">
+                      {[
+                        { label: 'Sent', value: craftTelemetry?.summary?.sent || '0', icon: Send, tone: 'text-cyan-300 border-cyan-400/20 bg-cyan-400/5' },
+                        { label: 'Received', value: craftTelemetry?.summary?.received || '0', icon: CheckCircle2, tone: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' },
+                        { label: 'Lost', value: craftTelemetry?.summary?.lost || '0', icon: ArrowDownCircle, tone: 'text-amber-300 border-amber-500/20 bg-amber-500/5' },
+                        { label: 'Down', value: craftTelemetry?.summary?.down || '0', icon: AlertTriangle, tone: 'text-red-400 border-red-500/20 bg-red-500/5' },
+                      ].map(item => (
+                        <div key={item.label} className={`rounded-xl border p-4 ${item.tone}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <item.icon className="w-4 h-4" />
+                            <span className="text-xl font-sans italic">{item.value}</span>
+                          </div>
+                          <p className="text-[9px] font-black uppercase tracking-widest">{item.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4 mb-8">
+                      <div className="bg-black/20 border border-white/5 rounded-xl p-4">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Last Sent</p>
+                        <p className="text-[11px] font-bold text-white">
+                          {craftTelemetry?.summary?.last_sent_at ? new Date(craftTelemetry.summary.last_sent_at).toLocaleString() : 'No signal sent yet'}
+                        </p>
+                      </div>
+                      <div className="bg-black/20 border border-white/5 rounded-xl p-4">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">Last Received Ack</p>
+                        <p className="text-[11px] font-bold text-white">
+                          {craftTelemetry?.summary?.last_received_at ? new Date(craftTelemetry.summary.last_received_at).toLocaleString() : 'No ack received yet'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-white/5">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-white/[0.02] border-b border-white/10">
+                            <th className="py-3 px-4 text-[9px] font-black uppercase tracking-widest text-white/20">Timestamp</th>
+                            <th className="py-3 px-4 text-[9px] font-black uppercase tracking-widest text-white/20">Lead</th>
+                            <th className="py-3 px-4 text-[9px] font-black uppercase tracking-widest text-white/20">Signal State</th>
+                            <th className="py-3 px-4 text-[9px] font-black uppercase tracking-widest text-white/20">Ack</th>
+                            <th className="py-3 px-4 text-[9px] font-black uppercase tracking-widest text-white/20">Detail</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.02]">
+                          {craftLoading ? (
+                            <tr>
+                              <td colSpan={5} className="py-10 text-center text-[10px] font-black uppercase tracking-widest text-white/20">Loading telemetry...</td>
+                            </tr>
+                          ) : (craftTelemetry?.recent || []).length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="py-10 text-center text-[10px] font-black uppercase tracking-widest text-white/20">No CraftMyFunnel signal traffic yet.</td>
+                            </tr>
+                          ) : (craftTelemetry?.recent || []).map((row: any) => (
+                            <tr key={row.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="py-3 px-4 text-[10px] text-white/40 font-mono">{new Date(row.pushed_at).toLocaleTimeString()}</td>
+                              <td className="py-3 px-4 text-[10px] text-white font-bold">{row.lead_id.slice(0, 8)}</td>
+                              <td className="py-3 px-4">
+                                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border ${
+                                  row.status === 'RECEIVED' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' :
+                                  row.status === 'LOST' ? 'text-amber-300 border-amber-500/20 bg-amber-500/10' :
+                                  row.status === 'DOWN' ? 'text-red-400 border-red-500/20 bg-red-500/10' :
+                                  'text-white/40 border-white/10 bg-white/5'
+                                }`}>
+                                  {row.status}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-[10px] text-white/70">
+                                {row.ack_received ? `${row.verification_mode || 'ACK'}${row.connection_status ? ` · ${row.connection_status}` : ''}` : 'No ack'}
+                              </td>
+                              <td className="py-3 px-4 text-[10px] text-white/40 max-w-[260px] truncate">{row.detail || 'No detail recorded'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
                   {/* System Protocol Enforce */}
                   <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-6 flex items-start gap-4">
                     <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />

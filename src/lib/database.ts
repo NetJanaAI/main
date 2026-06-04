@@ -508,6 +508,31 @@ export async function initDb() {
         await client.query(`CREATE INDEX IF NOT EXISTS idx_covospan_log_lead   ON covospan_push_log (lead_id);`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_covospan_log_status ON covospan_push_log (org_id, status);`);
 
+        // 17A. CraftMyFunnel Push Log
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS craftmyfunnel_push_log (
+                id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                lead_id             TEXT NOT NULL,
+                org_id              TEXT NOT NULL,
+                status              TEXT NOT NULL CHECK (status IN ('RECEIVED', 'LOST', 'DOWN', 'SKIPPED')),
+                request_sent        BOOLEAN NOT NULL DEFAULT FALSE,
+                ack_received        BOOLEAN NOT NULL DEFAULT FALSE,
+                response_status     INT,
+                detail              TEXT,
+                triggered_by        TEXT NOT NULL DEFAULT 'auto',
+                attempts            INT DEFAULT 0,
+                campaign_id         TEXT,
+                connection_status   TEXT,
+                verification_mode   TEXT,
+                matched             BOOLEAN,
+                safe_for_automation BOOLEAN,
+                pushed_at           TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_cmf_log_org ON craftmyfunnel_push_log (org_id, pushed_at DESC);`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_cmf_log_lead ON craftmyfunnel_push_log (lead_id);`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_cmf_log_status ON craftmyfunnel_push_log (org_id, status);`);
+
         // 18. LLM Usage Audit (Phase 9)
         await client.query(`
             CREATE TABLE IF NOT EXISTS llm_usage_logs (
