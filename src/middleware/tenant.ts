@@ -19,11 +19,15 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
     const authHeader = req.headers.authorization;
     const orgIdHeader = req.headers['x-organization-id'] as string;
     const publicApiPaths = new Set([
-        '/api/leads/stats',
-        '/api/leads/match'
+        '/api/leads/stats'
     ]);
 
-    if (req.path.startsWith('/api/ingest') || publicApiPaths.has(req.path)) {
+    if (req.path.startsWith('/api/ingest')) {
+        return next();
+    }
+
+    const hasAuthMaterial = Boolean(apiKey || authHeader?.startsWith('Bearer ') || orgIdHeader);
+    if (publicApiPaths.has(req.path) && !hasAuthMaterial) {
         return next();
     }
 

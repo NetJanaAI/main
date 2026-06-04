@@ -55,7 +55,7 @@ export const scrapeQueue = new Queue(SCRAPE_QUEUE_NAME, {
             type: 'exponential',
             delay: 5000,
         },
-        removeOnComplete: true,
+        removeOnComplete: { age: 3600, count: 1000 },
         removeOnFail: false, // Keep failed jobs for audit
     }
 });

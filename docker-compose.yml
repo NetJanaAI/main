@@ -11,12 +11,18 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-development}
       - PORT=3000
       - DATABASE_URL=postgres://netjana:netjana@postgres:5432/netjana
       - REDIS_URL=redis://redis:6379
-      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_HOST=${OLLAMA_HOST:-}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - COMPLIANCE_LEGAL_LLM_REQUIRED=${COMPLIANCE_LEGAL_LLM_REQUIRED:-false}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - HMAC_SECRET=${HMAC_SECRET}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      - ALLOWED_INGEST_IPS=${ALLOWED_INGEST_IPS:-127.0.0.1,::1}
+      - ADMIN_SECRET=${ADMIN_SECRET}
       - REGION_ID=UAE_DUBAI_01
       # Audit remediation: ConvoSpan push + Outreach vars
       - CONVOSPAN_WEBHOOK_URL=${CONVOSPAN_WEBHOOK_URL}
@@ -29,9 +35,16 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # S3-2: App-level health probe so Docker knows when the API is ready
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   scraper-worker:
     build: .
@@ -40,18 +53,21 @@ services:
     restart: unless-stopped
     command: npm run start:scraper
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-development}
       - DATABASE_URL=postgres://netjana:netjana@postgres:5432/netjana
       - REDIS_URL=redis://redis:6379
-      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_HOST=${OLLAMA_HOST:-}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - COMPLIANCE_LEGAL_LLM_REQUIRED=${COMPLIANCE_LEGAL_LLM_REQUIRED:-false}
+      - HMAC_SECRET=${HMAC_SECRET}
+      - ALLOWED_INGEST_IPS=${ALLOWED_INGEST_IPS:-127.0.0.1,::1}
       - ROLE=worker
       - REGION_ID=UAE_DUBAI_01
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -97,10 +113,18 @@ services:
     image: redis:7-alpine
     container_name: b2b-redis
     restart: unless-stopped
+    # P0-4 Fix: Enable AOF persistence so BullMQ job state survives container restarts.
+    # appendfsync everysec is the recommended balance of durability vs. performance.
+    command: redis-server --appendonly yes --appendfsync everysec
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   redis_data:

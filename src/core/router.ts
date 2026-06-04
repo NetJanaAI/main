@@ -150,4 +150,5 @@ export function setupRouterWorker() {
     });
 
     console.log('[RouterWorker] Listening on raw_signals queue');
+    return worker;
 }

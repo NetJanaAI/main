@@ -17,6 +17,7 @@ const FeedbackSchema = z.object({
  */
 router.get('/stats', async (req, res) => {
     try {
+        const orgId = (req as any).organizationId;
         const result = await query(`
             SELECT
                 COUNT(*)                                                        AS total,
@@ -26,7 +27,8 @@ router.get('/stats', async (req, res) => {
                 COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS today,
                 COALESCE(SUM(intent_score), 0)                                 AS alpha_sum
             FROM lead_cards
-        `);
+            ${orgId ? 'WHERE org_id = $1' : ''}
+        `, orgId ? [orgId] : []);
         const row = result.rows[0] || {};
         res.json({
             total:  parseInt(row.total  || '0', 10),
@@ -50,13 +52,18 @@ router.get('/stats', async (req, res) => {
 router.get('/match', async (req, res) => {
     try {
         const { industry, query: searchQuery } = req.query;
+        const orgId = (req as any).organizationId;
+
+        if (!orgId) {
+            return res.status(401).json({ error: 'Unauthorized: Valid Session or API Key Required' });
+        }
 
         let sql = `
             SELECT lead_id, company_name, geo_state, sector, procurement_category, card_what_they_need, card_why_now, intent_score, decay_score, created_at, corroborated, signal_count, verity_tier
             FROM lead_cards
-            WHERE 1=1
+            WHERE org_id = $1
         `;
-        const params: any[] = [];
+        const params: any[] = [orgId];
 
         if (industry && typeof industry === 'string') {
             params.push(`%${industry}%`);
@@ -85,7 +92,7 @@ router.get('/match', async (req, res) => {
  */
 router.get('/re-engage-queue', async (req, res) => {
     try {
-        const organizationId = req.query.organizationId || (req as any).user?.organizationId;
+        const organizationId = (req as any).organizationId || (req as any).user?.organizationId;
         const region = req.query.region;
         const industry = req.query.industry;
 
@@ -125,7 +132,7 @@ router.get('/re-engage-queue', async (req, res) => {
  */
 router.post('/:id/enrich-influence', async (req, res) => {
     try {
-        const organizationId = req.body.organizationId || (req as any).user?.organizationId;
+        const organizationId = (req as any).organizationId || (req as any).user?.organizationId;
         const leadId = req.params.id;
 
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
@@ -156,7 +163,7 @@ router.post('/:id/enrich-influence', async (req, res) => {
 router.get('/:id/influence', async (req, res) => {
     try {
         const leadId = req.params.id;
-        const organizationId = (req as any).organizationId || req.query.organizationId || (req as any).user?.organizationId;
+        const organizationId = (req as any).organizationId || (req as any).user?.organizationId;
 
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
 

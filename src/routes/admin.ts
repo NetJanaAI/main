@@ -5,8 +5,14 @@ import { VanishProtocol } from '../core/rag/VanishProtocol';
 import { DeadLetterQueue } from '../lib/DeadLetterQueue';
 import { AuditTrail } from '../core/compliance/AuditTrail';
 import { getHmacSecret } from '../lib/secrets';
+import { adminAuth } from '../middleware/adminAuth';
+import { sendCraftMyFunnelLeadSignal, sendSampleCraftMyFunnelSignal } from '../core/CraftMyFunnelPusher';
 
 const router = Router();
+
+// P0-2 Fix: Authenticate all /api/admin/* routes before any handler runs.
+// Requires Clerk session with admin role, or x-admin-secret header in standalone mode.
+router.use(adminAuth);
 
 /**
  * POST /api/admin/tenants - Create a new tenant organization.
@@ -225,6 +231,35 @@ router.get('/security/audit', async (req: Request, res: Response) => {
         res.json(result.rows);
     } catch (e: any) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+/**
+ * POST /api/admin/integrations/craftmyfunnel/test
+ * Sends either a synthetic sample signal or an existing lead card to CraftMyFunnel.
+ */
+router.post('/integrations/craftmyfunnel/test', async (req: Request, res: Response) => {
+    const { leadId, campaignId, event } = req.body || {};
+
+    try {
+        if (!leadId) {
+            const result = await sendSampleCraftMyFunnelSignal();
+            return res.json(result);
+        }
+
+        const leadRes = await query('SELECT * FROM lead_cards WHERE lead_id = $1', [leadId]);
+        if (leadRes.rows.length === 0) {
+            return res.status(404).json({ error: 'Lead not found' });
+        }
+
+        const result = await sendCraftMyFunnelLeadSignal(leadRes.rows[0], {
+            campaignId,
+            event,
+            triggeredBy: 'manual',
+        });
+        return res.json(result);
+    } catch (e: any) {
+        return res.status(502).json({ ok: false, error: e.message });
     }
 });
 

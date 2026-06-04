@@ -8,9 +8,25 @@ export interface DispatchResult {
     channel: 'EMAIL' | 'WABA' | 'LINKEDIN';
     messageId?: string;
     error?: string;
+    unconfigured?: boolean; // S1-3: true when credentials are missing (stub) vs. a real send failure
 }
 
 export class OutreachDispatcher {
+    /**
+     * S1-3: Check whether a channel is actually configured before attempting dispatch.
+     * Used by the outreach worker to prevent silent stub completions from appearing as successes.
+     */
+    static isConfigured(channel: 'EMAIL' | 'WABA' | 'LINKEDIN'): boolean {
+        switch (channel) {
+            case 'EMAIL':
+                return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+            case 'WABA':
+                return Boolean(process.env.WABA_TOKEN && process.env.WABA_PHONE_NUMBER_ID);
+            case 'LINKEDIN':
+                return Boolean(process.env.LINKEDIN_TOKEN && process.env.LINKEDIN_URN);
+        }
+    }
+
     private async logDispatch(leadId: string, channel: string, status: string, error?: string) {
         try {
             await query(
@@ -51,7 +67,18 @@ export class OutreachDispatcher {
     }
 
     private async dispatchEmail(email: { subject: string; body: string }, to: string): Promise<DispatchResult> {
+        if (!OutreachDispatcher.isConfigured('EMAIL')) {
+            return {
+                success: false,
+                channel: 'EMAIL',
+                unconfigured: true,
+                error: 'EMAIL_UNCONFIGURED: Set SMTP_HOST, SMTP_USER, and SMTP_PASS to enable email dispatch.'
+            };
+        }
         if (!to) return { success: false, channel: 'EMAIL', error: 'No recipient email found' };
+        if (to === 'recipient@example.com') {
+            return { success: false, channel: 'EMAIL', error: 'Refusing to dispatch to placeholder recipient.' };
+        }
 
         try {
             const transporter = nodemailer.createTransport({
@@ -87,11 +114,12 @@ export class OutreachDispatcher {
         const phoneNumberId = process.env.WABA_PHONE_NUMBER_ID;
 
         if (!token || !phoneNumberId) {
-            console.warn(`[Dispatcher:WABA] Missing credentials for ${phone}. Falling back to STUB.`);
+            console.warn(`[Dispatcher:WABA] WABA_TOKEN / WABA_PHONE_NUMBER_ID not configured.`);
             return {
                 success: false,
                 channel: 'WABA',
-                error: 'STUB_UNIMPLEMENTED: WhatsApp Business API credentials (WABA_TOKEN, WABA_PHONE_NUMBER_ID) not configured.'
+                unconfigured: true, // S1-3: signals the outreach worker to DLQ this job
+                error: 'STUB_UNIMPLEMENTED: Set WABA_TOKEN and WABA_PHONE_NUMBER_ID to enable WhatsApp dispatch.'
             };
         }
 
@@ -127,11 +155,12 @@ export class OutreachDispatcher {
         const authorUrn = process.env.LINKEDIN_URN;
 
         if (!token || !authorUrn) {
-            console.warn(`[Dispatcher:LinkedIn] Missing credentials for ${profile}. Falling back to STUB.`);
+            console.warn(`[Dispatcher:LinkedIn] LINKEDIN_TOKEN / LINKEDIN_URN not configured.`);
             return {
                 success: false,
                 channel: 'LINKEDIN',
-                error: 'STUB_UNIMPLEMENTED: LinkedIn Messaging API credentials (LINKEDIN_TOKEN, LINKEDIN_URN) not configured.'
+                unconfigured: true, // S1-3: signals the outreach worker to DLQ this job
+                error: 'STUB_UNIMPLEMENTED: Set LINKEDIN_TOKEN and LINKEDIN_URN to enable LinkedIn dispatch.'
             };
         }
 

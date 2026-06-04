@@ -28,11 +28,19 @@ export async function startOutreachWorker(io: Server) {
                 ...leadMetadata,
                 leadId,
                 // Fallback email/phone logic would go here
-                contactEmail: process.env.TEST_RECEIVER_EMAIL || 'recipient@example.com' 
+                contactEmail: process.env.TEST_RECEIVER_EMAIL || leadMetadata.contact_email || leadMetadata.email
             };
 
             // 3. Dispatch to primary channel (defaulting to EMAIL)
             const dispatchResult = await dispatcher.dispatch('EMAIL', result, dispatchLead);
+
+            // S1-3 hardening: any dispatch failure should go to DLQ instead of
+            // completing as "outreach_ready" with success=false hidden in payload.
+            if (!dispatchResult.success) {
+                throw new Error(
+                    `Outreach dispatch failed: ${dispatchResult.channel}. ${dispatchResult.error}`
+                );
+            }
 
             // 4. Notify UI via Socket.IO
             io.to(`org:${organizationId}`).emit('lead:outreach_ready', {

@@ -535,6 +535,22 @@ export async function initDb() {
             );
         `);
 
+        // 18B. RAG Audit Log
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS rag_audit_log (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                organization_id VARCHAR(255) NOT NULL,
+                namespace VARCHAR(255) NOT NULL,
+                operation VARCHAR(50) CHECK (operation IN ('read', 'write', 'delete')),
+                doc_id VARCHAR(255),
+                request_id TEXT,
+                timestamp TIMESTAMPTZ DEFAULT NOW(),
+                metadata JSONB
+            );
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_rag_audit_org ON rag_audit_log(organization_id);`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_rag_audit_ts ON rag_audit_log(timestamp);`);
+
 
         // Enable RLS on core multi-tenant tables
         await client.query(`ALTER TABLE scrape_results ENABLE ROW LEVEL SECURITY;`);

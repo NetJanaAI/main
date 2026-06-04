@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import * as ipLib from 'ip';
 import { query } from '../lib/database';
 import { DEV_HMAC_SECRET, getHmacSecret } from '../lib/secrets';
 
@@ -9,6 +10,21 @@ import { DEV_HMAC_SECRET, getHmacSecret } from '../lib/secrets';
  */
 
 const LOCALHOST_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+/**
+ * P0-3 Fix: Checks whether a client IP is covered by a CIDR entry or exact host match.
+ * Handles both /32 host entries and full CIDR blocks (e.g. 203.0.113.0/24).
+ */
+export function cidrContains(cidrOrIp: string, clientIp: string): boolean {
+    try {
+        if (cidrOrIp.includes('/')) {
+            return ipLib.cidrSubnet(cidrOrIp).contains(clientIp);
+        }
+        return cidrOrIp === clientIp;
+    } catch {
+        return false; // Malformed CIDR entry — skip silently
+    }
+}
 
 export const ingestAuthGuard = async (req: any, res: Response, next: NextFunction) => {
     const clientIp = ((req.ip as string) || (req.socket?.remoteAddress as string) || '').replace('::ffff:', '');
@@ -23,7 +39,8 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
         const dbIpsRes = await query('SELECT cidr FROM allowed_ips WHERE organization_id IS NULL OR organization_id = $1', [(req as any).organizationId || null]);
         const dbIps = dbIpsRes.rows.map(r => r.cidr);
         
-        if (dbIps.includes(clientIp)) {
+        // P0-3 Fix: evaluate each entry as CIDR or exact host (was broken exact-string before)
+        if (dbIps.some(entry => cidrContains(entry, clientIp))) {
             isAllowed = true;
         }
     } catch (e) {
@@ -35,7 +52,8 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
         const envAllowedIps = process.env.ALLOWED_INGEST_IPS
             ? process.env.ALLOWED_INGEST_IPS.split(',').map(s => s.trim())
             : [];
-        if (envAllowedIps.includes(clientIp)) {
+        // P0-3 Fix: same CIDR-aware matching for ENV allowlist
+        if (envAllowedIps.some(entry => cidrContains(entry, clientIp))) {
             isAllowed = true;
         }
     }

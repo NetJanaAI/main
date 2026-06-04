@@ -108,15 +108,6 @@ export function setupGeminiWorkers(io: Server) {
         const dateStr = new Date().toISOString().split('T')[0];
         const spendKey = `gemini_calls:${dateStr}`;
 
-        // ModelAPI manages the daily limit check, but we can also perform it here for io.emit
-        const newCount = await cache.incr(spendKey);
-        await cache.expire(spendKey, 86_400); // 24h TTL
-        if (newCount > 400) {
-            await cache.decr(spendKey); // rollback so limit is accurate
-            io.emit('cost_alert', { message: 'Daily Gemini spend guard triggered (>400 calls). TIER_2 paused.' });
-            throw new Error('[SpendGuard] Daily Gemini limit of 400 reached.');
-        }
-
         // H-05: Handle empty TOON payload
         const toonPayload = (signal.raw_payload && Object.keys(signal.raw_payload).length > 0)
             ? jsonToToon(signal.raw_payload)
@@ -273,6 +264,8 @@ OUT: { "company": "Name · Target", "why_now": "Citing multiple sources <2s", "w
 
         return { status: 'lead_card_generated', lead_id: leadCard.lead_id };
     }, { connection, concurrency: 2 });
+
+    return { tier1Worker, tier2Worker };
 }
 
 export async function queueIndiaMARTSignal(lead: any, organizationId: string): Promise<void> {

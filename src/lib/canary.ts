@@ -44,6 +44,14 @@ export class HACanary {
                 });
             }
         }
+
+        // S1-4 Fix: DroughtMonitor was implemented but never scheduled.
+        // Run it on every 5-min heartbeat so ops are alerted when signal volume drops to 0.
+        try {
+            await SignalDroughtMonitor.checkDrought();
+        } catch (e: any) {
+            console.warn(`[Canary] DroughtMonitor check failed:`, e.message);
+        }
     }
 }
 

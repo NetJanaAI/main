@@ -8,16 +8,16 @@ SecureLogger.init();
 // Environment Validation: Fail-fast if critical keys are missing
 function validateEnv() {
     const missing: string[] = [];
-    if (!process.env.GOOGLE_API_KEY) missing.push('GOOGLE_API_KEY');
+    if (!process.env.GOOGLE_API_KEY && !process.env.OLLAMA_HOST) missing.push('GOOGLE_API_KEY or OLLAMA_HOST');
     if (!process.env.DATABASE_URL) missing.push('DATABASE_URL');
     if (!process.env.CLERK_SECRET_KEY) missing.push('CLERK_SECRET_KEY');
-    if (!process.env.UPSTASH_REDIS_REST_URL) missing.push('UPSTASH_REDIS_REST_URL');
+    if (!process.env.REDIS_URL && !process.env.REDIS_HOST) missing.push('REDIS_URL or REDIS_HOST');
     if (!process.env.HMAC_SECRET) missing.push('HMAC_SECRET');
     if (!process.env.ALLOWED_INGEST_IPS) missing.push('ALLOWED_INGEST_IPS');
+    if (!process.env.ALLOWED_ORIGINS) missing.push('ALLOWED_ORIGINS');
     if (missing.length > 0) {
-        const isStandalone = process.env.NETJANA_MODE === 'standalone';
         const isDev = process.env.NODE_ENV !== 'production'; // More inclusive check
-        if (isStandalone || isDev) {
+        if (isDev) {
             console.warn(`[Warning] Missing environment variables: ${missing.join(', ')}`);
             console.warn(`[Warning] System starting in DEGRADED MODE for local exploration.`);
         } else {
@@ -79,6 +79,7 @@ import { tenantContext } from './middleware/tenant';
 import { HACanary } from './lib/canary';
 import { errorHandler } from './middleware/error-handler';
 import { register, getSystemHealth } from './lib/telemetry';
+import { connection } from './lib/queue';
 import { setupScrapeWorker } from './workers/scrapeWorker';
 import { setupDlqWorker } from './workers/dlqWorker';
 import { startOutreachWorker } from './workers/outreach_worker';
@@ -86,6 +87,7 @@ import { startInfluenceWorker } from './workers/influenceMapWorker';
 import { startDecayRescoreWorker } from './workers/decayRescoreWorker';
 import { setupRouterWorker } from './core/router';
 import { setupGeminiWorkers } from './core/gemini-chain';
+import { setupTier3Worker } from './workers/tier3Worker';
 
 const app = express();
 const httpServer = createServer(app);
@@ -124,9 +126,8 @@ const io = new Server(httpServer, {
 
 import Redis from 'ioredis';
 async function waitForRedis(maxMs = 30_000): Promise<void> {
-    const host = process.env.REDIS_HOST || 'localhost';
-    const port = parseInt(process.env.REDIS_PORT || '6379');
-    const client = new Redis({ host, port, lazyConnect: true });
+    const client = new Redis({ ...(connection as any), lazyConnect: true });
+    client.on('error', () => {});
     const start = Date.now();
     while (Date.now() - start < maxMs) {
         try { await client.ping(); await client.quit(); return; }
@@ -139,21 +140,95 @@ async function startWorkers(ioInstance: Server) {
     try {
         await waitForRedis();
 
-        setupScrapeWorker(ioInstance);
-        setupDlqWorker();
-        await startOutreachWorker(ioInstance);
-        await startInfluenceWorker(ioInstance);
-        await startDecayRescoreWorker(ioInstance);
-        setupRouterWorker();
-        setupGeminiWorkers(ioInstance);
+        const scrapeWorker = process.env.ROLE === 'api_only'
+            ? null
+            : setupScrapeWorker(ioInstance);
+        if (!scrapeWorker) {
+            console.log('[Startup] Scrape worker disabled for ROLE=api_only.');
+        }
+        const dlqWorker = setupDlqWorker();
+        const outreachWorker = await startOutreachWorker(ioInstance);
+        const influenceWorker = await startInfluenceWorker(ioInstance);
+        const decayWorker = await startDecayRescoreWorker(ioInstance);
+        const routerWorker = setupRouterWorker();
+        const { tier1Worker, tier2Worker } = setupGeminiWorkers(ioInstance);
+        // S1-1: Wire Tier 3 enrichment worker — was missing, LOW-confidence signals were silently queued forever
+        const tier3Worker = setupTier3Worker(ioInstance);
         setupRecalibrationCron(ioInstance);
+
         console.log('[Startup] Workers initialized successfully.');
+
+        // Collect all worker handles for graceful shutdown
+        const allWorkers = [
+            scrapeWorker,
+            dlqWorker,
+            outreachWorker,
+            influenceWorker,
+            decayWorker,
+            routerWorker,
+            tier1Worker,
+            tier2Worker,
+            tier3Worker,
+        ].filter(Boolean) as import('bullmq').Worker[];
+
+        return allWorkers;
     } catch (err) {
         console.error('[Startup] Failed to start workers:', err);
+        return [];
     }
 }
 
-startWorkers(io);
+// S0-1: Graceful shutdown — wire after workers are ready
+let _registeredWorkers: import('bullmq').Worker[] = [];
+
+/**
+ * P0-1 Fix: Graceful shutdown handler.
+ * On SIGTERM/SIGINT:
+ *  1. Stop accepting new HTTP connections.
+ *  2. Close all BullMQ workers (allows in-flight jobs to complete up to lockDuration).
+ *  3. Close the Postgres pool.
+ *  4. Exit 0.
+ * A hard-kill timeout ensures we never hang forever.
+ */
+async function gracefulShutdown(signal: string) {
+    console.log(`[Shutdown] ${signal} received — starting graceful shutdown...`);
+
+    const HARD_KILL_MS = 15_000;
+    const killTimer = setTimeout(() => {
+        console.error('[Shutdown] Hard-kill timeout reached. Forcing exit.');
+        process.exit(1);
+    }, HARD_KILL_MS);
+    killTimer.unref(); // Don't prevent exit if everything closes cleanly
+
+    // 1. Stop accepting new HTTP connections
+    httpServer.close(() => {
+        console.log('[Shutdown] HTTP server closed.');
+    });
+
+    // 2. Close all BullMQ workers
+    if (_registeredWorkers.length > 0) {
+        console.log(`[Shutdown] Closing ${_registeredWorkers.length} BullMQ workers...`);
+        await Promise.allSettled(_registeredWorkers.map(w => w.close()));
+        console.log('[Shutdown] All workers closed.');
+    }
+
+    // 3. Close Postgres pool
+    try {
+        const { pool } = await import('./lib/database');
+        if (pool) await pool.end();
+        console.log('[Shutdown] Postgres pool closed.');
+    } catch (e: any) {
+        console.warn('[Shutdown] Postgres pool close warning:', e.message);
+    }
+
+    clearTimeout(killTimer);
+    console.log('[Shutdown] Clean exit.');
+    process.exit(0);
+}
+
+startWorkers(io).then(workers => {
+    _registeredWorkers = workers;
+});
 
 app.use(helmet({
     contentSecurityPolicy: {
@@ -289,7 +364,14 @@ dbReady.finally(() => httpServer.listen(PORT, () => {
     setInterval(() => HACanary.runHeartbeat(), 5 * 60 * 1000);
 }));
 
-// --- Graceful Shutdown & Process Monitoring ---
+// --- Process Signal Handling ---
+
+// P0-1 Fix: SIGTERM (Docker/Kubernetes graceful stop) and SIGINT (Ctrl+C in dev)
+// Both trigger the same graceful shutdown sequence: drain workers → close HTTP → exit 0
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+
+// Keep uncaught error logging for unexpected runtime failures
 process.on('uncaughtException', (err) => {
     console.error('[Process] Uncaught Exception:', err);
 });

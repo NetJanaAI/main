@@ -15,8 +15,9 @@ COPY . .
 RUN npm run build
 
 # Stage 3: Production Runtime (Playwright)
-# Using Microsoft's official Playwright image for best compatibility
-FROM mcr.microsoft.com/playwright:v1.45.0-jammy
+# S2-1 Fix: Image version MUST match installed playwright package version in package.json.
+# Previously v1.45.0 while package installed ^1.58.1 — caused browserType.launch failures.
+FROM mcr.microsoft.com/playwright:v1.58.0-jammy
 WORKDIR /app
 
 # Production optimization: Only install production dependencies
@@ -44,4 +45,4 @@ LABEL maintainer="NetJana AI Team"
 LABEL version="1.2.0"
 LABEL description="Sovereign Alpha B2B Scraper - Azure Ready"
 
-CMD ["npm", "run", "start:standalone"]
+CMD ["npm", "start"]

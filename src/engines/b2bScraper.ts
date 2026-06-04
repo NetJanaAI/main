@@ -283,7 +283,8 @@ export async function scrapeB2BSignals(
                 if (onProgress && analysisAny.verity_steps) {
                     analysisAny.verity_steps.forEach((step: any) => {
                         const label = step.role === 'advocate' ? '[Advocate]' : '[Critic]';
-                        onProgress(`${label} ${step.content.substring(0, 100)}...`, step.role === 'advocate' ? 'info' : 'success');
+                        const content = String(step.content || step.summary || step.reason || 'No reasoning content returned');
+                        onProgress(`${label} ${content.substring(0, 100)}...`, step.role === 'advocate' ? 'info' : 'success');
                     });
                 }
 
@@ -298,14 +299,15 @@ export async function scrapeB2BSignals(
                 // Base value + signal multiplier + friction weight
                 const baseValue = 5000;
                 const signalValue = signalsCount * 2500;
-                const frictionImpact = analysis.frictionScore * 200;
-                const estimatedRoi = baseValue + signalValue + frictionImpact;
+                const rawFrictionScore = Number((analysis as any).frictionScore);
+                const frictionScore = Number.isFinite(rawFrictionScore) ? rawFrictionScore : 0;
+                const estimatedRoi = Math.round(baseValue + signalValue + (frictionScore * 200));
 
                 const result: ScrapeResult = {
                     jobId: actualJobId,
                     domain: new URL(targetUrl).hostname,
                     signals: analysis.painPoints.operationalBottlenecks,
-                    frictionScore: (analysis as any).frictionScore,
+                    frictionScore,
                     geoCountry: geo ? geo.country : 'Unknown',
                     complianceVerified: true,
                     estimatedRoi,

@@ -4,10 +4,14 @@ import robotsParser from 'robots-txt-parser';
 import { reportViolation } from '../dispatcher';
 import { setTimeout } from 'timers/promises';
 
-const OLLAMA_ENDPOINT = 'http://localhost:11434/api/generate';
+function getOllamaGenerateEndpoint(): string {
+    const baseUrl = process.env.OLLAMA_HOST || 'http://localhost:11434';
+    return `${baseUrl.replace(/\/$/, '')}/api/generate`;
+}
 
 async function queryLocalLegalLLM(domain: string): Promise<{ isHighRisk: boolean, reason: string }> {
     console.log(`[Compliance] Querying local Phi-3 agent for domain: ${domain}...`);
+    const legalLlmRequired = process.env.COMPLIANCE_LEGAL_LLM_REQUIRED !== 'false';
 
     // Enhanced 2026 Institutional Legal Veto Prompt
     const prompt = `Analyze the domain "${domain}" for 2026 legal compliancy.
@@ -24,7 +28,7 @@ async function queryLocalLegalLLM(domain: string): Promise<{ isHighRisk: boolean
     Return valid JSON only: { "isHighRisk": boolean, "reason": "concise explanation citing the specific act" }`;
 
     try {
-        const response = await axios.post(OLLAMA_ENDPOINT, {
+        const response = await axios.post(getOllamaGenerateEndpoint(), {
             model: "phi3",
             prompt: prompt,
             stream: false,
@@ -37,6 +41,10 @@ async function queryLocalLegalLLM(domain: string): Promise<{ isHighRisk: boolean
             return { isHighRisk: true, reason: "Legal Logic Parse Error - Fail Closed for Safety" };
         }
     } catch (e) {
+        if (!legalLlmRequired && process.env.NODE_ENV !== 'production') {
+            console.warn('[Compliance] Legal LLM unavailable. Dev-only bypass is enabled.');
+            return { isHighRisk: false, reason: "Dev-only compliance LLM bypass enabled" };
+        }
         console.warn('[Compliance] LLM Check Unavailable - Enforcing Fail-Closed Safety Veto.');
         return { isHighRisk: true, reason: "Institutional Legal AI Offline" };
     }

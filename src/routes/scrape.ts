@@ -28,6 +28,7 @@ const enqueueScrape = async (req: Request, res: any) => {
     }
 
     const { url, forceFailure, useOnlineAI, spiderMode, maxPages, organizationId } = validationResult.data;
+    const effectiveOrganizationId = (req as any).organizationId || organizationId;
 
     // Memory Guard: Check available RAM
     const freeMemoryMB = os.freemem() / (1024 * 1024);
@@ -48,7 +49,7 @@ const enqueueScrape = async (req: Request, res: any) => {
         useOnlineAI,
         spiderMode,
         maxPages,
-        organizationId
+        organizationId: effectiveOrganizationId
     }, { jobId });
 
     console.log(`[API] Scrape Enqueued for ${url} (Job ID: ${jobId})`);

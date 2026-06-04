@@ -10,9 +10,25 @@
 
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
+import IORedis from 'ioredis';
+import { connection } from './queue';
 import { cache } from './cache';
 import { TokenTracker } from './ai/token-tracker';
 import { jsonToToon } from './ai/toon';
+
+// Dedicated ioredis instance for atomic spend-guard operations.
+// Using ioredis directly (not the cache abstraction) to get pipeline() with INCR.
+let _spendRedis: IORedis | null = null;
+function getSpendRedis(): IORedis {
+    if (!_spendRedis) {
+        _spendRedis = new IORedis(connection as any);
+        _spendRedis.on('error', (e) => {
+            // Suppress noisy connection errors — callModel will throw if incr fails
+            console.warn('[ModelAPI:SpendGuard] Redis error:', e.message);
+        });
+    }
+    return _spendRedis;
+}
 
 export type ModelRole = 'gate' | 'qualifier' | 'writer' | 'synthesizer' | 'advocate' | 'critic' | 'outreach';
 
@@ -117,9 +133,30 @@ export interface ModelCallOptions {
 export async function callModel(opts: ModelCallOptions): Promise<string> {
     const { role, system, user, orgId, spendKey, dailyLimit = 400, tokensSaved = 0 } = opts;
 
-    const count = parseInt((await cache.get(spendKey)) || '0', 10);
-    if (count >= dailyLimit) {
-        throw new Error(`[ModelAPI] Daily spend limit reached for key: ${spendKey}`);
+    // S1-2 Fix: Atomic spend guard — INCR + EXPIRE in a single pipeline, then check.
+    // Eliminates the TOCTOU race where two concurrent workers could both read 399,
+    // both pass the limit check, and both proceed past budget.
+    let newCount: number;
+    try {
+        const redis = getSpendRedis();
+        const pipeline = redis.pipeline();
+        pipeline.incr(spendKey);
+        pipeline.expire(spendKey, 86_400); // 24h TTL
+        const results = await pipeline.exec();
+        newCount = (results?.[0]?.[1] as number) || 1;
+    } catch (redisErr: any) {
+        // Redis unavailable — fail closed in production, allow in dev
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error(`[ModelAPI] Spend guard Redis unavailable: ${redisErr.message}`);
+        }
+        console.warn('[ModelAPI] Spend guard Redis unavailable (dev mode). Proceeding without budget tracking.');
+        newCount = 0;
+    }
+
+    if (newCount > dailyLimit) {
+        // Roll back the increment so the counter stays accurate
+        try { getSpendRedis().decr(spendKey).catch(() => {}); } catch { /* ignore */ }
+        throw new Error(`[ModelAPI] Daily spend limit (${dailyLimit}) reached for key: ${spendKey}`);
     }
 
     const config = MODEL_CONFIG[role];
@@ -165,7 +202,7 @@ export async function callModel(opts: ModelCallOptions): Promise<string> {
                 tokensSaved
             });
 
-            await cache.incr(spendKey);
+            // NOTE: cache.incr(spendKey) removed — the atomic pipeline above already incremented.
             return res.content as string;
         } catch (error) {
             console.warn(`[ModelAPI] Inference attempt ${attempt + 1} failed for ${role}:`, (error as Error).message);

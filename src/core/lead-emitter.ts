@@ -3,6 +3,7 @@ import { db } from '../lib/database';
 import { connection } from '../lib/queue';
 import { Server } from 'socket.io';
 import { CovospanPusher } from './CovospanPusher';
+import { sendCraftMyFunnelLeadSignal } from './CraftMyFunnelPusher';
 
 const redis = new Redis(connection as any);
 
@@ -79,5 +80,9 @@ export async function emitLeadCard(io: Server, leadData: any) {
     // 4. Push to ConvoSpan (fire-and-forget — never blocks the emitter)
     CovospanPusher.push(leadData, 'auto').catch(e =>
         console.warn('[LeadEmitter] CovospanPusher failed:', e.message)
+    );
+
+    sendCraftMyFunnelLeadSignal(leadData, { triggeredBy: 'auto' }).catch(e =>
+        console.warn('[LeadEmitter] CraftMyFunnel push failed:', e.message)
     );
 }

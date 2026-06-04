@@ -14,6 +14,11 @@ const BRAIN_WEBHOOK_URL = process.env.BRAIN_WEBHOOK_URL;
 const REGION_ID = process.env.REGION_ID || 'UAE_DUBAI_01';
 const CONVOSPAN_EDGE_WEBHOOK_URL = process.env.CONVOSPAN_EDGE_WEBHOOK_URL;
 
+function finiteInteger(value: unknown, fallback = 0): number {
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? Math.round(numberValue) : fallback;
+}
+
 if (!HMAC_SECRET && process.env.NODE_ENV === 'production') {
     throw new Error('[Dispatcher] FATAL: HMAC_SECRET must be set in production.');
 }
@@ -69,10 +74,10 @@ export async function sendResults(data: any, organizationId?: string): Promise<v
             `, [
                 data.jobId || crypto.randomUUID(),
                 data.domain,
-                data.frictionScore,
+                finiteInteger(data.frictionScore, 0),
                 JSON.stringify(data.signals || []),
                 data.geoCountry,
-                data.estimatedRoi,
+                finiteInteger(data.estimatedRoi, 0),
                 data.complianceVerified,
                 JSON.stringify(data.criticAnalysis || {}),
                 data.screenshotPath || null,

@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { connection, SCRAPE_QUEUE_NAME, getRegionalQueueName } from '../lib/queue';
+import { connection, SCRAPE_QUEUE_NAME } from '../lib/queue';
 import { scrapeB2BSignals } from '../engines/b2bScraper';
 import { Server } from 'socket.io';
 import os from 'os';
@@ -7,13 +7,28 @@ import Redis from 'ioredis';
 import { db } from '../lib/database';
 import { cache } from '../lib/cache';
 
-const redis = new Redis(connection as any);
+const redis = new Redis({
+    ...(connection as any),
+    lazyConnect: false,
+    enableOfflineQueue: true,
+});
+redis.on('error', (err) => console.warn('[Worker] Redis cache client error:', err.message));
 
 const MIN_FREE_MEMORY_MB = 128; // Scraper specific safety floor
 
 export function setupScrapeWorker(io?: Server | null) {
-    const queueName = getRegionalQueueName(SCRAPE_QUEUE_NAME);
-    const pub = new Redis(connection as any);
+    const queueName = SCRAPE_QUEUE_NAME;
+    const pub = new Redis({
+        ...(connection as any),
+        lazyConnect: false,
+        enableOfflineQueue: true,
+    });
+    pub.on('error', (err) => console.warn('[Worker] Redis event publisher error:', err.message));
+    const publishWorkerEvent = (event: string, data: unknown) => {
+        pub.publish('worker_events', JSON.stringify({ event, data })).catch((err) => {
+            console.warn('[Worker] Failed to publish worker event:', err.message);
+        });
+    };
     const writeHeartbeat = async (status = 'OK') => {
         try {
             await db.query(`
@@ -85,7 +100,7 @@ export function setupScrapeWorker(io?: Server | null) {
                                 timestamp: new Date().toISOString()
                             }
                         };
-                        pub.publish('worker_events', JSON.stringify(payload));
+                        publishWorkerEvent(payload.event, payload.data);
 
                         // Fallback local emit if running coupled
                         if (io) {
@@ -107,7 +122,7 @@ export function setupScrapeWorker(io?: Server | null) {
             clearTimeout(jobTimeout!);
 
             const completePayload = { jobId, status: 'success', result };
-            pub.publish('worker_events', JSON.stringify({ event: 'complete', data: completePayload }));
+            publishWorkerEvent('complete', completePayload);
 
             if (io) {
                 io.emit('complete', completePayload);
@@ -134,7 +149,7 @@ export function setupScrapeWorker(io?: Server | null) {
         writeHeartbeat('DEGRADED').catch(() => {});
         if (job) {
             const errorPayload = { jobId: job.data.jobId, error: err.message };
-            pub.publish('worker_events', JSON.stringify({ event: 'error', data: errorPayload }));
+            publishWorkerEvent('error', errorPayload);
             if (io) {
                 io.emit('error', errorPayload);
             }
@@ -143,5 +158,8 @@ export function setupScrapeWorker(io?: Server | null) {
 
     console.log('[Worker] Scrape Worker started and listening for jobs.');
     writeHeartbeat('OK').catch(() => {});
-    setInterval(() => writeHeartbeat('OK').catch(() => {}), 60_000);
+    const heartbeatTimer = setInterval(() => writeHeartbeat('OK').catch(() => {}), 60_000);
+    heartbeatTimer.unref();
+
+    return worker;
 }
