@@ -518,6 +518,7 @@ function ProductDashboardPreview() {
 
 export default function Landing() {
   const isSetupComplete = localStorage.getItem(ONBOARDING_COMPLETE_KEY) === "true";
+  const craftMyFunnelUrl = import.meta.env.VITE_CRAFTMYFUNNEL_APP_URL?.trim() || null;
 
   if (isSetupComplete) {
     return <TerminalExperience />;
@@ -580,8 +581,25 @@ export default function Landing() {
             Turn buyer intent into coordinated outreach.
           </h1>
           <p className="mt-5 md:mt-8 text-sm md:text-lg text-white/65 leading-relaxed">
-            Net Jana AI coordinates AI agents, live signal intelligence, multi-channel execution, and performance analytics in one operating layer for outbound teams.
+            Net Jana AI captures buyer-intent from live market signals, qualifies it with autonomous agents, turns it into lead cards, and pushes verified accounts into execution systems like CraftMyFunnel for campaigns and follow-up.
           </p>
+
+          <div className="mt-6 rounded-2xl border border-[#00ffca]/20 bg-[#00ffca]/8 p-4 md:p-5 backdrop-blur-md">
+            <div className="text-[10px] font-black uppercase tracking-[0.24em] text-[#00ffca]">How The Ecosystem Works</div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {[
+                ["1. Signal Capture", "NetJana intercepts procurement, registry, and market-intent signals across monitored sources."],
+                ["2. Agent Scoring", "Gate, qualifier, writer, and critic agents verify demand, assign intent, and build the lead narrative."],
+                ["3. System Routing", "Verified lead cards are persisted, tracked in telemetry, and queued for outreach or partner delivery."],
+                ["4. CraftMyFunnel Activation", "CraftMyFunnel receives acknowledged lead signals so sales teams can launch sequences, campaigns, and automations."],
+              ].map(([title, copy]) => (
+                <div key={title} className="rounded-xl border border-white/10 bg-black/25 p-4">
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white">{title}</div>
+                  <div className="mt-2 text-[11px] leading-relaxed text-white/55">{copy}</div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="mt-7 md:mt-10 flex flex-col sm:flex-row gap-3 md:gap-4">
             <SignedOut>
@@ -605,13 +623,23 @@ export default function Landing() {
             >
               View Protocol
             </Link>
+            {craftMyFunnelUrl && (
+              <a
+                href={craftMyFunnelUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-[#00ffca]/20 bg-black/30 text-[#00ffca] text-xs font-black uppercase tracking-[0.22em] rounded-xl hover:bg-[#00ffca]/10 transition-colors"
+              >
+                Visit CraftMyFunnel <Send className="h-4 w-4" />
+              </a>
+            )}
           </div>
 
           <div className="hidden sm:grid mt-10 md:mt-12 grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               ["Agents", "Gate, qualify, write, dispatch"],
-              ["Channels", "Email, LinkedIn, WABA"],
-              ["Analytics", "Pipeline, reply, conversion"],
+              ["Delivery", "Lead cards, telemetry, partner push"],
+              ["Activation", "CraftMyFunnel, email, LinkedIn, WABA"],
             ].map(([label, value]) => (
               <div key={label} className="border border-white/10 bg-black/35 px-4 py-3 rounded-2xl backdrop-blur-md">
                 <div className="text-[9px] font-black uppercase tracking-[0.25em] text-white/35">{label}</div>
@@ -624,6 +652,7 @@ export default function Landing() {
             <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-[#00ffca]" /> HMAC verified</span>
             <span className="flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-[#00ffca]" /> Live agent telemetry</span>
             <span className="flex items-center gap-2"><Radio className="h-3.5 w-3.5 text-[#00ffca]" /> Multi-source signals</span>
+            <span className="flex items-center gap-2"><Send className="h-3.5 w-3.5 text-[#00ffca]" /> CraftMyFunnel delivery</span>
           </div>
           </motion.div>
 
