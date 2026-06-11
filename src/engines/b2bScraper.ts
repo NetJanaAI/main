@@ -17,6 +17,8 @@ import { IS_STANDALONE } from '../config/mode';
 import { influenceQueue } from '../lib/queue';
 import { ProxyManager } from '../lib/stealth/ProxyManager';
 import { AuditTrail } from '../core/compliance/AuditTrail';
+import { extractWithLLM } from './adaptiveExtractor';
+import { jsonToToon } from '../lib/ai/toon';
 
 export async function scrapeB2BSignals(
     targetUrl: string,
@@ -96,6 +98,7 @@ export async function scrapeB2BSignals(
             if (onProgress && spiderMode) onProgress(`Spider Mode active. Discovered ${urlsToScrape.length} URLs filtered for intent "${intent}".`, 'info');
 
             let allText = '';
+            let adaptiveData: Record<string, any> | undefined;
 
             const context = await browser.newContext({
                 userAgent: getRandomUserAgent(),
@@ -181,6 +184,69 @@ export async function scrapeB2BSignals(
                         } else {
                             if (onProgress && !spiderMode) onProgress('Reflection successful. New signals extracted.', 'success');
                         }
+                    }
+
+                    // Adaptive Web Scraper Extraction (Solution A)
+                    let adaptiveDataForPage: Record<string, unknown> | undefined;
+                    const lowercaseUrl = url.toLowerCase();
+                    let schemaToUse: Record<string, string> | undefined;
+                    let contentType: string | undefined;
+
+                    if (lowercaseUrl.includes('gem.gov.in') || lowercaseUrl.includes('etimad') || lowercaseUrl.includes('tender') || lowercaseUrl.includes('bid')) {
+                        contentType = 'tender';
+                        schemaToUse = {
+                            tenderTitle: 'string',
+                            deadline: 'ISO date',
+                            budget: 'number',
+                            authority: 'string'
+                        };
+                    } else if (lowercaseUrl.includes('naukri') || lowercaseUrl.includes('job') || lowercaseUrl.includes('career') || lowercaseUrl.includes('hiring')) {
+                        contentType = 'hiring';
+                        schemaToUse = {
+                            companyName: 'string',
+                            jobTitle: 'string',
+                            postedDate: 'ISO date',
+                            location: 'string'
+                        };
+                    } else if (lowercaseUrl.includes('zauba') || lowercaseUrl.includes('mca.gov.in') || lowercaseUrl.includes('registry') || lowercaseUrl.includes('company')) {
+                        contentType = 'registry';
+                        schemaToUse = {
+                            companyName: 'string',
+                            registrationNumber: 'string',
+                            status: 'string',
+                            registrationDate: 'ISO date'
+                        };
+                    }
+
+                    if (schemaToUse && contentType) {
+                        try {
+                            if (onProgress) onProgress(`Adaptive Extraction matched content type "${contentType}" for URL: ${url}. Extracting structured fields...`, 'info');
+                            const rawHtml = await page.content();
+                            const spendKey = `gemini_calls:${new Date().toISOString().split('T')[0]}`;
+                            const extracted = await extractWithLLM(
+                                rawHtml,
+                                schemaToUse,
+                                url,
+                                organizationId || 'default',
+                                spendKey,
+                                page,
+                                true // enableSearch (grounding)
+                            );
+                            adaptiveDataForPage = extracted;
+                            if (onProgress) onProgress(`Adaptive Extraction completed successfully for content type: ${contentType}.`, 'success');
+                        } catch (err: any) {
+                            console.error(`[Engine] Adaptive Extraction failed:`, err.message);
+                            if (onProgress) onProgress(`Adaptive Extraction failed: ${err.message}`, 'error');
+                        }
+                    }
+
+                    if (adaptiveDataForPage) {
+                        if (!adaptiveData) {
+                            adaptiveData = {};
+                        }
+                        Object.assign(adaptiveData, adaptiveDataForPage);
+                        // Append structured data in TOON format to allText so downstream AdversarialCritic can leverage it
+                        allText += `\n--- Extracted ${contentType} Structured Data ---\n` + jsonToToon(adaptiveDataForPage) + '\n';
                     }
 
                     if (isFirstPage) {
@@ -316,7 +382,8 @@ export async function scrapeB2BSignals(
                     groundingScore: (analysis as any).groundingScore,
                     citations: (analysis as any).citations,
                     criticAnalysis: analysis as any,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    adaptiveData
                 };
 
                 // 5. Secure Dispatch

@@ -40,7 +40,8 @@ export const ScrapeResultSchema = z.object({
         }),
         ceoIcebreaker: z.string(),
         groundingScore: z.number().optional()
-    }).optional()
+    }).optional(),
+    adaptiveData: z.record(z.string(), z.any()).optional()
 });
 
 export const RawSignalSchema = z.object({
