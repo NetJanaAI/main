@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../lib/database';
+import { query, queryWithOrg } from '../lib/database';
 import { generateReport } from '../lib/pdfReport';
 import { generateCapsule, signCapsule } from '../lib/dataCapsule';
 import { TenantRequest } from '../middleware/tenant';
@@ -14,9 +14,10 @@ router.get('/', async (req: TenantRequest, res) => {
         const offset = (page - 1) * limit;
         const orgId = req.organizationId;
 
-        const result = await query(
-            'SELECT * FROM scrape_results WHERE (organization_id = $1 OR organization_id IS NULL) ORDER BY timestamp DESC LIMIT $2 OFFSET $3',
-            [orgId || null, limit, offset]
+        const result = await queryWithOrg(
+            'SELECT * FROM scrape_results WHERE organization_id = $1 ORDER BY timestamp DESC LIMIT $2 OFFSET $3',
+            [orgId, limit, offset],
+            orgId
         );
 
         res.json({
@@ -33,9 +34,10 @@ router.get('/', async (req: TenantRequest, res) => {
 router.get('/report/:jobId', async (req: TenantRequest, res) => {
     try {
         const orgId = req.organizationId;
-        const result = await query(
-            'SELECT * FROM scrape_results WHERE job_id = $1 AND (organization_id = $2 OR organization_id IS NULL) LIMIT 1',
-            [req.params.jobId, orgId || null]
+        const result = await queryWithOrg(
+            'SELECT * FROM scrape_results WHERE job_id = $1 AND organization_id = $2 LIMIT 1',
+            [req.params.jobId, orgId],
+            orgId
         );
         
         if (!result || result.rows.length === 0) {
@@ -77,9 +79,10 @@ router.get('/report/:jobId', async (req: TenantRequest, res) => {
 router.get('/capsule/:jobId', async (req: TenantRequest, res) => {
     try {
         const orgId = req.organizationId;
-        const result = await query(
-            'SELECT * FROM scrape_results WHERE job_id = $1 AND (organization_id = $2 OR organization_id IS NULL) LIMIT 1',
-            [req.params.jobId, orgId || null]
+        const result = await queryWithOrg(
+            'SELECT * FROM scrape_results WHERE job_id = $1 AND organization_id = $2 LIMIT 1',
+            [req.params.jobId, orgId],
+            orgId
         );
         
         if (!result || result.rows.length === 0) {
@@ -121,9 +124,10 @@ router.get('/capsule/:jobId', async (req: TenantRequest, res) => {
 router.get('/:domain', async (req: TenantRequest, res) => {
     try {
         const orgId = req.organizationId;
-        const result = await query(
-            'SELECT * FROM scrape_results WHERE domain = $1 AND (organization_id = $2 OR organization_id IS NULL) ORDER BY timestamp DESC',
-            [req.params.domain, orgId || null]
+        const result = await queryWithOrg(
+            'SELECT * FROM scrape_results WHERE domain = $1 AND organization_id = $2 ORDER BY timestamp DESC',
+            [req.params.domain, orgId],
+            orgId
         );
         res.json(result ? result.rows : []);
     } catch (e: any) {

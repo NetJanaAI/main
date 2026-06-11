@@ -22,14 +22,39 @@ export class HACanary {
                 });
             }
 
-            if (health.status !== 'UP' && process.env.SLACK_WEBHOOK_URL) {
-                await axios.post(process.env.SLACK_WEBHOOK_URL, {
-                    text: `*⚠️ System Health Alert [${region}]*`,
-                    attachments: [{
-                        color: "#FF9900",
-                        text: `Status: ${health.status}\nCheck the Protocol Terminal immediately.`
-                    }]
-                });
+            if (health.status !== 'UP') {
+                // Slack alert
+                if (process.env.SLACK_WEBHOOK_URL) {
+                    await axios.post(process.env.SLACK_WEBHOOK_URL, {
+                        text: `*⚠️ System Health Alert [${region}]*`,
+                        attachments: [{
+                            color: "#FF9900",
+                            text: `Status: ${health.status}\nCheck the Protocol Terminal immediately.`
+                        }]
+                    });
+                }
+
+                // P1-F: PagerDuty Events API v2 alert for production on-call coverage.
+                // Requires PAGERDUTY_ROUTING_KEY from PagerDuty service integration.
+                if (process.env.PAGERDUTY_ROUTING_KEY) {
+                    await axios.post('https://events.pagerduty.com/v2/enqueue', {
+                        routing_key: process.env.PAGERDUTY_ROUTING_KEY,
+                        event_action: 'trigger',
+                        dedup_key: `convospan-${region}-${new Date().toISOString().slice(0, 13)}`, // Dedup within 1h window
+                        payload: {
+                            summary: `ConvoSpan Intel [${region}] system DEGRADED — ${health.checks.filter((c: any) => c.status === 'FAIL').map((c: any) => c.component).join(', ')}`,
+                            severity: 'error',
+                            source: `convospan-${region}`,
+                            timestamp: new Date().toISOString(),
+                            custom_details: {
+                                mode: health.mode,
+                                failed_checks: health.checks.filter((c: any) => c.status === 'FAIL')
+                            }
+                        }
+                    }).catch((pgErr: any) => {
+                        console.error(`[Canary] PagerDuty alert failed:`, pgErr.message);
+                    });
+                }
             }
         } catch (e: any) {
             console.error(`[Canary] [${region}] Failed to report heartbeat:`, e.message);
@@ -44,6 +69,7 @@ export class HACanary {
                 });
             }
         }
+
 
         // S1-4 Fix: DroughtMonitor was implemented but never scheduled.
         // Run it on every 5-min heartbeat so ops are alerted when signal volume drops to 0.

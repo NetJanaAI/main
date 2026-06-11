@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
 import axios from 'axios';
-import { SecureLogger } from "../../utils/logger";
 import { query } from "../../lib/database";
 
 export interface DispatchResult {
@@ -9,6 +8,12 @@ export interface DispatchResult {
     messageId?: string;
     error?: string;
     unconfigured?: boolean; // S1-3: true when credentials are missing (stub) vs. a real send failure
+    copyPayload?: string;   // P0-C: LinkedIn copy-to-clipboard fallback text
+}
+
+export interface ChannelStatus {
+    configured: boolean;
+    mode: 'live' | 'stub' | 'copy_only';
 }
 
 export class OutreachDispatcher {
@@ -23,8 +28,42 @@ export class OutreachDispatcher {
             case 'WABA':
                 return Boolean(process.env.WABA_TOKEN && process.env.WABA_PHONE_NUMBER_ID);
             case 'LINKEDIN':
-                return Boolean(process.env.LINKEDIN_TOKEN && process.env.LINKEDIN_URN);
+                // P0-C: LinkedIn messaging requires OAuth partner-level access (not a standard token).
+                // Always returns false — LinkedIn is handled as copy_only, never auto-sent.
+                return false;
         }
+    }
+
+    /**
+     * P0-C: Returns the full status of all outreach channels, including mode.
+     * Used by GET /api/outreach/channels/status to gate frontend UI affordances.
+     */
+    static getChannelStatuses(): Record<'EMAIL' | 'WABA' | 'LINKEDIN', ChannelStatus> {
+        return {
+            EMAIL: {
+                configured: OutreachDispatcher.isConfigured('EMAIL'),
+                mode: OutreachDispatcher.isConfigured('EMAIL') ? 'live' : 'stub'
+            },
+            WABA: {
+                configured: OutreachDispatcher.isConfigured('WABA'),
+                mode: OutreachDispatcher.isConfigured('WABA') ? 'live' : 'stub'
+            },
+            LINKEDIN: {
+                // P0-C: LinkedIn is intentionally copy_only — never auto-dispatched.
+                // The correct integration requires LinkedIn Marketing API OAuth partner access.
+                configured: false,
+                mode: 'copy_only'
+            }
+        };
+    }
+
+    /**
+     * P0-C: Returns a formatted message payload for copy-to-clipboard LinkedIn outreach.
+     * The frontend uses this instead of auto-sending when channel mode is 'copy_only'.
+     */
+    static getLinkedInCopyPayload(note: string, companyName?: string): string {
+        const greeting = companyName ? `Hi, I noticed ${companyName}` : 'Hi,';
+        return `${greeting}\n\n${note}\n\nLooking forward to connecting.`;
     }
 
     private async logDispatch(leadId: string, channel: string, status: string, error?: string) {
@@ -53,14 +92,17 @@ export class OutreachDispatcher {
                 result = await this.dispatchWaba(payload.whatsappBody || payload.linkedinNote, lead.phone);
                 break;
             case 'LINKEDIN':
-                result = await this.dispatchLinkedIn(payload.linkedinNote, lead.linkedinProfile);
+                // P0-C: LinkedIn is copy_only — never auto-dispatched
+                result = this.dispatchLinkedIn(payload.linkedinNote, lead.companyName);
                 break;
             default:
                 result = { success: false, channel: channel as any, error: `Unknown channel: ${channel}` };
         }
 
         if (lead.leadId) {
-            await this.logDispatch(lead.leadId, channel, result.success ? 'SENT' : 'FAILED', result.error);
+            // Log COPY_READY for LinkedIn so the worker knows to surface the copy payload
+            const logStatus = channel.toUpperCase() === 'LINKEDIN' ? 'COPY_READY' : (result.success ? 'SENT' : 'FAILED');
+            await this.logDispatch(lead.leadId, channel, logStatus, result.error);
         }
 
         return result;
@@ -148,54 +190,25 @@ export class OutreachDispatcher {
         }
     }
 
-    private async dispatchLinkedIn(note: string, profile: string): Promise<DispatchResult> {
-        if (!profile) return { success: false, channel: 'LINKEDIN', error: 'No LinkedIn profile found' };
-
-        const token = process.env.LINKEDIN_TOKEN;
-        const authorUrn = process.env.LINKEDIN_URN;
-
-        if (!token || !authorUrn) {
-            console.warn(`[Dispatcher:LinkedIn] LINKEDIN_TOKEN / LINKEDIN_URN not configured.`);
-            return {
-                success: false,
-                channel: 'LINKEDIN',
-                unconfigured: true, // S1-3: signals the outreach worker to DLQ this job
-                error: 'STUB_UNIMPLEMENTED: Set LINKEDIN_TOKEN and LINKEDIN_URN to enable LinkedIn dispatch.'
-            };
-        }
-
-        // Note: Sending a message directly to a profile URL requires resolving the profile URL to a LinkedIn Member URN.
-        // For simplicity in this implementation, we assume `profile` is the target Member URN if it starts with 'urn:li:person:',
-        // otherwise we simulate a failure or a resolution step.
-        let targetUrn = profile;
-        if (!targetUrn.startsWith('urn:li:person:')) {
-             // In a real scenario, we'd look up the URN. For now, we'll try to extract it or fallback.
-             targetUrn = `urn:li:person:${profile.split('/').pop() || 'unknown'}`;
-        }
-
-        try {
-            const response = await axios.post(
-                'https://api.linkedin.com/v2/messages',
-                {
-                    recipients: [targetUrn],
-                    subject: 'NetJana Intent Outreach',
-                    body: note,
-                    messageType: 'MEMBER_TO_MEMBER'
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'X-Restli-Protocol-Version': '2.0.0'
-                    }
-                }
-            );
-
-            console.log(`[Dispatcher:LinkedIn] Sent to ${profile}. MessageId: ${response.data.id}`);
-            return { success: true, channel: 'LINKEDIN', messageId: response.data.id };
-        } catch (error: any) {
-            console.error(`[Dispatcher:LinkedIn] Failed:`, error.response?.data || error.message);
-            return { success: false, channel: 'LINKEDIN', error: error.response?.data?.message || error.message };
-        }
+    /**
+     * P0-C Fix: LinkedIn auto-dispatch is NOT supported.
+     *
+     * The LinkedIn Messaging API requires OAuth partner-level access — not available via a
+     * standard developer token. The previous implementation called `https://api.linkedin.com/v2/messages`
+     * which does not exist in the public API and would always fail in production.
+     *
+     * This method returns a `copyPayload` that the frontend surfaces as a copy-to-clipboard
+     * action. The outreach worker logs this as 'COPY_READY' rather than 'SENT' or 'FAILED'.
+     */
+    private dispatchLinkedIn(note: string, companyName?: string): DispatchResult {
+        const copyPayload = OutreachDispatcher.getLinkedInCopyPayload(note, companyName);
+        console.log(`[Dispatcher:LinkedIn] LinkedIn auto-send not supported. Returning copy payload for manual outreach.`);
+        return {
+            success: false,
+            channel: 'LINKEDIN',
+            unconfigured: true,
+            copyPayload,
+            error: 'LINKEDIN_UNAVAILABLE: LinkedIn messaging requires OAuth partner access. Use the copy payload for manual outreach.'
+        };
     }
 }

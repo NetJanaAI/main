@@ -1,7 +1,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import Redis from 'ioredis';
-import { query } from '../lib/database';
+import { query, queryWithOrg } from '../lib/database';
 import { getHmacSecret } from '../lib/secrets';
 import { CampaignROIAggregator } from '../standalone/services/CampaignROIAggregator';
 import { ROIPDFGenerator } from '../standalone/services/ROIPDFGenerator';
@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
         const organizationId = (req as any).organizationId || (req as any).user?.organizationId;
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
 
-        const result = await query(`
+        const result = await queryWithOrg(`
             SELECT
                 c.id,
                 c.domain,
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
             WHERE c.organization_id = $1
             ORDER BY c.updated_at DESC
             LIMIT 100
-        `, [organizationId]);
+        `, [organizationId], organizationId);
 
         res.json(result.rows);
     } catch (error: any) {
@@ -50,13 +50,13 @@ router.post('/:domain/advance', async (req, res) => {
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
         if (!CAMPAIGN_STATES.has(state)) return res.status(400).json({ error: "Invalid campaign state" });
 
-        const result = await query(`
+        const result = await queryWithOrg(`
             INSERT INTO campaigns (domain, state, organization_id, updated_at)
             VALUES ($1, $2, $3, NOW())
             ON CONFLICT (organization_id, domain)
             DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()
             RETURNING *
-        `, [domain, state, organizationId]);
+        `, [domain, state, organizationId], organizationId);
 
         res.json(result.rows[0]);
     } catch (error: any) {

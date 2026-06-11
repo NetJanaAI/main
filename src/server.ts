@@ -8,6 +8,8 @@ SecureLogger.init();
 // Environment Validation: Fail-fast if critical keys are missing
 function validateEnv() {
     const missing: string[] = [];
+    const isProduction = process.env.NODE_ENV === 'production';
+
     if (!process.env.GOOGLE_API_KEY && !process.env.OLLAMA_HOST) missing.push('GOOGLE_API_KEY or OLLAMA_HOST');
     if (!process.env.DATABASE_URL) missing.push('DATABASE_URL');
     if (!process.env.CLERK_SECRET_KEY) missing.push('CLERK_SECRET_KEY');
@@ -15,9 +17,20 @@ function validateEnv() {
     if (!process.env.HMAC_SECRET) missing.push('HMAC_SECRET');
     if (!process.env.ALLOWED_INGEST_IPS) missing.push('ALLOWED_INGEST_IPS');
     if (!process.env.ALLOWED_ORIGINS) missing.push('ALLOWED_ORIGINS');
+
+    // P0-D Fix: Require ADMIN_SECRET in production when Clerk is not configured (standalone mode).
+    // Without this, the /api/admin/* routes have no authentication in standalone prod deployments.
+    if (isProduction && !process.env.CLERK_SECRET_KEY && !process.env.ADMIN_SECRET) {
+        missing.push('ADMIN_SECRET (required when CLERK_SECRET_KEY is absent in standalone production mode)');
+    }
+
+    // P0-B Fix: Require CREDENTIAL_ENCRYPTION_KEY in production for the credential vault.
+    if (isProduction && !process.env.CREDENTIAL_ENCRYPTION_KEY) {
+        missing.push('CREDENTIAL_ENCRYPTION_KEY (generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))")');
+    }
+
     if (missing.length > 0) {
-        const isDev = process.env.NODE_ENV !== 'production'; // More inclusive check
-        if (isDev) {
+        if (!isProduction) {
             console.warn(`[Warning] Missing environment variables: ${missing.join(', ')}`);
             console.warn(`[Warning] System starting in DEGRADED MODE for local exploration.`);
         } else {
@@ -93,14 +106,16 @@ const app = express();
 const httpServer = createServer(app);
 
 // Sentry Initialization
+// P1-D Fix: Use env-configurable sampling rates. Default to 10% to avoid runaway costs.
+// Set SENTRY_TRACES_SAMPLE_RATE=1.0 temporarily for debugging a specific issue.
 if (process.env.SENTRY_DSN && !process.env.SENTRY_DSN.includes('placeholder')) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     integrations: [
       nodeProfilingIntegration(),
     ],
-    tracesSampleRate: 1.0,
-    profilesSampleRate: 1.0,
+    tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
+    profilesSampleRate: parseFloat(process.env.SENTRY_PROFILES_SAMPLE_RATE || '0.1'),
   });
 }
 
@@ -266,7 +281,18 @@ app.use(express.json({
 app.use('/api', tenantRateLimiter);
 
 // --- Observability Endpoints ---
+// P2-2: Gate /metrics behind METRICS_BEARER_TOKEN in production.
+// Set the token and configure your Prometheus scraper with:
+//   authorization: { credentials: "<your-token>" }
 app.get('/metrics', async (req, res) => {
+    const metricsToken = process.env.METRICS_BEARER_TOKEN;
+    if (metricsToken) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || authHeader !== `Bearer ${metricsToken}`) {
+            res.status(401).set('WWW-Authenticate', 'Bearer realm="metrics"').end('Unauthorized');
+            return;
+        }
+    }
     try {
         res.set('Content-Type', register.contentType);
         res.end(await register.metrics());
@@ -274,6 +300,7 @@ app.get('/metrics', async (req, res) => {
         res.status(500).end(e);
     }
 });
+
 
 app.get('/health', async (req, res) => {
     const health = await getSystemHealth();

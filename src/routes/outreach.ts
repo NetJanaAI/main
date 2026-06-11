@@ -3,8 +3,26 @@ import { outreachQueue } from '../lib/queue';
 import { UsageTracker } from '../standalone/services/UsageTracker';
 import { featureGate } from '../standalone/middleware/featureGate';
 import { IS_STANDALONE } from '../config/mode';
+import { OutreachDispatcher } from '../core/outreach/OutreachDispatcher';
 
 const router = express.Router();
+
+/**
+ * P0-C / P1-A: Returns the configuration status of all outreach channels.
+ * GET /api/outreach/channels/status
+ *
+ * Frontend uses this to decide whether to show a "Send" button, "Coming Soon" badge,
+ * or "Copy to clipboard" action for each channel. Avoids surfacing broken auto-send UI.
+ *
+ * Response example:
+ *   { "EMAIL": { "configured": true, "mode": "live" },
+ *     "WABA":  { "configured": false, "mode": "stub" },
+ *     "LINKEDIN": { "configured": false, "mode": "copy_only" } }
+ */
+router.get('/channels/status', (req, res) => {
+    res.json(OutreachDispatcher.getChannelStatuses());
+});
+
 
 /**
  * Trigger outreach generation for a lead.

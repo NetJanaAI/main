@@ -32,15 +32,20 @@ function getSpendRedis(): IORedis {
 
 export type ModelRole = 'gate' | 'qualifier' | 'writer' | 'synthesizer' | 'advocate' | 'critic' | 'outreach';
 
+// P2-6: Upgraded to gemini-2.0-flash for improved performance, lower latency, and cost.
+// Each role can be individually overridden via env vars for easy rollback:
+//   GATE_MODEL=gemini-1.5-flash npm start
+// All roles use gemini-2.0-flash by default.
 const MODEL_CONFIG: Record<ModelRole, { model: string; maxTokens: number; temperature: number }> = {
-    gate:        { model: 'gemini-1.5-flash', maxTokens: 128,  temperature: 0.1  },
-    qualifier:   { model: 'gemini-1.5-pro',   maxTokens: 384,  temperature: 0.1  },
-    writer:      { model: 'gemini-1.5-flash', maxTokens: 512,  temperature: 0.1  },
-    synthesizer: { model: 'gemini-1.5-pro',   maxTokens: 768,  temperature: 0.15 },
-    advocate:    { model: 'gemini-1.5-flash', maxTokens: 512,  temperature: 0.2  },
-    critic:      { model: 'gemini-1.5-pro',   maxTokens: 1024, temperature: 0.1  },
-    outreach:    { model: 'gemini-1.5-pro',   maxTokens: 512,  temperature: 0.7  },
+    gate:        { model: process.env.GATE_MODEL        || 'gemini-2.0-flash', maxTokens: 128,  temperature: 0.1  },
+    qualifier:   { model: process.env.QUALIFIER_MODEL   || 'gemini-2.0-flash', maxTokens: 384,  temperature: 0.1  },
+    writer:      { model: process.env.WRITER_MODEL      || 'gemini-2.0-flash', maxTokens: 512,  temperature: 0.1  },
+    synthesizer: { model: process.env.SYNTHESIZER_MODEL || 'gemini-2.0-flash', maxTokens: 768,  temperature: 0.15 },
+    advocate:    { model: process.env.ADVOCATE_MODEL    || 'gemini-2.0-flash', maxTokens: 512,  temperature: 0.2  },
+    critic:      { model: process.env.CRITIC_MODEL      || 'gemini-2.0-flash', maxTokens: 1024, temperature: 0.1  },
+    outreach:    { model: process.env.OUTREACH_MODEL    || 'gemini-2.0-flash', maxTokens: 512,  temperature: 0.7  },
 };
+
 
 // Realistic mock responses keyed by role. Used in DEMO_MODE (no API keys present).
 const MOCK_RESPONSES: Record<ModelRole, () => string> = {

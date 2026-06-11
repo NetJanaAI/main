@@ -1,5 +1,5 @@
 import express from 'express';
-import { query } from '../lib/database';
+import { query, queryWithOrg } from '../lib/database';
 
 const router = express.Router();
 
@@ -18,30 +18,30 @@ router.get('/dashboard', async (req: any, res: any) => {
         `);
         
         // Sector Distribution
-        const sectorsRes = await query(`
+        const sectorsRes = await queryWithOrg(`
             SELECT sector as name, COUNT(*) as count 
             FROM lead_cards 
             WHERE org_id = $1 AND sector IS NOT NULL AND sector != ''
             GROUP BY sector 
             ORDER BY count DESC 
             LIMIT 4
-        `, [orgId]);
+        `, [orgId], orgId);
 
         // Calculate ROI based on signal count + high intent scores
-        const roiRes = await query(`
+        const roiRes = await queryWithOrg(`
             SELECT COALESCE(SUM(intent_score * 500), 0) as estimated_roi 
             FROM lead_cards 
             WHERE org_id = $1 AND intent_score >= 70
-        `, [orgId]);
+        `, [orgId], orgId);
 
         // Signal Accuracy (from feedback status)
-        const accuracyRes = await query(`
+        const accuracyRes = await queryWithOrg(`
             SELECT 
                 COUNT(*) FILTER (WHERE feedback_status IN ('contacted', 'responded', 'converted')) as positive,
                 COUNT(*) FILTER (WHERE feedback_status IS NOT NULL) as total
             FROM lead_cards
             WHERE org_id = $1
-        `, [orgId]);
+        `, [orgId], orgId);
 
         const totalFeedback = parseInt(accuracyRes.rows[0]?.total || '0', 10);
         const positiveFeedback = parseInt(accuracyRes.rows[0]?.positive || '0', 10);
@@ -90,7 +90,7 @@ router.get('/pipeline', async (req: any, res: any) => {
         if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
 
         // Raw Signals (Ingestion)
-        const ingestedRes = await query(`SELECT COUNT(*) FROM scrape_results WHERE organization_id = $1`, [orgId]);
+        const ingestedRes = await queryWithOrg(`SELECT COUNT(*) FROM scrape_results WHERE organization_id = $1`, [orgId], orgId);
         const ingestedCount = parseInt(ingestedRes.rows[0]?.count || '0', 10);
 
         // Merged Entities
@@ -98,22 +98,22 @@ router.get('/pipeline', async (req: any, res: any) => {
         const mergedCount = parseInt(mergedRes.rows[0]?.count || '0', 10);
 
         // Intent Scoring (High Intent)
-        const scoredRes = await query(`SELECT COUNT(*) FROM lead_cards WHERE org_id = $1 AND intent_score >= 60`, [orgId]);
+        const scoredRes = await queryWithOrg(`SELECT COUNT(*) FROM lead_cards WHERE org_id = $1 AND intent_score >= 60`, [orgId], orgId);
         const scoredCount = parseInt(scoredRes.rows[0]?.count || '0', 10);
 
         // Dispatches
-        const dispatchedRes = await query(`SELECT COUNT(*) FROM outreach_logs WHERE organization_id = $1 AND status = 'SENT'`, [orgId]);
+        const dispatchedRes = await queryWithOrg(`SELECT COUNT(*) FROM outreach_logs WHERE organization_id = $1 AND status = 'SENT'`, [orgId], orgId);
         const dispatchedCount = parseInt(dispatchedRes.rows[0]?.count || '0', 10);
 
         // Recent Dispatches List
-        const recentRes = await query(`
+        const recentRes = await queryWithOrg(`
             SELECT o.id, o.channel, o.status, o.sent_at, l.company_name, l.intent_score
             FROM outreach_logs o
             JOIN lead_cards l ON o.lead_id = l.lead_id
             WHERE o.organization_id = $1
             ORDER BY o.sent_at DESC
             LIMIT 4
-        `, [orgId]);
+        `, [orgId], orgId);
 
         res.json({
             pipeline: {

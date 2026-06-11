@@ -1,5 +1,5 @@
 import express from 'express';
-import { query } from '../lib/database';
+import { query, queryWithOrg } from '../lib/database';
 import { influenceQueue, connection } from '../lib/queue';
 import Redis from 'ioredis';
 import { z } from 'zod';
@@ -18,7 +18,7 @@ const FeedbackSchema = z.object({
 router.get('/stats', async (req, res) => {
     try {
         const orgId = (req as any).organizationId;
-        const result = await query(`
+        const result = await queryWithOrg(`
             SELECT
                 COUNT(*)                                                        AS total,
                 COUNT(*) FILTER (WHERE intent_score >= 80)                     AS hot,
@@ -27,8 +27,8 @@ router.get('/stats', async (req, res) => {
                 COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS today,
                 COALESCE(SUM(intent_score), 0)                                 AS alpha_sum
             FROM lead_cards
-            ${orgId ? 'WHERE org_id = $1' : ''}
-        `, orgId ? [orgId] : []);
+            WHERE org_id = $1
+        `, [orgId], orgId);
         const row = result.rows[0] || {};
         res.json({
             total:  parseInt(row.total  || '0', 10),
@@ -77,7 +77,7 @@ router.get('/match', async (req, res) => {
 
         sql += ` ORDER BY intent_score DESC, created_at DESC LIMIT 50`;
 
-        const results = await query(sql, params);
+        const results = await queryWithOrg(sql, params, orgId);
         res.json({ matches: results.rows });
 
     } catch (error: any) {
@@ -118,7 +118,7 @@ router.get('/re-engage-queue', async (req, res) => {
 
         sql += ` ORDER BY signal_captured_at DESC`;
 
-        const results = await query(sql, params);
+        const results = await queryWithOrg(sql, params, organizationId);
         res.json(results.rows);
 
     } catch (error: any) {
@@ -167,13 +167,13 @@ router.get('/:id/influence', async (req, res) => {
 
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
 
-        const result = await query(`
+        const result = await queryWithOrg(`
             SELECT influence_map
             FROM lead_influence_data
             WHERE lead_id = $1 AND organization_id = $2
             ORDER BY enriched_at DESC
             LIMIT 1
-        `, [leadId, organizationId]);
+        `, [leadId, organizationId], organizationId);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: "Influence data not found" });
@@ -253,7 +253,7 @@ router.get('/:id/intelligence', async (req: any, res: any) => {
         const lead_id = req.params.id;
         const orgId = req.organizationId || (req as any).user?.organizationId || 'default';
 
-        const result = await query(`
+        const result = await queryWithOrg(`
             SELECT 
                 l.*, 
                 s.critic_analysis, 
@@ -264,7 +264,7 @@ router.get('/:id/intelligence', async (req: any, res: any) => {
             LEFT JOIN scrape_results s ON l.lead_id = s.job_id
             LEFT JOIN lead_influence_data i ON l.lead_id = i.lead_id
             WHERE l.lead_id = $1 AND l.org_id = $2
-        `, [lead_id, orgId]);
+        `, [lead_id, orgId], orgId);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Intelligence node not found for this lead.' });

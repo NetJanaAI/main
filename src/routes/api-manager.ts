@@ -1,6 +1,6 @@
 import express from 'express';
-import { query } from '../lib/database';
-import { encrypt, decrypt } from '../utils/crypto';
+import { query, queryWithOrg } from '../lib/database';
+import { encryptCredential, decryptCredential } from '../lib/credentialVault';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { sendSampleCraftMyFunnelSignal } from '../core/CraftMyFunnelPusher';
@@ -17,9 +17,10 @@ router.get('/integrations', async (req: any, res) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
 
-    const results = await query(
+    const results = await queryWithOrg(
         'SELECT id, provider, credential_name FROM data_source_credentials WHERE organization_id = $1',
-        [orgId]
+        [orgId],
+        orgId
     );
     res.json({ credentials: results.rows });
 });
@@ -32,12 +33,13 @@ router.post('/integrations', async (req: any, res) => {
     if (!validation.success) return res.status(400).json({ error: 'Invalid payload' });
 
     const { provider, name, value } = validation.data;
-    const encryptedValue = encrypt(value);
+    const encryptedValue = encryptCredential(value);
 
-    await query(
+    await queryWithOrg(
         `INSERT INTO data_source_credentials (organization_id, provider, credential_name, credential_value)
          VALUES ($1, $2, $3, $4)`,
-        [orgId, provider, name, encryptedValue]
+        [orgId, provider, name, encryptedValue],
+        orgId
     );
 
     res.json({ success: true });
@@ -47,7 +49,7 @@ router.delete('/integrations/:id', async (req: any, res) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
 
-    await query('DELETE FROM data_source_credentials WHERE id = $1 AND organization_id = $2', [req.params.id, orgId]);
+    await queryWithOrg('DELETE FROM data_source_credentials WHERE id = $1 AND organization_id = $2', [req.params.id, orgId], orgId);
     res.json({ success: true });
 });
 
@@ -62,7 +64,7 @@ router.get('/craftmyfunnel/telemetry', async (req: any, res) => {
     );
 
     const [summaryRes, recentRes, latestReceivedRes, latestDownRes] = await Promise.all([
-        query(`
+        queryWithOrg(`
             SELECT
                 COUNT(*) AS total_events,
                 COUNT(*) FILTER (WHERE request_sent = TRUE) AS sent,
@@ -74,8 +76,8 @@ router.get('/craftmyfunnel/telemetry', async (req: any, res) => {
                 MAX(pushed_at) FILTER (WHERE status = 'RECEIVED') AS last_received_at
             FROM craftmyfunnel_push_log
             WHERE org_id = $1
-        `, [orgId]),
-        query(`
+        `, [orgId], orgId),
+        queryWithOrg(`
             SELECT
                 id, lead_id, status, request_sent, ack_received, response_status, detail,
                 triggered_by, attempts, campaign_id, connection_status, verification_mode,
@@ -84,21 +86,21 @@ router.get('/craftmyfunnel/telemetry', async (req: any, res) => {
             WHERE org_id = $1
             ORDER BY pushed_at DESC
             LIMIT 15
-        `, [orgId]),
-        query(`
+        `, [orgId], orgId),
+        queryWithOrg(`
             SELECT pushed_at
             FROM craftmyfunnel_push_log
             WHERE org_id = $1 AND status = 'RECEIVED'
             ORDER BY pushed_at DESC
             LIMIT 1
-        `, [orgId]),
-        query(`
+        `, [orgId], orgId),
+        queryWithOrg(`
             SELECT pushed_at
             FROM craftmyfunnel_push_log
             WHERE org_id = $1 AND status = 'DOWN'
             ORDER BY pushed_at DESC
             LIMIT 1
-        `, [orgId]),
+        `, [orgId], orgId),
     ]);
 
     const summary = summaryRes.rows[0] || {};

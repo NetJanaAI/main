@@ -68,8 +68,17 @@ services:
       - NETJANA_HMAC_SECRET=${NETJANA_HMAC_SECRET}
       - PUSHER_MAX_RETRIES=5
       - PUSHER_TIMEOUT_SEC=15
+    # P1-E Fix: Added healthcheck so Docker can detect crashes and auto-restart.
+    # Adjust the port if the Go binary exposes /health on a different port.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
+
   netjana_data:
 
 # ─── NOTE ON REDIS PERSISTENCE (P0-4) ───────────────────────────────────────

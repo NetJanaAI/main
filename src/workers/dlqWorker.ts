@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { connection, DLQ_QUEUE_NAME } from '../lib/queue';
+import { connection, DLQ_QUEUE_NAME, rawSignalsQueue, scrapeQueue, outreachQueue, tier2Queue } from '../lib/queue';
 import axios from 'axios';
 import { FailedAnalysis } from '../lib/DeadLetterQueue';
 
@@ -64,8 +64,55 @@ export function setupDlqWorker() {
             }
         }
 
-        // 3. Additional logic
-        // No automatic retry per implementation plan rules
+        // 3. Auto-retry logic based on DLQ_RETRY_LIMIT
+        const limit = parseInt(process.env.DLQ_RETRY_LIMIT || '0', 10);
+        if (limit > 0) {
+            const retryCount = (failure.metadata?.retryCount || 0) as number;
+            if (retryCount < limit) {
+                console.log(`[DLQWorker] Auto-retrying failure for ${failure.url} (${retryCount + 1}/${limit})`);
+                
+                let payload;
+                try {
+                    payload = typeof failure.rawText === 'string' ? JSON.parse(failure.rawText) : failure.rawText;
+                } catch {
+                    payload = { data: failure.rawText };
+                }
+
+                const updatedMetadata = {
+                    ...(failure.metadata || {}),
+                    retryCount: retryCount + 1
+                };
+
+                const jobName = 'retry_job';
+                const jobData = {
+                    ...payload,
+                    metadata: updatedMetadata
+                };
+
+                try {
+                    switch (failure.sourceQueue) {
+                        case 'raw_signals':
+                            await rawSignalsQueue.add(jobName, jobData);
+                            break;
+                        case 'b2b-scrapes':
+                            await scrapeQueue.add(jobName, jobData);
+                            break;
+                        case 'tier2_queue':
+                            await tier2Queue.add(jobName, jobData);
+                            break;
+                        case 'outreach_queue':
+                            await outreachQueue.add(jobName, jobData);
+                            break;
+                        default:
+                            console.warn(`[DLQWorker] Unknown/unsupported source queue for auto-retry: ${failure.sourceQueue}`);
+                    }
+                } catch (err: any) {
+                    console.error(`[DLQWorker] Failed to auto-retry job:`, err.message);
+                }
+            } else {
+                console.warn(`[DLQWorker] Job for ${failure.url} exceeded auto-retry limit (${limit}). No more retries.`);
+            }
+        }
     }, { connection });
 
     worker.on('failed', (job, err) => {

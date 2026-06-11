@@ -50,6 +50,85 @@ export async function query(text: string, params?: any[]) {
 }
 
 /**
+ * P0-A Fix: Executes a query scoped to a specific organization, setting the
+ * Postgres session variable `app.current_organization_id` so that all RLS
+ * policies on multi-tenant tables (lead_cards, scrape_results, campaigns, etc.)
+ * are properly enforced.
+ *
+ * In production, an empty/missing orgId hard-fails to prevent silent data leaks.
+ * In development, it falls back to an unscoped query with a loud warning.
+ */
+export async function queryWithOrg(text: string, params: any[], orgId: string | undefined) {
+    if (!pool) {
+        throw new Error('Database is not initialized (DATABASE_URL missing).');
+    }
+
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (!orgId) {
+        if (isProduction) {
+            throw new Error('[Database:RLS] queryWithOrg called without orgId in production. Refusing to execute unscoped query.');
+        }
+        // Dev: fall through with a clear warning so it's visible in logs
+        console.warn('[Database:RLS] ⚠️  queryWithOrg called without orgId (dev mode). Running unscoped — RLS NOT enforced.');
+        return query(text, params);
+    }
+
+    const client = await pool.connect();
+    try {
+        // Set the org context for this transaction so Postgres RLS policies activate
+        await client.query(`SET LOCAL app.current_organization_id = '${orgId.replace(/'/g, "''")}'`);
+        const res = await client.query(text, params);
+        return res;
+    } catch (error: any) {
+        console.error(`[Database:RLS] Query error (org=${orgId}):`, error.message);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * P0-A Fix: Executes a function within a client transaction already scoped to the
+ * given orgId. Use this for multi-statement ops that must share RLS context and
+ * run atomically (e.g., insert lead + insert audit log in the same transaction).
+ *
+ * Usage:
+ *   await withOrgTransaction(orgId, async (client) => {
+ *       await client.query('INSERT INTO lead_cards ...', [...]);
+ *       await client.query('INSERT INTO audit_logs ...', [...]);
+ *   });
+ */
+export async function withOrgTransaction(
+    orgId: string | undefined,
+    fn: (client: PoolClient) => Promise<void>
+): Promise<void> {
+    if (!pool) {
+        throw new Error('Database is not initialized (DATABASE_URL missing).');
+    }
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (!orgId && isProduction) {
+        throw new Error('[Database:RLS] withOrgTransaction called without orgId in production.');
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        if (orgId) {
+            await client.query(`SET LOCAL app.current_organization_id = '${orgId.replace(/'/g, "''")}'`);
+        }
+        await fn(client);
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+/**
  * Perform initial database setup/migration (idempotent).
  */
 export async function initDb() {
@@ -691,6 +770,8 @@ async function connectWithRetry(targetPool: Pool, attempts = 3): Promise<PoolCli
 
 export const db = {
     query,
+    queryWithOrg,
+    withOrgTransaction,
     initDb
 };
 

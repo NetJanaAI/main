@@ -1,5 +1,5 @@
 import express from 'express';
-import { query } from '../lib/database';
+import { queryWithOrg } from '../lib/database';
 import PDFDocument from 'pdfkit';
 
 const router = express.Router();
@@ -11,9 +11,10 @@ router.get('/export', async (req: any, res) => {
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
 
     try {
-        const results = await query(
+        const results = await queryWithOrg(
             'SELECT company_name, sector, intent_score, decay_status, card_why_now FROM lead_cards WHERE org_id = $1 LIMIT 100',
-            [orgId]
+            [orgId],
+            orgId
         );
 
         if (format === 'csv') {
