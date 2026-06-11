@@ -10,6 +10,7 @@
 
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
+import { ChatOpenAI } from '@langchain/openai';
 import IORedis from 'ioredis';
 import { connection } from './queue';
 import { cache } from './cache';
@@ -167,7 +168,17 @@ export async function callModel(opts: ModelCallOptions): Promise<string> {
     const config = MODEL_CONFIG[role];
     let client: any;
 
-    if (process.env.GOOGLE_API_KEY) {
+    if (process.env.LITELLM_API_BASE) {
+        client = new ChatOpenAI({
+            configuration: {
+                baseURL: process.env.LITELLM_API_BASE,
+            },
+            openAIApiKey: process.env.LITELLM_MASTER_KEY || 'dummy-key',
+            model: config.model,
+            maxTokens: config.maxTokens,
+            temperature: config.temperature,
+        });
+    } else if (process.env.GOOGLE_API_KEY) {
         client = new ChatGoogleGenerativeAI({
             model: config.model,
             maxOutputTokens: config.maxTokens,

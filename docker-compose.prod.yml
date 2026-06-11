@@ -18,10 +18,12 @@ services:
       - PORT=3000
       - SERVE_FRONTEND=true
       # Values should be provided via Cloud Provider dashboard secrets
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${PGBOUNCER_DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - LITELLM_API_BASE=http://litellm:4000/v1
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
       - HMAC_SECRET=${HMAC_SECRET}
       - ALLOWED_INGEST_IPS=${ALLOWED_INGEST_IPS}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
@@ -46,9 +48,11 @@ services:
     command: npm run start:scraper
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${PGBOUNCER_DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - LITELLM_API_BASE=http://litellm:4000/v1
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
       - ROLE=worker
     volumes:
       - netjana_data:/app/data
@@ -62,7 +66,7 @@ services:
     container_name: netjana-go-pusher-prod
     restart: always
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${PGBOUNCER_DATABASE_URL}
       - CONVOSPAN_WEBHOOK_URL=${CONVOSPAN_WEBHOOK_URL}
       - CONVOSPAN_API_KEY=${CONVOSPAN_API_KEY}
       - NETJANA_HMAC_SECRET=${NETJANA_HMAC_SECRET}
@@ -71,11 +75,39 @@ services:
     # P1-E Fix: Added healthcheck so Docker can detect crashes and auto-restart.
     # Adjust the port if the Go binary exposes /health on a different port.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      - test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      - interval: 30s
+      - timeout: 5s
+      - retries: 3
+      - start_period: 10s
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: netjana-pgbouncer-prod
+    restart: always
+    ports:
+      - "6432:6432"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=1000
+      - DEFAULT_POOL_SIZE=20
+      - MIN_POOL_SIZE=5
+      - RESERVE_POOL_SIZE=5
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: netjana-litellm-prod
+    restart: always
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - REDIS_URL=${REDIS_URL}
 
 volumes:
 
