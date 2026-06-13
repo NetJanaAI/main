@@ -31,6 +31,14 @@ export const complianceVetoCount = new Counter({
     registers: [register]
 });
 
+export const llmCallDuration = new Histogram({
+    name: 'llm_call_duration_seconds',
+    help: 'Duration of LLM calls in seconds',
+    labelNames: ['role', 'model'],
+    buckets: [0.1, 0.5, 1, 2, 5, 10, 20],
+    registers: [register]
+});
+
 // --- Health Checks ---
 
 export async function getSystemHealth() {

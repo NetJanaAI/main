@@ -16,6 +16,7 @@ import { connection } from './queue';
 import { cache } from './cache';
 import { TokenTracker } from './ai/token-tracker';
 import { jsonToToon } from './ai/toon';
+import { llmCallDuration } from './telemetry';
 
 // Dedicated ioredis instance for atomic spend-guard operations.
 // Using ioredis directly (not the cache abstraction) to get pipeline() with INCR.
@@ -200,7 +201,10 @@ export async function callModel(opts: ModelCallOptions): Promise<string> {
                 ? user
                 : user + '\nReturn ONLY the JSON object. No markdown, no explanation.';
 
+            const startTime = Date.now();
             const res = await client.invoke([['system', system], ['user', userPrompt]]);
+            const duration = (Date.now() - startTime) / 1000;
+            llmCallDuration.observe({ role, model: config.model }, duration);
 
             // Extract Usage Metadata (LangChain style)
             const usage = res.usage_metadata || res.response_metadata?.usage || {

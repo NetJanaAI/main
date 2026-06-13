@@ -271,7 +271,8 @@ export class TenantRAGStore {
     async clearJobData(jobId: string) {
         // Remove all namespaces associated with this job
         for (const ns of globalJobStores.keys()) {
-            if (ns.includes(`:${jobId}`)) {
+            const parts = ns.split(':');
+            if (parts.includes(jobId)) {
                 globalJobStores.delete(ns);
             }
         }

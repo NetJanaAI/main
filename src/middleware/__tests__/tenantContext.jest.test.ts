@@ -11,6 +11,7 @@ jest.mock('../../lib/database', () => ({
 
 jest.mock('../../lib/secrets', () => ({
     getHmacSecret: jest.fn(() => 'hash-secret'),
+    getApiKeySecret: jest.fn(() => 'hash-secret'),
 }));
 
 type MockResponse = Response & {
@@ -38,6 +39,7 @@ async function loadTenantContext(env: NodeJS.ProcessEnv) {
     }));
     jest.doMock('../../lib/secrets', () => ({
         getHmacSecret: jest.fn(() => 'hash-secret'),
+        getApiKeySecret: jest.fn(() => 'hash-secret'),
     }));
     const mod = await import('../tenant');
     return mod.tenantContext;

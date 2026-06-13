@@ -49,5 +49,15 @@ export function getEncryptionKey(): Buffer {
     return Buffer.from(hex, 'hex');
 }
 
+export function getApiKeySecret(): string {
+    const secret = process.env.API_KEY_SECRET;
+
+    if (isProduction() && (!secret || LEGACY_DEV_SECRETS.has(secret))) {
+        throw new Error(`[Secrets] API_KEY_SECRET must be set to a strong non-development value in production.`);
+    }
+
+    return secret || 'dev-safety-fallback-api-key-secret-do-not-use-in-prod';
+}
+
 export { DEV_HMAC_SECRET };
 

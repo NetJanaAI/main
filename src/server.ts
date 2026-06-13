@@ -29,6 +29,11 @@ function validateEnv() {
         missing.push('CREDENTIAL_ENCRYPTION_KEY (generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))")');
     }
 
+    // P0-5 Fix: Require API_KEY_SECRET in production for API key hashing.
+    if (isProduction && !process.env.API_KEY_SECRET) {
+        missing.push('API_KEY_SECRET');
+    }
+
     if (missing.length > 0) {
         if (!isProduction) {
             console.warn(`[Warning] Missing environment variables: ${missing.join(', ')}`);

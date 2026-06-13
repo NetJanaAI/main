@@ -2,7 +2,7 @@ import express from 'express';
 import { query } from '../lib/database';
 import { cache } from '../lib/cache';
 import crypto from 'crypto';
-import { getHmacSecret } from '../lib/secrets';
+import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
 
 const router = express.Router();
 
@@ -40,7 +40,7 @@ router.post('/regenerate-key', async (req: any, res) => {
 
     try {
         const rawApiKey = `sk_live_${crypto.randomBytes(24).toString('hex')}`;
-        const ADMIN_SECRET = getHmacSecret('profile API key regeneration');
+        const ADMIN_SECRET = getApiKeySecret();
         const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(rawApiKey).digest('hex');
 
         await query('UPDATE tenants SET api_key_hash = $1 WHERE id = $2', [apiKeyHash, orgId]);

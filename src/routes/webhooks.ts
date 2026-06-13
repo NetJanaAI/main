@@ -3,7 +3,7 @@ import { Webhook } from 'svix';
 import { query } from '../lib/database';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { getHmacSecret } from '../lib/secrets';
+import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
 
 const router = express.Router();
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET || '';
@@ -47,7 +47,7 @@ router.post('/clerk', async (req, res) => {
             
             // Generate initial API key for the user
             const rawApiKey = `sk_live_${crypto.randomBytes(24).toString('hex')}`;
-            const ADMIN_SECRET = getHmacSecret('webhook tenant API key creation');
+            const ADMIN_SECRET = getApiKeySecret();
             const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(rawApiKey).digest('hex');
 
             await query(
@@ -65,7 +65,7 @@ router.post('/clerk', async (req, res) => {
             
             // Generate initial API key for the organization
             const rawApiKey = `sk_live_${crypto.randomBytes(24).toString('hex')}`;
-            const ADMIN_SECRET = getHmacSecret('webhook tenant API key rotation');
+            const ADMIN_SECRET = getApiKeySecret();
             const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(rawApiKey).digest('hex');
 
             await query(

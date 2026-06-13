@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { query } from '../lib/database';
 import crypto from 'crypto';
 import { createClerkClient, verifyToken } from '@clerk/backend';
-import { getHmacSecret } from '../lib/secrets';
+import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
 
 const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
@@ -59,7 +59,7 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 
     // 2. API Key Path
     if (apiKey) {
-        const ADMIN_SECRET = getHmacSecret('tenant API key verification');
+        const ADMIN_SECRET = getApiKeySecret();
         const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(apiKey).digest('hex');
         
         try {

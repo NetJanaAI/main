@@ -80,12 +80,11 @@ export async function scrapeB2BSignals(
         if (onProgress) onProgress(`Sovereign Proxy Mesh active: Using ${proxy.region} exit node.`, 'info');
     }
 
-    const browser = await chromium.launch(launchOptions);
-
     try {
         let attempt = 0;
         while (attempt < maxRetries) {
             attempt++;
+            const browser = await chromium.launch(launchOptions);
 
             const actualJobId = jobId || `job_${Date.now()}`;
             let urlsToScrape = spiderMode ? await discoverUrls(targetUrl, maxPages, intent) : [targetUrl];
@@ -434,9 +433,11 @@ export async function scrapeB2BSignals(
                 }
                 // Small delay before retry
                 await new Promise(r => setTimeout(r, 1000));
+            } finally {
+                await browser.close();
             }
         }
-    } finally {
-        await browser.close();
+    } catch (outerError) {
+        throw outerError;
     }
 }

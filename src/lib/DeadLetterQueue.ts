@@ -12,6 +12,41 @@ export interface FailedAnalysis {
 
 import { query } from './database';
 import { dlqQueue, tier2Queue } from './queue';
+import crypto from 'crypto';
+
+function normalizeSignal(row: any): any {
+    let rawPayload: Record<string, any> = {};
+    try {
+        if (typeof row.raw_text === 'string') {
+            rawPayload = JSON.parse(row.raw_text);
+        } else if (row.raw_text) {
+            rawPayload = row.raw_text;
+        }
+    } catch {
+        rawPayload = { raw_content: row.raw_text };
+    }
+
+    const companyName = row.metadata?.company_name || rawPayload.company_name_clean || rawPayload.company_name_raw || row.url || 'Unknown Company';
+    
+    const signal = {
+        signal_id: row.metadata?.signal_id || crypto.randomUUID(),
+        source_id: rawPayload.source_id || 'dlq_retry',
+        source_tier: rawPayload.source_tier || 'TIER_2',
+        collected_at: rawPayload.collected_at || row.created_at || new Date().toISOString(),
+        company_name_raw: companyName,
+        company_name_clean: companyName,
+        cin: rawPayload.cin || null,
+        geo_state: rawPayload.geo_state || 'Unknown',
+        sector_inferred: rawPayload.sector_inferred || 'Unknown',
+        signal_strength_I0: rawPayload.signal_strength_I0 || 0.8,
+        lambda: rawPayload.lambda || 0.05,
+        raw_payload: rawPayload.raw_payload || rawPayload || {},
+        pii_safe: rawPayload.pii_safe !== false,
+        geo_market: rawPayload.geo_market || 'IN'
+    };
+
+    return signal;
+}
 
 export const DeadLetterQueue = {
     log: async (failure: FailedAnalysis) => {
@@ -66,11 +101,13 @@ export const DeadLetterQueue = {
         if (result.rows.length === 0) throw new Error("DLQ entry not found");
         
         const row = result.rows[0];
+        const signal = normalizeSignal(row);
         
         // Re-inject into the target queue (defaulting to tier 2 for automated re-analysis)
         await tier2Queue.add('re-analysis', {
-            url: row.url,
-            raw_payload: row.raw_text,
+            signal,
+            is_triangulated: !!row.metadata?.is_triangulated,
+            triangulated_sources: row.metadata?.triangulated_sources || [],
             is_retry: true,
             original_error: row.error,
             organization_id: row.organization_id

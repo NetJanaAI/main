@@ -10,7 +10,16 @@ if (DATABASE_URL) {
     try {
         pool = new Pool({
             connectionString: DATABASE_URL,
-            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+            ssl: process.env.NODE_ENV === 'production'
+                ? {
+                    rejectUnauthorized: process.env.PG_SSL_REJECT_UNAUTHORIZED !== 'false',
+                    ca: process.env.PG_SSL_CA_CERT
+                        ? process.env.PG_SSL_CA_CERT
+                        : (process.env.PG_SSL_CA_PATH
+                            ? require('fs').readFileSync(process.env.PG_SSL_CA_PATH, 'utf8')
+                            : undefined)
+                  }
+                : false,
             max: 20, // Limit concurrent connections to avoid saturating DB
             idleTimeoutMillis: 30000,
             connectionTimeoutMillis: 5000, // Fail fast if DB is unreachable

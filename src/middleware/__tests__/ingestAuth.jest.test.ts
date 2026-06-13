@@ -9,6 +9,7 @@ jest.mock('../../lib/database', () => ({
 jest.mock('../../lib/secrets', () => ({
     DEV_HMAC_SECRET: 'dev-secret',
     getHmacSecret: jest.fn(() => 'hash-secret'),
+    getApiKeySecret: jest.fn(() => 'hash-secret'),
 }));
 
 describe('cidrContains', () => {

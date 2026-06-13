@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import * as ipLib from 'ip';
 import { query } from '../lib/database';
-import { DEV_HMAC_SECRET, getHmacSecret } from '../lib/secrets';
+import { DEV_HMAC_SECRET, getHmacSecret, getApiKeySecret } from '../lib/secrets';
 
 /**
  * Secures /api/ingest/* webhooks against fake data injection.
@@ -115,7 +115,7 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
 
     // Validate apiKey against tenants.api_key_hash in Postgres
     // Note: We hash the incoming API key to compare with the stored hash
-    const ADMIN_SECRET = getHmacSecret('ingest API key verification');
+    const ADMIN_SECRET = getApiKeySecret();
     const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(apiKey).digest('hex');
 
     try {
