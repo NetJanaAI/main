@@ -86,7 +86,7 @@ export async function queryWithOrg(text: string, params: any[], orgId: string | 
     const client = await pool.connect();
     try {
         // Set the org context for this transaction so Postgres RLS policies activate
-        await client.query(`SET LOCAL app.current_organization_id = '${orgId.replace(/'/g, "''")}'`);
+        await client.query("SELECT set_config('app.current_organization_id', $1, true)", [orgId]);
         const res = await client.query(text, params);
         return res;
     } catch (error: any) {
@@ -125,7 +125,7 @@ export async function withOrgTransaction(
     try {
         await client.query('BEGIN');
         if (orgId) {
-            await client.query(`SET LOCAL app.current_organization_id = '${orgId.replace(/'/g, "''")}'`);
+            await client.query("SELECT set_config('app.current_organization_id', $1, true)", [orgId]);
         }
         await fn(client);
         await client.query('COMMIT');

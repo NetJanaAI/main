@@ -77,6 +77,9 @@ async function main() {
     const client = await pool.connect();
 
     try {
+        console.log('[Migration] Beginning transaction...');
+        await client.query('BEGIN');
+
         const { rows } = await client.query(
             'SELECT id, provider, credential_name, credential_value FROM data_source_credentials'
         );
@@ -85,7 +88,6 @@ async function main() {
 
         let migrated = 0;
         let skipped = 0;
-        let errors = 0;
 
         for (const row of rows) {
             const isEnc = isEncrypted(row.credential_value);
@@ -95,34 +97,34 @@ async function main() {
                 continue;
             }
 
-            try {
-                let plaintext: string;
-                if (!isEnc) {
-                    plaintext = row.credential_value;
-                    console.log(`[Migration] Row ${row.id} (${row.provider}:${row.credential_name}) is plaintext. Encrypting...`);
-                } else {
-                    plaintext = decryptWithOldKey(row.credential_value, oldKeyHex!);
-                    console.log(`[Migration] Row ${row.id} (${row.provider}:${row.credential_name}) is encrypted. Decrypting with old key and re-encrypting...`);
-                }
-
-                const encrypted = encryptCredential(plaintext);
-                await client.query(
-                    'UPDATE data_source_credentials SET credential_value = $1, updated_at = NOW() WHERE id = $2',
-                    [encrypted, row.id]
-                );
-                migrated++;
-            } catch (e: any) {
-                console.error(`[Migration] Failed to migrate/encrypt row ${row.id}: ${e.message}`);
-                errors++;
+            let plaintext: string;
+            if (!isEnc) {
+                plaintext = row.credential_value;
+                console.log(`[Migration] Row ${row.id} (${row.provider}:${row.credential_name}) is plaintext. Encrypting...`);
+            } else {
+                plaintext = decryptWithOldKey(row.credential_value, oldKeyHex!);
+                console.log(`[Migration] Row ${row.id} (${row.provider}:${row.credential_name}) is encrypted. Decrypting with old key and re-encrypting...`);
             }
+
+            const encrypted = encryptCredential(plaintext);
+            await client.query(
+                'UPDATE data_source_credentials SET credential_value = $1, updated_at = NOW() WHERE id = $2',
+                [encrypted, row.id]
+            );
+            migrated++;
         }
 
-        console.log(`[Migration] Done. Migrated/Re-encrypted: ${migrated}, Skipped: ${skipped}, Errors: ${errors}`);
-
-        if (errors > 0) {
-            console.error('[Migration] Some rows failed to encrypt. Check the errors above.');
-            process.exit(1);
+        console.log('[Migration] Committing transaction...');
+        await client.query('COMMIT');
+        console.log(`[Migration] Done. Migrated/Re-encrypted: ${migrated}, Skipped: ${skipped}`);
+    } catch (e: any) {
+        console.error('[Migration] Failed to complete migration, rolling back transaction:', e.message);
+        try {
+            await client.query('ROLLBACK');
+        } catch (rollbackErr) {
+            console.error('[Migration] Rollback failed:', rollbackErr);
         }
+        process.exit(1);
     } finally {
         client.release();
         await pool.end();

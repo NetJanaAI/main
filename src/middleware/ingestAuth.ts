@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import * as ipLib from 'ip';
 import { query } from '../lib/database';
 import { DEV_HMAC_SECRET, getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { AuditTrail } from '../core/compliance/AuditTrail';
 
 /**
  * Secures /api/ingest/* webhooks against fake data injection.
@@ -115,11 +116,33 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
 
     // Validate apiKey against tenants.api_key_hash in Postgres
     // Note: We hash the incoming API key to compare with the stored hash
-    const ADMIN_SECRET = getApiKeySecret();
-    const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(apiKey).digest('hex');
+    const apiKeySecret = getApiKeySecret();
+    const apiKeyHash = crypto.createHmac('sha256', apiKeySecret).update(apiKey).digest('hex');
 
     try {
-        const result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [apiKeyHash]);
+        let result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [apiKeyHash]);
+        if (result.rows.length === 0) {
+            // Dynamic hash migration fallback: check old HMAC secret / fallback
+            const oldSecret = process.env.OLD_HMAC_SECRET || process.env.HMAC_SECRET;
+            if (oldSecret) {
+                const oldHash = crypto.createHmac('sha256', oldSecret).update(apiKey).digest('hex');
+                result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [oldHash]);
+                if (result.rows.length > 0) {
+                    const tenantId = result.rows[0].id;
+                    console.log(`[IngestGuard] Migrating api_key_hash dynamically for tenant ${tenantId} to new API_KEY_SECRET.`);
+                    await query('UPDATE tenants SET api_key_hash = $1 WHERE id = $2', [apiKeyHash, tenantId]);
+                    // Audit Log the hash migration
+                    await AuditTrail.log({
+                        actorId: 'system_migration',
+                        organizationId: tenantId,
+                        action: 'API_KEY_HASH_MIGRATED',
+                        resource: `tenant:${tenantId}`,
+                        metadata: { reason: 'api_key_secret_separation_migration' }
+                    });
+                }
+            }
+        }
+
         if (result.rows.length === 0) {
             console.warn(`[IngestGuard] Invalid x-api-key from IP: ${clientIp}`);
             return res.status(401).json({ error: 'Unauthorized: Invalid API Key' });

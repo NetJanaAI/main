@@ -406,6 +406,7 @@ process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 // Keep uncaught error logging for unexpected runtime failures
 process.on('uncaughtException', (err) => {
     console.error('[Process] Uncaught Exception:', err);
+    process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {

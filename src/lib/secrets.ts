@@ -5,7 +5,8 @@ const LEGACY_DEV_SECRETS = new Set([
     'outreach-dev-secret',
     'audit_secret',
     'netjana_alpha_secret_2026',
-    'dev-safety-fallback'
+    'dev-safety-fallback',
+    'dev-safety-fallback-api-key-secret-do-not-use-in-prod'
 ]);
 
 export function isProduction(): boolean {

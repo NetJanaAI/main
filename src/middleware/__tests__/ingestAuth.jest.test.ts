@@ -187,4 +187,67 @@ describe('ingestAuthGuard', () => {
         expect(mockNext).toHaveBeenCalled();
         expect(mockReq.organizationId).toBe('org-456');
     });
+
+    it('performs dynamic hash migration from old HMAC secret key to new API Key secret key', async () => {
+        process.env.NODE_ENV = 'production';
+        process.env.ALLOWED_INGEST_IPS = '192.168.1.50';
+        
+        // Mock secrets env
+        const oldSecret = 'old-legacy-secret';
+        const newSecret = 'new-api-key-secret';
+        process.env.HMAC_SECRET = oldSecret;
+        process.env.API_KEY_SECRET = newSecret;
+        
+        // Mock getApiKeySecret to return newSecret
+        const secretsMod = require('../../lib/secrets');
+        (secretsMod.getApiKeySecret as jest.Mock).mockReturnValue(newSecret);
+
+        mockReq.ip = '192.168.1.50';
+        mockReq.rawBody = '{"test": true}';
+
+        // Mock HMAC signature header with old secret (no HMAC secret config check is fine if it bypasses or matches)
+        // Actually, HMAC verification is active if HMAC_SECRET is set:
+        const validSig = crypto.createHmac('sha256', oldSecret).update(mockReq.rawBody).digest('hex');
+        mockReq.headers['x-source-signature'] = validSig;
+
+        mockReq.headers['x-api-key'] = 'legacy-key-123';
+
+        const newHash = crypto.createHmac('sha256', newSecret).update('legacy-key-123').digest('hex');
+        const oldHash = crypto.createHmac('sha256', oldSecret).update('legacy-key-123').digest('hex');
+
+        // Capture SQL queries
+        const executedQueries: Array<{ sql: string; params: any[] }> = [];
+        (query as jest.Mock).mockImplementation((sql: string, params?: any[]) => {
+            executedQueries.push({ sql, params: params || [] });
+            if (sql.includes('allowed_ips')) {
+                return Promise.resolve({ rows: [] });
+            }
+            if (sql.includes('tenants') && sql.includes('api_key_hash')) {
+                if (params && params[0] === newHash) {
+                    // First lookup with new hash fails
+                    return Promise.resolve({ rows: [] });
+                }
+                if (params && params[0] === oldHash) {
+                    // Second lookup with old hash succeeds
+                    return Promise.resolve({ rows: [{ id: 'org-migrated-123' }] });
+                }
+            }
+            return Promise.resolve({ rows: [] });
+        });
+
+        await ingestAuthGuard(mockReq, mockRes, mockNext);
+
+        expect(mockNext).toHaveBeenCalled();
+        expect(mockReq.organizationId).toBe('org-migrated-123');
+
+        // Verify UPDATE and INSERT audit_logs queries were run
+        const updateQuery = executedQueries.find(q => q.sql.includes('UPDATE tenants SET api_key_hash'));
+        expect(updateQuery).toBeDefined();
+        expect(updateQuery?.params).toEqual([newHash, 'org-migrated-123']);
+
+        const insertAuditQuery = executedQueries.find(q => q.sql.includes('INSERT INTO audit_logs'));
+        expect(insertAuditQuery).toBeDefined();
+        expect(insertAuditQuery?.params[2]).toBe('org-migrated-123'); // organizationId
+        expect(insertAuditQuery?.params[3]).toBe('API_KEY_HASH_MIGRATED'); // action
+    });
 });

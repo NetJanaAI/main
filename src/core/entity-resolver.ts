@@ -136,7 +136,8 @@ export async function resolveEntity(
         try {
             const response = await axios.get('https://api.sandbox.co.in/entity/gstin/v2/details', {
                 headers: { 'x-api-key': process.env.SANDBOX_API_KEY },
-                params: { legal_name: cleanName }
+                params: { legal_name: cleanName },
+                timeout: 5000
             });
             const data = response.data;
             if (data?.data?.cin || data?.data?.id) {

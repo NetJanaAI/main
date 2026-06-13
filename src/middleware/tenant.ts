@@ -3,6 +3,7 @@ import { query } from '../lib/database';
 import crypto from 'crypto';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { AuditTrail } from '../core/compliance/AuditTrail';
 
 const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
@@ -59,11 +60,33 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 
     // 2. API Key Path
     if (apiKey) {
-        const ADMIN_SECRET = getApiKeySecret();
-        const apiKeyHash = crypto.createHmac('sha256', ADMIN_SECRET).update(apiKey).digest('hex');
+        const apiKeySecret = getApiKeySecret();
+        const apiKeyHash = crypto.createHmac('sha256', apiKeySecret).update(apiKey).digest('hex');
         
         try {
-            const result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [apiKeyHash]);
+            let result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [apiKeyHash]);
+            if (result.rows.length === 0) {
+                // Dynamic hash migration fallback
+                const oldSecret = process.env.OLD_HMAC_SECRET || process.env.HMAC_SECRET;
+                if (oldSecret) {
+                    const oldHash = crypto.createHmac('sha256', oldSecret).update(apiKey).digest('hex');
+                    result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [oldHash]);
+                    if (result.rows.length > 0) {
+                        const tenantId = result.rows[0].id;
+                        console.log(`[TenantContext] Migrating api_key_hash dynamically for tenant ${tenantId} to new API_KEY_SECRET.`);
+                        await query('UPDATE tenants SET api_key_hash = $1 WHERE id = $2', [apiKeyHash, tenantId]);
+                        // Audit Log the hash migration
+                        await AuditTrail.log({
+                            actorId: 'system_migration',
+                            organizationId: tenantId,
+                            action: 'API_KEY_HASH_MIGRATED',
+                            resource: `tenant:${tenantId}`,
+                            metadata: { reason: 'api_key_secret_separation_migration' }
+                        });
+                    }
+                }
+            }
+
             if (result.rows.length > 0) {
                 req.organizationId = result.rows[0].id;
                 return next();

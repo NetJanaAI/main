@@ -19,7 +19,7 @@ export class HACanary {
                     region,
                     health,
                     timestamp: new Date().toISOString()
-                });
+                }, { timeout: 5000 });
             }
 
             if (health.status !== 'UP') {
@@ -31,7 +31,7 @@ export class HACanary {
                             color: "#FF9900",
                             text: `Status: ${health.status}\nCheck the Protocol Terminal immediately.`
                         }]
-                    });
+                    }, { timeout: 5000 });
                 }
 
                 // P1-F: PagerDuty Events API v2 alert for production on-call coverage.
@@ -51,7 +51,7 @@ export class HACanary {
                                 failed_checks: health.checks.filter((c: any) => c.status === 'FAIL')
                             }
                         }
-                    }).catch((pgErr: any) => {
+                    }, { timeout: 5000 }).catch((pgErr: any) => {
                         console.error(`[Canary] PagerDuty alert failed:`, pgErr.message);
                     });
                 }
@@ -66,7 +66,7 @@ export class HACanary {
                         color: "#FF0000",
                         text: `Canary reported a fatal error: ${e.message}`
                     }]
-                });
+                }, { timeout: 5000 });
             }
         }
 
@@ -108,7 +108,7 @@ export class SignalDroughtMonitor {
                             color: "#FF9900",
                             text: `0 leads generated in the last hour. Verify scraping infrastructure and proxy health.`
                         }]
-                    });
+                    }, { timeout: 5000 });
                 }
             }
         } catch (e: any) {
