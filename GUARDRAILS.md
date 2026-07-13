@@ -23,3 +23,15 @@ This document establishes immutable code-quality rules and operational guardrail
 *   **Verify Before Commit**: Every change must be verified with backend builds, frontend builds, and the Jest test suite before committing to GitHub.
 *   **Pull Request Alignment**: Every completed PDCA cycle must be committed and pushed to remote origin immediately after successful test execution to create clear audit trails.
 *   **Persistence**: These guardrails are immutable and must not be altered throughout the duration of the PDCA remediation stages.
+
+---
+
+## 🔬 4. Automated Security Scanner Guardrail
+We enforce security controls using our custom scanner tool:
+*   **Location**: `scripts/verify-security.ts`
+*   **Rules Enforced**:
+    1.  `SEC-COMMAND-EXECUTION`: Block unsafe shell operations via `child_process.exec`.
+    2.  `SEC-PARAMETERIZED-SQL`: Block raw SQL templates/concatenations inside postgres query functions.
+    3.  `SEC-SECRETS-ISOLATION`: Block hardcoded credentials, API keys, or JWT keys in active code files.
+    4.  `SEC-SCHEMA-VALIDATION`: Enforce Zod schemas on all input-receiving routes (`POST`, `PUT`, `PATCH`).
+*   **Execution**: Run `npx tsx scripts/verify-security.ts` before staging or committing changes. A non-zero exit code will halt the build pipeline.
