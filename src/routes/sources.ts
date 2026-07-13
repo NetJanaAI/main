@@ -12,9 +12,10 @@ const DEFAULT_SOURCES = ['indiamart', 'gem', 'mca', 'zauba', 'webscrape', 'fundi
 router.get('/', async (req: any, res: Response) => {
     const orgId = req.organizationId || 'default';
     try {
-        const results = await db.query(
+        const results = await db.queryWithOrg(
             `SELECT source_id, is_enabled FROM source_configs WHERE org_id = $1`,
-            [orgId]
+            [orgId],
+            orgId
         );
         if (results.rows.length === 0) {
             return res.json(DEFAULT_SOURCES.map(source_id => ({ source_id, is_enabled: true })));
@@ -38,12 +39,13 @@ router.post('/toggle', async (req: any, res: Response) => {
     }
 
     try {
-        await db.query(
+        await db.queryWithOrg(
             `INSERT INTO source_configs (org_id, source_id, is_enabled)
              VALUES ($1, $2, $3)
              ON CONFLICT (org_id, source_id)
              DO UPDATE SET is_enabled = EXCLUDED.is_enabled, updated_at = NOW()`,
-            [orgId, sourceId, enabled]
+            [orgId, sourceId, enabled],
+            orgId
         );
 
         // Invalidate cache for this org's source settings

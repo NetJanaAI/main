@@ -3,26 +3,17 @@ import { connection, SCRAPE_QUEUE_NAME } from '../lib/queue';
 import { scrapeB2BSignals } from '../engines/b2bScraper';
 import { Server } from 'socket.io';
 import os from 'os';
-import Redis from 'ioredis';
+import { getSharedRedisClient } from '../lib/redis';
 import { db } from '../lib/database';
 import { cache } from '../lib/cache';
 
-const redis = new Redis({
-    ...(connection as any),
-    lazyConnect: false,
-    enableOfflineQueue: true,
-});
-redis.on('error', (err) => console.warn('[Worker] Redis cache client error:', err.message));
+const redis = getSharedRedisClient();
 
 const MIN_FREE_MEMORY_MB = 128; // Scraper specific safety floor
 
 export function setupScrapeWorker(io?: Server | null) {
     const queueName = SCRAPE_QUEUE_NAME;
-    const pub = new Redis({
-        ...(connection as any),
-        lazyConnect: false,
-        enableOfflineQueue: true,
-    });
+    const pub = getSharedRedisClient();
     pub.on('error', (err) => console.warn('[Worker] Redis event publisher error:', err.message));
     const publishWorkerEvent = (event: string, data: unknown) => {
         pub.publish('worker_events', JSON.stringify({ event, data })).catch((err) => {

@@ -27,8 +27,10 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
         return next();
     }
 
+    // UI-01: /api/leads/stats is now auth-required. Removing from publicApiPaths
+    // prevents unauthenticated callers from reading aggregate business intelligence.
     const hasAuthMaterial = Boolean(apiKey || authHeader?.startsWith('Bearer ') || orgIdHeader);
-    if (publicApiPaths.has(req.path) && !hasAuthMaterial) {
+    if (!hasAuthMaterial && !req.path.startsWith('/api')) {
         return next();
     }
 
@@ -96,9 +98,9 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
         }
     }
     
-    if (orgIdHeader && process.env.NODE_ENV !== 'production') {
-        req.organizationId = orgIdHeader;
-    }
+    // SEC-04: x-organization-id bypass removed.
+    // Previously any caller in non-production could pass x-organization-id to spoof tenants (IDOR risk).
+    // All authentication must now go through Clerk JWT or API key hash lookup.
 
     // 3. Local Dev Fallback
     // Allows the app to be exercised end-to-end with Docker Postgres/Redis before

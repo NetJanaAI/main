@@ -31,6 +31,7 @@ Before deploying the app, provision the following managed services:
 - [ ] **SSL**: Most providers (Azure/Render) provide this automatically.
 - [ ] **Data Encryption**: Ensure `DATABASE_URL` includes `?sslmode=require`.
 - [ ] **Job Processing**: Ensure the `SCRAPE_WORKER_CONCURRENCY` is tuned to your cloud tier (Default: 2).
+- [ ] **Security (ENFORCE_INGEST_AUTH)**: Ensure `ENFORCE_INGEST_AUTH=true` is set on all staging and production environments to prevent unauthenticated signal injection. In development it defaults to `false` to simplify local testing, but it must be enabled on any public network.
 
 ## 4. Troubleshooting
 

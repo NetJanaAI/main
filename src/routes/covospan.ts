@@ -3,6 +3,7 @@ import { db } from '../lib/database';
 import { CovospanPusher } from '../core/CovospanPusher';
 import crypto from 'crypto';
 import { z } from 'zod';
+import { encryptCredential } from '../lib/credentialVault';
 
 const router = Router();
 
@@ -18,13 +19,14 @@ const ConfigSchema = z.object({
 router.get('/config', async (req: any, res: Response) => {
     const orgId = req.organizationId || 'default';
     try {
-        const result = await db.query(
+        const result = await db.queryWithOrg(
             `SELECT id, endpoint_url, 
                     CONCAT(SUBSTRING(api_key, 1, 6), '••••••••••', RIGHT(api_key, 4)) AS api_key_masked,
                     CASE WHEN hmac_secret IS NOT NULL THEN TRUE ELSE FALSE END AS has_hmac,
                     campaign_id, is_active, created_at, updated_at
              FROM covospan_configs WHERE org_id = $1 LIMIT 1`,
-            [orgId]
+            [orgId],
+            orgId
         );
         res.json({ config: result.rows[0] || null });
     } catch (e: any) {
@@ -44,7 +46,12 @@ router.post('/config', async (req: any, res: Response) => {
     const { endpoint_url, api_key, hmac_secret, campaign_id } = validation.data;
 
     try {
-        await db.query(
+        // SEC-05: Encrypt credentials at rest using AES-256-GCM before writing to DB.
+        // Decrypt on read (via CovospanPusher.getConfig which reads the raw stored value).
+        const encryptedApiKey = encryptCredential(api_key);
+        const encryptedHmacSecret = hmac_secret ? encryptCredential(hmac_secret) : null;
+
+        await db.queryWithOrg(
             `INSERT INTO covospan_configs (org_id, endpoint_url, api_key, hmac_secret, campaign_id)
              VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT (org_id) DO UPDATE SET
@@ -54,7 +61,8 @@ router.post('/config', async (req: any, res: Response) => {
                 campaign_id  = EXCLUDED.campaign_id,
                 is_active    = TRUE,
                 updated_at   = NOW()`,
-            [orgId, endpoint_url, api_key, hmac_secret || null, campaign_id || null]
+            [orgId, endpoint_url, encryptedApiKey, encryptedHmacSecret, campaign_id || null],
+            orgId
         );
         res.json({ success: true, message: 'ConvoSpan endpoint configured.' });
     } catch (e: any) {
@@ -67,9 +75,10 @@ router.post('/config', async (req: any, res: Response) => {
 router.delete('/config', async (req: any, res: Response) => {
     const orgId = req.organizationId || 'default';
     try {
-        await db.query(
+        await db.queryWithOrg(
             `UPDATE covospan_configs SET is_active = FALSE, updated_at = NOW() WHERE org_id = $1`,
-            [orgId]
+            [orgId],
+            orgId
         );
         res.json({ success: true, message: 'ConvoSpan sync disabled.' });
     } catch (e: any) {
@@ -104,14 +113,20 @@ router.get('/log', async (req: any, res: Response) => {
         sql += ` ORDER BY l.pushed_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(limit, offset);
 
-        const [rows, total] = await Promise.all([
-            db.query(sql, params),
-            db.query(`SELECT COUNT(*) FROM covospan_push_log WHERE org_id = $1${status ? ` AND status = '${status}'` : ''}`, [orgId])
+        const [rows, countResult] = await Promise.all([
+            db.queryWithOrg(sql, params, orgId),
+            // UI-05: Parameterize status to prevent SQL injection. Build a separate
+            // count query using the same params array (without LIMIT/OFFSET).
+            db.queryWithOrg(
+                `SELECT COUNT(*) FROM covospan_push_log WHERE org_id = $1${status ? ` AND status = $2` : ''}`,
+                status ? [orgId, status] : [orgId],
+                orgId
+            )
         ]);
 
         res.json({ 
             log: rows.rows,
-            total: parseInt(total.rows[0].count, 10),
+            total: parseInt(countResult.rows[0].count, 10),
             limit,
             offset
         });
@@ -127,7 +142,7 @@ router.get('/stats', async (req: any, res: Response) => {
     try {
         const [totals, byCampaign, bySource, byBuyingStage, recentFailures] = await Promise.all([
             // Overall counts
-            db.query(`
+            db.queryWithOrg(`
                 SELECT
                     COUNT(*) AS total_pushes,
                     COUNT(*) FILTER (WHERE status = 'SUCCESS')  AS success,
@@ -139,38 +154,38 @@ router.get('/stats', async (req: any, res: Response) => {
                         / NULLIF(COUNT(*), 0), 1
                     ) AS success_rate_pct
                 FROM covospan_push_log WHERE org_id = $1
-            `, [orgId]),
+            `, [orgId], orgId),
             // By campaign
-            db.query(`
+            db.queryWithOrg(`
                 SELECT campaign_id, COUNT(*) AS count, 
                        COUNT(*) FILTER (WHERE status = 'SUCCESS') AS success
                 FROM covospan_push_log 
                 WHERE org_id = $1 AND campaign_id IS NOT NULL
                 GROUP BY campaign_id ORDER BY count DESC
-            `, [orgId]),
+            `, [orgId], orgId),
             // By signal source
-            db.query(`
+            db.queryWithOrg(`
                 SELECT lc.source_id, COUNT(*) AS pushed
                 FROM covospan_push_log l
                 JOIN lead_cards lc ON lc.lead_id = l.lead_id
                 WHERE l.org_id = $1 AND l.status = 'SUCCESS'
                 GROUP BY lc.source_id ORDER BY pushed DESC
-            `, [orgId]),
+            `, [orgId], orgId),
             // By buying stage
-            db.query(`
+            db.queryWithOrg(`
                 SELECT lc.buying_stage, COUNT(*) AS pushed
                 FROM covospan_push_log l
                 JOIN lead_cards lc ON lc.lead_id = l.lead_id
                 WHERE l.org_id = $1 AND l.status = 'SUCCESS'
                 GROUP BY lc.buying_stage ORDER BY pushed DESC
-            `, [orgId]),
+            `, [orgId], orgId),
             // Recent failures
-            db.query(`
+            db.queryWithOrg(`
                 SELECT lead_id, detail, pushed_at, attempts
                 FROM covospan_push_log
                 WHERE org_id = $1 AND status = 'FAILED'
                 ORDER BY pushed_at DESC LIMIT 5
-            `, [orgId])
+            `, [orgId], orgId)
         ]);
 
         res.json({
@@ -192,9 +207,10 @@ router.post('/push/:leadId', async (req: any, res: Response) => {
     const { leadId } = req.params;
 
     try {
-        const leadRes = await db.query(
+        const leadRes = await db.queryWithOrg(
             `SELECT * FROM lead_cards WHERE lead_id = $1`,
-            [leadId]
+            [leadId],
+            orgId
         );
         if (leadRes.rows.length === 0) {
             return res.status(404).json({ error: 'Lead not found' });

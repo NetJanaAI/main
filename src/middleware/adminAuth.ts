@@ -33,16 +33,17 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
             });
         }
 
-        // Check admin role from Clerk publicMetadata (set via Clerk Dashboard / API)
+        // Check admin/super_admin role from Clerk publicMetadata
         const metadata = auth.sessionClaims?.publicMetadata as Record<string, any> | undefined;
         const role = metadata?.role as string | undefined;
-        if (role !== 'admin') {
+        if (role !== 'admin' && role !== 'super_admin') {
             return res.status(403).json({
                 error: 'Forbidden',
-                message: 'Admin role required. Contact your organization administrator.'
+                message: 'Admin or Super Admin role required. Contact your organization administrator.'
             });
         }
 
+        (req as any).adminRole = role;
         return next();
     }
 
@@ -56,6 +57,7 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
                 message: 'x-admin-secret header is required for admin access in standalone mode.'
             });
         }
+        (req as any).adminRole = 'super_admin'; // Default standalone mode to super_admin privilege
         return next();
     }
 
@@ -71,5 +73,6 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
 
     // Dev-only degraded mode: warn loudly but allow through for local setup convenience
     console.warn('[AdminAuth] ⚠️  No admin auth configured (dev mode). Set ADMIN_SECRET to secure admin endpoints.');
+    (req as any).adminRole = 'super_admin';
     next();
 }

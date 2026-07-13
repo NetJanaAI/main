@@ -2,10 +2,10 @@ import { Worker, Job } from 'bullmq';
 import { connection, RAW_SIGNALS_QUEUE_NAME, tier1Queue, tier2Queue, tier3Queue } from '../lib/queue';
 import { resolveEntity } from './entity-resolver';
 import { KnowledgeGraphService } from './knowledge-graph';
-import Redis from 'ioredis';
+import { getSharedRedisClient } from '../lib/redis';
 import { RawSignal } from '../lib/schemas';
 
-const redis = new Redis(connection as any);
+const redis = getSharedRedisClient();
 redis.on('error', (err) => {
     if ((redis as any)._lastErrorLogged !== err.message) {
         console.warn(`[Router] Waiting for Redis: ${err.message}`);

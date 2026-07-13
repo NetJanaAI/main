@@ -28,6 +28,14 @@ services:
       - ALLOWED_INGEST_IPS=${ALLOWED_INGEST_IPS}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - ROLE=api_only
+      # STUB-04: Security Vault, Pull API, and Alerting keys
+      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
+      - API_KEY_SECRET=${API_KEY_SECRET}
+      - NETJANA_PULL_API_KEY=${NETJANA_PULL_API_KEY}
+      - NETJANA_HMAC_SECRET=${NETJANA_HMAC_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY}
     volumes:
       # Data persistence for the Regional Vault
       - netjana_data:/app/data
@@ -54,6 +62,12 @@ services:
       - LITELLM_API_BASE=http://litellm:4000/v1
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
       - ROLE=worker
+      # STUB-04: Security Vault and Alerting keys
+      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
+      - API_KEY_SECRET=${API_KEY_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY}
     volumes:
       - netjana_data:/app/data
 
@@ -73,13 +87,12 @@ services:
       - PUSHER_MAX_RETRIES=5
       - PUSHER_TIMEOUT_SEC=15
     # P1-E Fix: Added healthcheck so Docker can detect crashes and auto-restart.
-    # Adjust the port if the Go binary exposes /health on a different port.
     healthcheck:
-      - test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
-      - interval: 30s
-      - timeout: 5s
-      - retries: 3
-      - start_period: 10s
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -110,7 +123,6 @@ services:
       - REDIS_URL=${REDIS_URL}
 
 volumes:
-
   netjana_data:
 
 # ─── NOTE ON REDIS PERSISTENCE (P0-4) ───────────────────────────────────────

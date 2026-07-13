@@ -11,25 +11,14 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
 import { ChatOpenAI } from '@langchain/openai';
-import IORedis from 'ioredis';
-import { connection } from './queue';
+import { getSharedRedisClient } from './redis';
 import { cache } from './cache';
 import { TokenTracker } from './ai/token-tracker';
 import { jsonToToon } from './ai/toon';
 import { llmCallDuration } from './telemetry';
 
-// Dedicated ioredis instance for atomic spend-guard operations.
-// Using ioredis directly (not the cache abstraction) to get pipeline() with INCR.
-let _spendRedis: IORedis | null = null;
-function getSpendRedis(): IORedis {
-    if (!_spendRedis) {
-        _spendRedis = new IORedis(connection as any);
-        _spendRedis.on('error', (e) => {
-            // Suppress noisy connection errors — callModel will throw if incr fails
-            console.warn('[ModelAPI:SpendGuard] Redis error:', e.message);
-        });
-    }
-    return _spendRedis;
+function getSpendRedis() {
+    return getSharedRedisClient();
 }
 
 export type ModelRole = 'gate' | 'qualifier' | 'writer' | 'synthesizer' | 'advocate' | 'critic' | 'outreach';

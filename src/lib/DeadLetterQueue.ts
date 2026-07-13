@@ -115,5 +115,40 @@ export const DeadLetterQueue = {
 
         // Remove from DLQ on successful re-enqueue
         await query('DELETE FROM dead_letter_queue WHERE id = $1', [id]);
+    },
+
+    /**
+     * OPS-03: Archive entries older than `ageDays` days into a separate archive table.
+     * Prevents unbounded dead_letter_queue table growth which degrades the admin UI.
+     * Should be called on a recurring schedule (e.g. monthly).
+     */
+    archiveOldEntries: async (ageDays: number = 30): Promise<{ archived: number }> => {
+        try {
+            // Ensure archive table exists (idempotent)
+            await query(`
+                CREATE TABLE IF NOT EXISTS dead_letter_queue_archive (
+                    LIKE dead_letter_queue INCLUDING ALL,
+                    archived_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            `);
+
+            // Move old entries to archive table
+            const result = await query(`
+                WITH moved AS (
+                    DELETE FROM dead_letter_queue
+                    WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
+                    RETURNING *
+                )
+                INSERT INTO dead_letter_queue_archive SELECT *, NOW() FROM moved
+                RETURNING id
+            `, [ageDays]);
+
+            const archived = result.rowCount ?? 0;
+            console.log(`[DLQ] Archived ${archived} entries older than ${ageDays} days.`);
+            return { archived };
+        } catch (err: any) {
+            console.error('[DLQ] archiveOldEntries failed:', err.message);
+            return { archived: 0 };
+        }
     }
 };

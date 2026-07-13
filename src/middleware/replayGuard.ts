@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import Redis from 'ioredis';
-import { connection } from '../lib/queue';
+import { getSharedRedisClient } from '../lib/redis';
 
 // ---------------------------------------------------------------------------
 // Replay Guard Middleware
@@ -20,14 +19,8 @@ const TIMESTAMP_TOLERANCE_SEC = 300; // ±5 minutes
 const NONCE_TTL_SEC = 600;           // 2× tolerance window — safe dedup window
 const NONCE_KEY_PREFIX = 'nonce:push:';
 
-// Lazily initialised so the module doesn't crash on import if Redis is absent.
-let _redis: Redis | null = null;
-function getRedis(): Redis {
-    if (!_redis) {
-        _redis = new Redis(connection as any);
-        _redis.on('error', (e) => console.warn('[ReplayGuard] Redis error:', e.message));
-    }
-    return _redis;
+function getRedis() {
+    return getSharedRedisClient();
 }
 
 export const replayGuard = async (req: Request, res: Response, next: NextFunction) => {

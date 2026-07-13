@@ -6,6 +6,12 @@ import { initDb } from './lib/database';
 SecureLogger.init();
 
 // Environment Validation: Fail-fast if critical keys are missing
+const DEV_HMAC_PLACEHOLDERS = new Set([
+    'dev-safety-fallback-do-not-use-in-prod',
+    'dev-safety-fallback',
+    'dev-placeholder-long-random-string-32-chars',
+]);
+
 function validateEnv() {
     const missing: string[] = [];
     const isProduction = process.env.NODE_ENV === 'production';
@@ -18,6 +24,13 @@ function validateEnv() {
     if (!process.env.ALLOWED_INGEST_IPS) missing.push('ALLOWED_INGEST_IPS');
     if (!process.env.ALLOWED_ORIGINS) missing.push('ALLOWED_ORIGINS');
 
+    // SEC-02: Block known dev placeholder HMAC secrets in production.
+    // An attacker with repo access could use these to forge ingest payloads.
+    if (isProduction && process.env.HMAC_SECRET && DEV_HMAC_PLACEHOLDERS.has(process.env.HMAC_SECRET)) {
+        console.error('[Fatal] HMAC_SECRET is set to a known development placeholder. Generate a cryptographically random value: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+        process.exit(1);
+    }
+
     // P0-D Fix: Require ADMIN_SECRET in production when Clerk is not configured (standalone mode).
     // Without this, the /api/admin/* routes have no authentication in standalone prod deployments.
     if (isProduction && !process.env.CLERK_SECRET_KEY && !process.env.ADMIN_SECRET) {
@@ -26,7 +39,7 @@ function validateEnv() {
 
     // P0-B Fix: Require CREDENTIAL_ENCRYPTION_KEY in production for the credential vault.
     if (isProduction && !process.env.CREDENTIAL_ENCRYPTION_KEY) {
-        missing.push('CREDENTIAL_ENCRYPTION_KEY (generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))")');
+        missing.push('CREDENTIAL_ENCRYPTION_KEY (generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))")'); 
     }
 
     // P0-5 Fix: Require API_KEY_SECRET in production for API key hashing.
@@ -97,7 +110,7 @@ import { tenantContext } from './middleware/tenant';
 import { HACanary } from './lib/canary';
 import { errorHandler } from './middleware/error-handler';
 import { register, getSystemHealth } from './lib/telemetry';
-import { connection } from './lib/queue';
+import { connection, decayRescoreQueue } from './lib/queue';
 import { setupScrapeWorker } from './workers/scrapeWorker';
 import { setupDlqWorker } from './workers/dlqWorker';
 import { startOutreachWorker } from './workers/outreach_worker';
@@ -106,6 +119,8 @@ import { startDecayRescoreWorker } from './workers/decayRescoreWorker';
 import { setupRouterWorker } from './core/router';
 import { setupGeminiWorkers } from './core/gemini-chain';
 import { setupTier3Worker } from './workers/tier3Worker';
+import { replayGuard } from './middleware/replayGuard';
+import { socketAuthMiddleware } from './middleware/socketAuth';
 
 const app = express();
 const httpServer = createServer(app);
@@ -333,11 +348,9 @@ app.use('/api/usage', usageRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/outreach', outreachRoutes);
 app.use('/api/share', shareRoutes);
-app.use('/api/ingest', (req: any, res, next) => {
-    // Ensure rawBody is preserved for ingest routes specifically
-    // express.json() with verify is already global, but this is a safety layer
-    next();
-}, ingestRoutes);
+// SEC-07: Apply replayGuard AFTER ingestAuthGuard (already applied in ingestRoutes).
+// This prevents replay attacks: timestamp ±300s window + Redis nonce dedup.
+app.use('/api/ingest', replayGuard, ingestRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/lead', leadsRoutes);
 app.use('/api/profile', profileRoutes);
@@ -358,8 +371,19 @@ app.use('/share', shareRoutes);
 // Error Handling (Must be last)
 app.use(errorHandler);
 
-io.on('connection', (socket) => {
+// UI-02: Use connection authentication middleware
+io.use(socketAuthMiddleware);
+
+io.on('connection', (socket: any) => {
     console.log('Client connected:', socket.id);
+    
+    // Automatically join the tenant's own room. Client cannot request another org's room.
+    const orgId = socket.organizationId;
+    if (orgId) {
+        socket.join(`org:${orgId}`);
+        console.log(`Socket ${socket.id} joined room org:${orgId}`);
+    }
+
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
     });
@@ -391,6 +415,25 @@ dbReady.finally(() => httpServer.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     // Bootstrap all persisted cron schedules from DB
     bootstrapSchedules().catch(e => console.warn('[Startup] Scheduler bootstrap failed:', e.message));
+
+    // OPS-02: Schedule decay-rescore job every 24 hours if not already scheduled.
+    // Previously the worker existed but was never triggered automatically.
+    decayRescoreQueue.add('daily-rescore', {}, {
+        repeat: { every: 24 * 60 * 60 * 1000 }, // every 24h
+        jobId: 'decay-rescore-daily',             // stable ID prevents duplicate registrations
+    }).catch(e => console.warn('[Startup] Decay rescore scheduling failed:', e.message));
+
+    // OPS-03: Schedule DLQ archival cron to run daily.
+    // Prevents unbounded DLQ growth. Clean up entries older than DLQ_ARCHIVE_INTERVAL_DAYS.
+    const DLQ_ARCHIVE_INTERVAL_DAYS = parseInt(process.env.DLQ_ARCHIVE_INTERVAL_DAYS || '30', 10);
+    import('./lib/DeadLetterQueue').then(({ DeadLetterQueue }) => {
+        setInterval(
+            () => DeadLetterQueue.archiveOldEntries(DLQ_ARCHIVE_INTERVAL_DAYS).catch(
+                (e: any) => console.warn('[DLQ Archival] Failed:', e.message)
+            ),
+            24 * 60 * 60 * 1000 // Run daily to avoid 32-bit signed integer overflow (max ~24.8 days)
+        );
+    }).catch(() => {});
 
     // Wire HA Canary Heartbeat
     setInterval(() => HACanary.runHeartbeat(), 5 * 60 * 1000);

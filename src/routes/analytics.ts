@@ -12,10 +12,11 @@ router.get('/dashboard', async (req: any, res: any) => {
         const orgId = req.organizationId || (req as any).user?.organizationId;
         if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
         
-        // Active Entities
-        const activeRes = await query(`
-            SELECT COUNT(*) FROM org_registry WHERE org_id != ''
-        `);
+        // FLOW-05: Scope entity count to the org's known entities via lead_cards, not the global registry.
+        // The global org_registry is cross-tenant, so an unscoped COUNT(*) leaks data across orgs.
+        const activeRes = await queryWithOrg(`
+            SELECT COUNT(DISTINCT company_name) FROM lead_cards WHERE org_id = $1
+        `, [orgId], orgId);
         
         // Sector Distribution
         const sectorsRes = await queryWithOrg(`
@@ -70,6 +71,9 @@ router.get('/dashboard', async (req: any, res: any) => {
         
         res.json({
             roi: formatROI(estimatedRoi),
+            // FLOW-04: ROI is indicative only — based on intent_score × heuristic conversion value.
+            // Do not present as realized revenue. Formula: sum(intent_score) × 500 for scores ≥ 70.
+            roi_methodology: 'indicative',
             accuracy: accuracyPct + '%',
             activeEntities: totalActive.toLocaleString(),
             sectors
@@ -101,8 +105,13 @@ router.get('/pipeline', async (req: any, res: any) => {
         const scoredRes = await queryWithOrg(`SELECT COUNT(*) FROM lead_cards WHERE org_id = $1 AND intent_score >= 60`, [orgId], orgId);
         const scoredCount = parseInt(scoredRes.rows[0]?.count || '0', 10);
 
-        // Dispatches
-        const dispatchedRes = await queryWithOrg(`SELECT COUNT(*) FROM outreach_logs WHERE organization_id = $1 AND status = 'SENT'`, [orgId], orgId);
+        // Dispatches — UI-03: count SENT + COPY_READY (LinkedIn) so the pipeline funnel
+        // shows all outreach actions, not just email/WABA sends.
+        const dispatchedRes = await queryWithOrg(
+            `SELECT COUNT(*) FROM outreach_logs WHERE organization_id = $1 AND status IN ('SENT', 'COPY_READY')`,
+            [orgId],
+            orgId
+        );
         const dispatchedCount = parseInt(dispatchedRes.rows[0]?.count || '0', 10);
 
         // Recent Dispatches List

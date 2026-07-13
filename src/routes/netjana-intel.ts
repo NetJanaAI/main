@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { query } from '../lib/database';
+import { queryAsSystem } from '../lib/database';
 import { pullApiRateLimiter } from '../middleware/rateLimit';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -70,7 +70,9 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
 
     try {
         // --- Fetch full lead card ---
-        const leadResult = await query(
+        // DB-01: Use queryAsSystem to bypass tenant RLS boundaries since this is an
+        // authenticated platform-to-platform webhook query.
+        const leadResult = await queryAsSystem(
             `SELECT
                 lead_id,
                 company_name,
@@ -107,7 +109,7 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
         // --- Fetch optional graph (influence map) ---
         let graph: { nodes: any[]; edges: any[] } | null = null;
         try {
-            const graphResult = await query(
+            const graphResult = await queryAsSystem(
                 `SELECT influence_map FROM lead_influence_data WHERE lead_id = $1 LIMIT 1`,
                 [lead_id]
             );

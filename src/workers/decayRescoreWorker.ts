@@ -9,72 +9,94 @@ import { isFeatureEnabled, Feature } from '../config/featureFlags';
 
 export async function startDecayRescoreWorker(io: Server) {
     const worker = new Worker('decay-rescore', async (job: Job) => {
-        console.log(`[DecayWorker] Starting daily rescore at ${new Date().toISOString()}`);
+        const BATCH_SIZE = 200;
+        let offset = 0;
         let totalProcessed = 0;
-        
-        // 1. Rescore scrape_results (web-scrape originated leads)
-        const leads = await query(
-            "SELECT job_id AS id, organization_id, domain AS company_name, domain AS url, base_score, signal_captured_at, decay_status, previous_decay_status FROM scrape_results WHERE decay_status != 'Dead'"
-        );
 
-        for (const lead of leads.rows) {
-            const decay = calculateDecay(parseFloat(lead.base_score), new Date(lead.signal_captured_at));
-            
-            // 2. Detect transition
-            const statusChanged = lead.decay_status !== decay.status;
-            const transitionedToCold = lead.decay_status === 'Warm' && decay.status === 'Cold';
-
-            // 3. Update DB
-            await query(
-                `UPDATE scrape_results SET 
-                    freshness_score = $1, 
-                    decay_status = $2, 
-                    last_decay_calc = NOW(), 
-                    previous_decay_status = $3
-                 WHERE job_id = $4`,
-                [decay.decayedScore, decay.status, statusChanged ? lead.decay_status : lead.previous_decay_status, lead.id]
+        // OPS-01: Cursor-based batching — avoids loading all scrape_results into memory at once.
+        // At 100k+ leads, a full SELECT would OOM the worker pod.
+        while (true) {
+            const leads = await query(
+                `SELECT job_id AS id, organization_id, domain AS company_name, domain AS url, 
+                        base_score, signal_captured_at, decay_status, previous_decay_status
+                 FROM scrape_results
+                 WHERE decay_status != 'Dead'
+                 ORDER BY job_id
+                 LIMIT $1 OFFSET $2`,
+                [BATCH_SIZE, offset]
             );
 
-            // 4. Handle transitions
-            if (transitionedToCold) {
-                io.to(`org:${lead.organization_id}`).emit('lead:re_engage_alert', {
-                    leadId: lead.id,
-                    companyName: SecureLogger.maskPII(lead.company_name),
-                    daysSince: decay.daysSince,
-                    decayStatus: 'Cold',
-                    previousStatus: 'Warm',
-                    reengageUrl: `/leads/${lead.id}`
-                });
+            if (leads.rows.length === 0) break;
 
-                // 5. Hunter Mode Integration (CovoSpan Only)
-                if (IS_COVOSPAN && isFeatureEnabled(Feature.AUTONOMOUS_HUNTER, 'paid')) {
-                    if (decay.decayedScore > 75) {
-                        console.log(`[Hunter] Auto-rescrape triggered for ${lead.id} due to decay.`);
-                        await scrapeQueue.add('scrape', {
-                            jobId: `rescrape_${lead.id}_${Date.now()}`,
-                            url: lead.url,
-                            organizationId: lead.organization_id,
-                            reason: 'decay_threshold'
-                        });
-                        io.to(`org:${lead.organization_id}`).emit('hunter:auto_rescrape_queued', {
-                            leadId: lead.id,
-                            reason: 'decay_threshold'
-                        });
+            for (const lead of leads.rows) {
+                const decay = calculateDecay(parseFloat(lead.base_score), new Date(lead.signal_captured_at));
+                
+                // 2. Detect transition
+                const statusChanged = lead.decay_status !== decay.status;
+                const transitionedToCold = lead.decay_status === 'Warm' && decay.status === 'Cold';
+
+                // 3. Update DB
+                await query(
+                    `UPDATE scrape_results SET 
+                        freshness_score = $1, 
+                        decay_status = $2, 
+                        last_decay_calc = NOW(), 
+                        previous_decay_status = $3
+                     WHERE job_id = $4`,
+                    [decay.decayedScore, decay.status, statusChanged ? lead.decay_status : lead.previous_decay_status, lead.id]
+                );
+
+                // 4. Handle transitions
+                if (transitionedToCold) {
+                    io.to(`org:${lead.organization_id}`).emit('lead:re_engage_alert', {
+                        leadId: lead.id,
+                        companyName: SecureLogger.maskPII(lead.company_name),
+                        daysSince: decay.daysSince,
+                        decayStatus: 'Cold',
+                        previousStatus: 'Warm',
+                        reengageUrl: `/leads/${lead.id}`
+                    });
+
+                    // 5. Hunter Mode Integration (CovoSpan Only)
+                    if (IS_COVOSPAN && isFeatureEnabled(Feature.AUTONOMOUS_HUNTER, 'paid')) {
+                        if (decay.decayedScore > 75) {
+                            console.log(`[Hunter] Auto-rescrape triggered for ${lead.id} due to decay.`);
+                            await scrapeQueue.add('scrape', {
+                                jobId: `rescrape_${lead.id}_${Date.now()}`,
+                                url: lead.url,
+                                organizationId: lead.organization_id,
+                                reason: 'decay_threshold'
+                            });
+                            io.to(`org:${lead.organization_id}`).emit('hunter:auto_rescrape_queued', {
+                                leadId: lead.id,
+                                reason: 'decay_threshold'
+                            });
+                        }
                     }
+                }
+
+                // 6. Handle Death (Soft-delete — FLOW-06 fix: never hard-DELETE live data)
+                if (decay.status === 'Dead') {
+                    await query(
+                        `INSERT INTO archived_scrape_results
+                         SELECT *, NOW() as archived_at, 'Signal expired (Dead status)' as archival_reason
+                         FROM scrape_results WHERE job_id = $1
+                         ON CONFLICT DO NOTHING`,
+                        [lead.id]
+                    );
+                    // Soft-delete: mark as Dead + set archived_at; do NOT hard DELETE.
+                    await query(
+                        `UPDATE scrape_results SET decay_status = 'Dead', last_decay_calc = NOW() WHERE job_id = $1`,
+                        [lead.id]
+                    );
+                    io.to(`org:${lead.organization_id}`).emit('lead:archived', { leadId: lead.id });
                 }
             }
 
-            // 6. Handle Death (Archiving)
-            if (decay.status === 'Dead') {
-                await query(
-                    "INSERT INTO archived_scrape_results SELECT *, NOW(), 'Signal expired (Dead status)' FROM scrape_results WHERE job_id = $1",
-                    [lead.id]
-                );
-                await query("DELETE FROM scrape_results WHERE job_id = $1", [lead.id]);
-                io.to(`org:${lead.organization_id}`).emit('lead:archived', { leadId: lead.id });
-            }
+            totalProcessed += leads.rows.length;
+            if (leads.rows.length < BATCH_SIZE) break;
+            offset += BATCH_SIZE;
         }
-        totalProcessed += leads.rows.length;
 
         // M-06: Rescore lead_cards (signal-pipeline originated leads)
         // These were previously never rescored because the worker only queried scrape_results.

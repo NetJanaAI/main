@@ -98,6 +98,30 @@ export async function queryWithOrg(text: string, params: any[], orgId: string | 
 }
 
 /**
+ * Executes a query with system-level privileges, bypassing tenant RLS scopes.
+ * Used for system workers (like pull APIs or canary alerts) that have validated
+ * system-level authentication materials.
+ */
+export async function queryAsSystem(text: string, params: any[]) {
+    if (!pool) {
+        throw new Error('Database is not initialized (DATABASE_URL missing).');
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query("SELECT set_config('app.bypass_rls', 'true', true)");
+        const res = await client.query(text, params);
+        return res;
+    } catch (error: any) {
+        console.error('[Database:System] Query error:', error.message);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+
+/**
  * P0-A Fix: Executes a function within a client transaction already scoped to the
  * given orgId. Use this for multi-statement ops that must share RLS context and
  * run atomically (e.g., insert lead + insert audit log in the same transaction).
@@ -264,6 +288,10 @@ export async function initDb() {
                 spider_stats JSONB,
                 organization_id UUID REFERENCES tenants(id) DEFAULT '${defaultOrgId}',
                 timestamp TIMESTAMPTZ DEFAULT NOW(),
+
+                -- UI-04: Adversarial Critic output columns (referenced by GET /api/leads/:id/intelligence)
+                grounding_score DECIMAL(4,3) DEFAULT NULL,
+                citations JSONB DEFAULT NULL,
 
                 -- Intent Decay Tracking (Phase 5)
                 base_score DECIMAL(5,2) DEFAULT 0,
@@ -432,7 +460,9 @@ export async function initDb() {
                 push_attempts INT DEFAULT 0,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 feedback_status TEXT DEFAULT NULL,
-                feedback_at TIMESTAMPTZ DEFAULT NULL
+                feedback_at TIMESTAMPTZ DEFAULT NULL,
+                -- STUB-03: Contact email for outreach dispatch
+                contact_email TEXT DEFAULT NULL
             );
         `);
         await client.query(`ALTER TABLE lead_cards ENABLE ROW LEVEL SECURITY;`);
@@ -446,10 +476,23 @@ export async function initDb() {
             "ALTER TABLE lead_cards ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ",
             "ALTER TABLE lead_cards ADD COLUMN IF NOT EXISTS push_status VARCHAR(20) DEFAULT 'PENDING'",
             "ALTER TABLE lead_cards ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ",
-            "ALTER TABLE lead_cards ADD COLUMN IF NOT EXISTS push_attempts INT DEFAULT 0"
+            "ALTER TABLE lead_cards ADD COLUMN IF NOT EXISTS push_attempts INT DEFAULT 0",
+            // STUB-03: contact_email for outreach dispatch resolution
+            "ALTER TABLE lead_cards ADD COLUMN IF NOT EXISTS contact_email TEXT DEFAULT NULL",
+            // UI-04: grounding_score + citations for /intelligence endpoint
+            "ALTER TABLE scrape_results ADD COLUMN IF NOT EXISTS grounding_score DECIMAL(4,3) DEFAULT NULL",
+            "ALTER TABLE scrape_results ADD COLUMN IF NOT EXISTS citations JSONB DEFAULT NULL"
         ];
         for (const migration of leadCardMigrations) {
-            try { await client.query(migration); } catch(e) {}
+            try {
+                await client.query(migration);
+            } catch (e: any) {
+                // DB-03: Log swallowed migration errors so silent partial migrations are detectable in logs.
+                // Expected errors (e.g. column already exists with a different type) will surface here.
+                if (!e.message?.includes('already exists')) {
+                    console.error(`[Database] Migration warning: ${migration.substring(0, 80)}... Error: ${e.message}`);
+                }
+            }
         }
 
         // Performance indexes for lead_cards
@@ -679,24 +722,82 @@ export async function initDb() {
             await client.query(`
                 DO $$
                 BEGIN
-                    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = '${table}' AND policyname = 'org_isolation_policy') THEN
-                        CREATE POLICY org_isolation_policy ON ${table}
-                        USING (organization_id = current_setting('app.current_organization_id')::uuid);
+                    IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = '${table}' AND policyname = 'org_isolation_policy') THEN
+                        DROP POLICY org_isolation_policy ON ${table};
                     END IF;
+                    CREATE POLICY org_isolation_policy ON ${table}
+                    USING (
+                        current_setting('app.bypass_rls', true) = 'true'
+                        OR organization_id = current_setting('app.current_organization_id')::uuid
+                    );
                 END $$;
             `);
         }
+
+        // DB-02: lead_cards uses org_id TEXT (not organization_id UUID).
+        // Policy must cast current_setting to TEXT for comparison to work correctly.
+        await client.query(`
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'lead_cards' AND policyname = 'org_isolation_policy_lead_cards') THEN
+                    DROP POLICY org_isolation_policy_lead_cards ON lead_cards;
+                END IF;
+                CREATE POLICY org_isolation_policy_lead_cards ON lead_cards
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
+            END $$;
+        `);
 
         // Separate policy for llm_usage_logs using org_id instead of organization_id
         await client.query(`
             DO $$
             BEGIN
-                IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'llm_usage_logs' AND policyname = 'org_isolation_policy_usage') THEN
-                    CREATE POLICY org_isolation_policy_usage ON llm_usage_logs
-                    USING (org_id = current_setting('app.current_organization_id'));
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'llm_usage_logs' AND policyname = 'org_isolation_policy_usage') THEN
+                    DROP POLICY org_isolation_policy_usage ON llm_usage_logs;
                 END IF;
+                CREATE POLICY org_isolation_policy_usage ON llm_usage_logs
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
             END $$;
         `);
+
+        // Enable RLS on covospan tables
+        await client.query(`ALTER TABLE covospan_configs ENABLE ROW LEVEL SECURITY;`);
+        await client.query(`ALTER TABLE covospan_push_log ENABLE ROW LEVEL SECURITY;`);
+
+        // Separate policies for covospan tables using org_id
+        await client.query(`
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'covospan_configs' AND policyname = 'org_isolation_policy_covospan_configs') THEN
+                    DROP POLICY org_isolation_policy_covospan_configs ON covospan_configs;
+                END IF;
+                CREATE POLICY org_isolation_policy_covospan_configs ON covospan_configs
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
+            END $$;
+        `);
+
+        await client.query(`
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'covospan_push_log' AND policyname = 'org_isolation_policy_covospan_push_log') THEN
+                    DROP POLICY org_isolation_policy_covospan_push_log ON covospan_push_log;
+                END IF;
+                CREATE POLICY org_isolation_policy_covospan_push_log ON covospan_push_log
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
+            END $$;
+        `);
+
 
         // 19. Intelligence Source Autonomy (Phase 10)
         await client.query(`
@@ -716,12 +817,17 @@ export async function initDb() {
         await client.query(`
             DO $$
             BEGIN
-                IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'source_configs' AND policyname = 'org_isolation_policy_sources') THEN
-                    CREATE POLICY org_isolation_policy_sources ON source_configs
-                    USING (org_id = current_setting('app.current_organization_id'));
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'source_configs' AND policyname = 'org_isolation_policy_sources') THEN
+                    DROP POLICY org_isolation_policy_sources ON source_configs;
                 END IF;
+                CREATE POLICY org_isolation_policy_sources ON source_configs
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
             END $$;
         `);
+
 
         // 20. Tender Watch Profiles (Phase 2)
         await client.query(`
@@ -739,15 +845,21 @@ export async function initDb() {
         await client.query(`CREATE INDEX IF NOT EXISTS idx_watch_profiles_org ON watch_profiles (org_id) WHERE is_active = TRUE;`);
         await client.query(`ALTER TABLE watch_profiles ENABLE ROW LEVEL SECURITY;`);
 
+        // Watch Profiles RLS using org_id
         await client.query(`
             DO $$
             BEGIN
-                IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'watch_profiles' AND policyname = 'org_isolation_policy_watch') THEN
-                    CREATE POLICY org_isolation_policy_watch ON watch_profiles
-                    USING (org_id = current_setting('app.current_organization_id'));
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'watch_profiles' AND policyname = 'org_isolation_policy_watch') THEN
+                    DROP POLICY org_isolation_policy_watch ON watch_profiles;
                 END IF;
+                CREATE POLICY org_isolation_policy_watch ON watch_profiles
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
             END $$;
         `);
+
 
         await client.query('COMMIT');
         console.log('[Database] Schema migration complete.');
@@ -780,6 +892,7 @@ async function connectWithRetry(targetPool: Pool, attempts = 3): Promise<PoolCli
 export const db = {
     query,
     queryWithOrg,
+    queryAsSystem,
     withOrgTransaction,
     initDb
 };

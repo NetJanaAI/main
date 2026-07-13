@@ -52,7 +52,7 @@ describe('tenantContext public route policy', () => {
         process.env = originalEnv;
     });
 
-    it('allows unauthenticated access to aggregate lead stats', async () => {
+    it('does not allow unauthenticated access to aggregate lead stats', async () => {
         const tenantContext = await loadTenantContext({ NODE_ENV: 'production' });
         const req = { path: '/api/leads/stats', headers: {} } as Request;
         const res = mockResponse();
@@ -60,8 +60,11 @@ describe('tenantContext public route policy', () => {
 
         await tenantContext(req as any, res, next);
 
-        expect(next).toHaveBeenCalledTimes(1);
-        expect(res.status).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ error: expect.stringContaining('Unauthorized') })
+        );
+        expect(next).not.toHaveBeenCalled();
     });
 
     it('does not allow unauthenticated access to lead match details', async () => {

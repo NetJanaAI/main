@@ -24,13 +24,19 @@ services:
       - ALLOWED_INGEST_IPS=${ALLOWED_INGEST_IPS:-127.0.0.1,::1}
       - ADMIN_SECRET=${ADMIN_SECRET}
       - REGION_ID=UAE_DUBAI_01
-      # Audit remediation: ConvoSpan push + Outreach vars
+      # ConvoSpan push + Outreach vars
       - CONVOSPAN_WEBHOOK_URL=${CONVOSPAN_WEBHOOK_URL}
       - CONVOSPAN_API_KEY=${CONVOSPAN_API_KEY}
       - NETJANA_HMAC_SECRET=${NETJANA_HMAC_SECRET}
       - NETJANA_PULL_API_KEY=${NETJANA_PULL_API_KEY}
       - OUTREACH_DEFAULT_EMAIL=${OUTREACH_DEFAULT_EMAIL}
       - ROLE=api_only
+      # STUB-04: Security Vault and Alerting keys
+      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
+      - API_KEY_SECRET=${API_KEY_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,6 +69,12 @@ services:
       - ALLOWED_INGEST_IPS=${ALLOWED_INGEST_IPS:-127.0.0.1,::1}
       - ROLE=worker
       - REGION_ID=UAE_DUBAI_01
+      # STUB-04: Security Vault and Alerting keys
+      - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
+      - API_KEY_SECRET=${API_KEY_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -129,4 +141,3 @@ services:
 volumes:
   redis_data:
   pg_data:
-

@@ -48,8 +48,11 @@ async function bootstrap() {
         startInfluenceWorker(io).catch(e => console.error('[Startup] Influence worker failed:', e.message));
     });
 
-    io.on('connection', (socket) => {
-        const organizationId = socket.handshake.query.organizationId as string;
+    const { socketAuthMiddleware } = await import('../../middleware/socketAuth');
+    io.use(socketAuthMiddleware);
+
+    io.on('connection', (socket: any) => {
+        const organizationId = socket.organizationId;
         if (organizationId) {
             socket.join(`org:${organizationId}`);
             console.log(`Institutional node ${socket.id} joined room org:${organizationId}`);

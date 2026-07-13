@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../lib/database';
+import { decryptCredential } from '../lib/credentialVault';
 
 export interface CovospanConfig {
     endpoint_url: string;   // ConvoSpan webhook URL
@@ -71,7 +72,14 @@ export class CovospanPusher {
                  FROM covospan_configs WHERE org_id = $1 AND is_active = TRUE LIMIT 1`,
                 [orgId]
             );
-            if (res.rows[0]) return res.rows[0] as CovospanConfig;
+            if (res.rows[0]) {
+                const row = res.rows[0] as CovospanConfig;
+                // SEC-05: Decrypt credentials stored with AES-256-GCM by encryptCredential().
+                // Falls back gracefully for plaintext legacy values (pre-migration).
+                row.api_key = decryptCredential(row.api_key);
+                if (row.hmac_secret) row.hmac_secret = decryptCredential(row.hmac_secret);
+                return row;
+            }
         } catch {
             // DB unavailable — fall through to env var config
         }

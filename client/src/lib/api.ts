@@ -27,16 +27,11 @@ export class ApiError extends Error {
 }
 
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
-    const orgId = localStorage.getItem('netjana_tenant_id');
     const token = await getClerkToken();
     const headers = new Headers(options.headers);
 
     if (!options.body || !(options.body instanceof FormData)) {
         headers.set('Content-Type', 'application/json');
-    }
-
-    if (orgId) {
-        headers.set('x-organization-id', orgId);
     }
 
     if (token && !headers.has('Authorization')) {

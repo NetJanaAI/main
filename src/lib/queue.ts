@@ -90,6 +90,13 @@ export const tier3Queue = new Queue(TIER3_QUEUE_NAME, {
     defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true }
 });
 
+export const DECAY_QUEUE_NAME = 'decay-rescore';
+
+export const decayRescoreQueue = new Queue(DECAY_QUEUE_NAME, {
+    connection,
+    defaultJobOptions: { attempts: 2, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true }
+});
+
 export const outreachQueue = new Queue(OUTREACH_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 10000 }, removeOnComplete: true }

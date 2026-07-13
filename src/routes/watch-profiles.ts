@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { query } from '../lib/database';
+import { queryWithOrg } from '../lib/database';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 // @ts-ignore
@@ -14,7 +14,11 @@ router.get('/', async (req: Request, res: Response) => {
     if (!orgId) return res.status(400).json({ error: 'Organization ID required' });
 
     try {
-        const result = await query(`SELECT * FROM watch_profiles WHERE org_id = $1 ORDER BY created_at DESC`, [orgId]);
+        const result = await queryWithOrg(
+            `SELECT * FROM watch_profiles WHERE org_id = $1 ORDER BY created_at DESC`,
+            [orgId],
+            orgId
+        );
         res.json({ profiles: result.rows });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
@@ -29,10 +33,11 @@ router.post('/', async (req: Request, res: Response) => {
     const { keywords, regions, min_amount } = req.body;
     
     try {
-        const result = await query(
+        const result = await queryWithOrg(
             `INSERT INTO watch_profiles (profile_id, org_id, keywords, regions, min_amount) 
              VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [uuidv4(), orgId, JSON.stringify(keywords || []), JSON.stringify(regions || []), min_amount || 0]
+            [uuidv4(), orgId, JSON.stringify(keywords || []), JSON.stringify(regions || []), min_amount || 0],
+            orgId
         );
         res.status(201).json({ profile: result.rows[0] });
     } catch (e: any) {
@@ -62,10 +67,11 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
             const min_amount = parseInt(row.min_amount) || 0;
 
             if (keywords.length > 0 || regions.length > 0) {
-                await query(
+                await queryWithOrg(
                     `INSERT INTO watch_profiles (profile_id, org_id, keywords, regions, min_amount) 
                      VALUES ($1, $2, $3, $4, $5)`,
-                    [uuidv4(), orgId, JSON.stringify(keywords), JSON.stringify(regions), min_amount]
+                    [uuidv4(), orgId, JSON.stringify(keywords), JSON.stringify(regions), min_amount],
+                    orgId
                 );
                 successCount++;
             }

@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { query } from '../lib/database';
+import { queryWithOrg } from '../lib/database';
 import { TenantRequest } from '../middleware/tenant';
 import crypto from 'crypto';
 import { getHmacSecret } from '../lib/secrets';
@@ -13,9 +13,10 @@ router.get('/export', async (req: TenantRequest, res: Response) => {
     try {
         const orgId = req.organizationId;
         
-        const result = await query(
+        const result = await queryWithOrg(
             'SELECT domain, friction_score, geo_country, estimated_roi, timestamp FROM scrape_results WHERE (organization_id = $1 OR organization_id IS NULL) ORDER BY timestamp DESC',
-            [orgId || null]
+            [orgId || null],
+            orgId
         );
         
         if (!result || result.rows.length === 0) {

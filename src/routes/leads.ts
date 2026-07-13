@@ -21,9 +21,9 @@ router.get('/stats', async (req, res) => {
         const result = await queryWithOrg(`
             SELECT
                 COUNT(*)                                                        AS total,
-                COUNT(*) FILTER (WHERE intent_score >= 80)                     AS hot,
-                COUNT(*) FILTER (WHERE intent_score >= 60 AND intent_score < 80) AS warm,
-                COUNT(*) FILTER (WHERE intent_score < 60)                      AS cold,
+                COUNT(*) FILTER (WHERE COALESCE(decay_status, 'Hot') = 'Hot')  AS hot,
+                COUNT(*) FILTER (WHERE COALESCE(decay_status, 'Hot') = 'Warm') AS warm,
+                COUNT(*) FILTER (WHERE COALESCE(decay_status, 'Hot') = 'Cold') AS cold,
                 COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day') AS today,
                 COALESCE(SUM(intent_score), 0)                                 AS alpha_sum
             FROM lead_cards
@@ -111,9 +111,10 @@ router.get('/re-engage-queue', async (req, res) => {
         }
 
         if (industry) {
-            // Assuming signals or metadata has industry. Scrape results doesn't have a top-level industry col usually, but we'll check signals
-            // Simplified for this task: check domain or industry tag if present
-            // In a real scenario, this would be a more complex JSONB filter
+            // FLOW-03: Filter by industry using the signals JSONB column.
+            // signals->>'industry' or signals->>'sector' is indexed in some scraped results.
+            params.push(`%${String(industry).toLowerCase()}%`);
+            sql += ` AND (LOWER(signals->>'industry') LIKE $${params.length} OR LOWER(signals->>'sector') LIKE $${params.length})`;
         }
 
         sql += ` ORDER BY signal_captured_at DESC`;

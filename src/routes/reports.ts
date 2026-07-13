@@ -4,6 +4,14 @@ import PDFDocument from 'pdfkit';
 
 const router = express.Router();
 
+function escapeCsvValue(val: string): string {
+    const trimmed = (val || '').trim();
+    if (trimmed.startsWith('=') || trimmed.startsWith('+') || trimmed.startsWith('-') || trimmed.startsWith('@')) {
+        return `'${trimmed}`;
+    }
+    return val || '';
+}
+
 router.get('/export', async (req: any, res) => {
     const orgId = req.organizationId;
     const format = req.query.format || 'pdf';
@@ -23,7 +31,11 @@ router.get('/export', async (req: any, res) => {
             
             let csv = 'Company,Sector,Intent Score,Status,Context\n';
             results.rows.forEach(r => {
-                csv += `"${r.company_name}","${r.sector || ''}",${r.intent_score},"${r.decay_status}","${(r.card_why_now || '').replace(/"/g, '""')}"\n`;
+                const comp = escapeCsvValue(r.company_name);
+                const sect = escapeCsvValue(r.sector);
+                const stat = escapeCsvValue(r.decay_status);
+                const cont = escapeCsvValue(r.card_why_now);
+                csv += `"${comp.replace(/"/g, '""')}","${sect.replace(/"/g, '""')}",${r.intent_score},"${stat.replace(/"/g, '""')}","${cont.replace(/"/g, '""')}"\n`;
             });
             return res.send(csv);
         }

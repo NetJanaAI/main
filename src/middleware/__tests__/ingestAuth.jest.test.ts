@@ -1,10 +1,17 @@
 import { cidrContains, ingestAuthGuard } from '../ingestAuth';
 import { query } from '../../lib/database';
+import { getApiKeySecret, getHmacSecret } from '../../lib/secrets';
 import crypto from 'crypto';
 
-jest.mock('../../lib/database', () => ({
-    query: jest.fn(),
-}));
+jest.mock('../../lib/database', () => {
+    const q = jest.fn();
+    return {
+        query: q,
+        db: {
+            query: q,
+        }
+    };
+});
 
 jest.mock('../../lib/secrets', () => ({
     DEV_HMAC_SECRET: 'dev-secret',
@@ -199,8 +206,7 @@ describe('ingestAuthGuard', () => {
         process.env.API_KEY_SECRET = newSecret;
         
         // Mock getApiKeySecret to return newSecret
-        const secretsMod = require('../../lib/secrets');
-        (secretsMod.getApiKeySecret as jest.Mock).mockReturnValue(newSecret);
+        (getApiKeySecret as jest.Mock).mockReturnValue(newSecret);
 
         mockReq.ip = '192.168.1.50';
         mockReq.rawBody = '{"test": true}';

@@ -1,6 +1,5 @@
+import { getSharedRedisClient } from './redis';
 import { Redis as UpstashRedis } from '@upstash/redis';
-import IORedis from 'ioredis';
-import { connection } from './queue';
 
 type SetOptions = {
     ex?: number;
@@ -27,11 +26,7 @@ type CacheClient = {
 };
 
 function createLocalRedisCache(): CacheClient {
-    const redis = new IORedis({
-        ...(connection as any),
-        lazyConnect: false,
-        enableOfflineQueue: true,
-    });
+    const redis = getSharedRedisClient();
 
     return {
         async get<T = unknown>(key: string) {

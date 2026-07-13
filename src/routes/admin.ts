@@ -216,19 +216,73 @@ router.delete('/security/ips/:id', async (req: Request, res: Response) => {
     }
 });
 
+function maskSensitiveMetadata(obj: any): any {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(maskSensitiveMetadata);
+    
+    const sensitiveKeys = new Set([
+        'email', 'ip', 'token', 'key', 'apikey', 'password', 'secret', 
+        'cidr', 'rawtext', 'pii', 'api_key', 'hmac_secret', 'secretkey'
+    ]);
+    const masked: Record<string, any> = {};
+    for (const [k, v] of Object.entries(obj)) {
+        const keyLower = k.toLowerCase();
+        const isSensitive = sensitiveKeys.has(keyLower) || 
+                            keyLower.includes('secret') || 
+                            keyLower.includes('key') || 
+                            keyLower.includes('token') ||
+                            keyLower.includes('email');
+        if (isSensitive) {
+            masked[k] = '[MASKED]';
+        } else if (typeof v === 'object') {
+            masked[k] = maskSensitiveMetadata(v);
+        } else {
+            masked[k] = v;
+        }
+    }
+    return masked;
+}
+
 /**
  * GET /api/admin/security/audit - List Recent Security Events.
+ * SEC-06: Paginated & masked for non-super-admins.
  */
 router.get('/security/audit', async (req: Request, res: Response) => {
+    const limit = Math.min(parseInt(req.query.limit as string || '50'), 200);
+    const offset = parseInt(req.query.offset as string || '0');
+    const adminRole = (req as any).adminRole;
+
     try {
+        const countRes = await query('SELECT COUNT(*) FROM audit_logs');
+        const total = parseInt(countRes.rows[0].count, 10);
+
         const result = await query(`
             SELECT a.*, t.name as organization_name 
             FROM audit_logs a
             LEFT JOIN tenants t ON a.organization_id = t.id
             ORDER BY a.timestamp DESC 
-            LIMIT 100
-        `);
-        res.json(result.rows);
+            LIMIT $1 OFFSET $2
+        `, [limit, offset]);
+
+        let logs = result.rows;
+        if (adminRole !== 'super_admin') {
+            logs = logs.map(row => {
+                const updated = { ...row };
+                if (updated.metadata) {
+                    updated.metadata = maskSensitiveMetadata(updated.metadata);
+                }
+                // Mask actor IP address if present in row level details
+                if (updated.actor_ip) updated.actor_ip = '[MASKED]';
+                return updated;
+            });
+        }
+
+        res.json({
+            logs,
+            total,
+            limit,
+            offset
+        });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }

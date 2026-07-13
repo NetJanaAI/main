@@ -1,11 +1,11 @@
-import Redis from 'ioredis';
 import { db } from '../lib/database';
-import { connection } from '../lib/queue';
 import { Server } from 'socket.io';
 import { CovospanPusher } from './CovospanPusher';
 import { sendCraftMyFunnelLeadSignal } from './CraftMyFunnelPusher';
+import { TenantRAGStore } from './rag/TenantRAGStore';
+import { getSharedRedisClient } from '../lib/redis';
 
-const redis = new Redis(connection as any);
+const redis = getSharedRedisClient();
 
 export async function emitLeadCard(io: Server, leadData: any) {
     const {
@@ -58,6 +58,27 @@ export async function emitLeadCard(io: Server, leadData: any) {
         ];
 
         await db.query(query, values);
+
+        // FLOW-01: Index lead card into TenantRAGStore immediately after Postgres write.
+        // OutreachGenerator calls store.query() — if the lead is not indexed here,
+        // every outreach job fails with "Lead data not found in RAG store".
+        try {
+            const store = new TenantRAGStore(org_id || 'default');
+            const pageContent = JSON.stringify({
+                lead_id, company_name, sector, procurement_category,
+                buying_stage, card_why_now, card_what_they_need, card_do_this,
+                intent_score, geo_state
+            });
+            await store.upsert(
+                'lead_card',
+                lead_id,
+                pageContent,
+                { lead_id, org_id: org_id || 'default', type: 'lead_card' }
+            );
+        } catch (ragErr: any) {
+            // Non-fatal: outreach will fall back to Postgres data if RAG index fails.
+            console.warn('[LeadEmitter] RAG index failed (non-fatal):', ragErr.message);
+        }
     } catch (e: any) {
         console.warn('[LeadEmitter] Failed to persist LeadCard to Postgres:', e.message);
     }
@@ -72,9 +93,15 @@ export async function emitLeadCard(io: Server, leadData: any) {
         console.warn('[LeadEmitter] Failed to persist LeadCard to Redis:', e.message);
     }
 
-    // 3. Emit via Socket.Io
+    // 3. Emit via Socket.IO
     if (io) {
-        io.to('leads_stream').emit('new_lead', leadData);
+        // Multi-tenant isolation: emit client-specific messages to the org room only
+        if (org_id && org_id !== 'default') {
+            io.to(`org:${org_id}`).emit('new_lead', leadData);
+            io.to(`org:${org_id}`).emit('lead:new_card', leadData);
+        } else {
+            io.to('leads_stream').emit('new_lead', leadData);
+        }
     }
 
     // 4. Push to ConvoSpan (fire-and-forget — never blocks the emitter)
