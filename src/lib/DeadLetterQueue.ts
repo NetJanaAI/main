@@ -14,6 +14,9 @@ import { query } from './database';
 import { dlqQueue, tier2Queue } from './queue';
 import crypto from 'crypto';
 
+let dbUnreachableUntil = 0;
+const DB_COOLDOWN_MS = 60000; // 1 minute circuit-breaker cooldown
+
 function normalizeSignal(row: any): any {
     let rawPayload: Record<string, any> = {};
     try {
@@ -123,6 +126,12 @@ export const DeadLetterQueue = {
      * Should be called on a recurring schedule (e.g. monthly).
      */
     archiveOldEntries: async (ageDays: number = 30): Promise<{ archived: number }> => {
+        const now = Date.now();
+        if (now < dbUnreachableUntil) {
+            // Database is in cooldown state after connection failure. Skip silently.
+            return { archived: 0 };
+        }
+
         try {
             // Ensure archive table exists (idempotent)
             await query(`
@@ -147,7 +156,9 @@ export const DeadLetterQueue = {
             console.log(`[DLQ] Archived ${archived} entries older than ${ageDays} days.`);
             return { archived };
         } catch (err: any) {
-            console.error('[DLQ] archiveOldEntries failed:', err.message);
+            // Trigger circuit breaker cooldown
+            dbUnreachableUntil = Date.now() + DB_COOLDOWN_MS;
+            console.warn('[DLQ] archiveOldEntries skipped due to database connection issue:', err.message);
             return { archived: 0 };
         }
     }
