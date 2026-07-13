@@ -1,13 +1,13 @@
 import express from 'express';
 import crypto from 'crypto';
-import Redis from 'ioredis';
 import { query, queryWithOrg } from '../lib/database';
 import { getHmacSecret } from '../lib/secrets';
 import { CampaignROIAggregator } from '../standalone/services/CampaignROIAggregator';
 import { ROIPDFGenerator } from '../standalone/services/ROIPDFGenerator';
+import { getSharedRedisClient } from '../lib/redis';
 
 const router = express.Router();
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const redis = getSharedRedisClient();
 
 const CAMPAIGN_STATES = new Set(['DISCOVERED', 'CAPSULE_SENT', 'ACKNOWLEDGED', 'CONVERTED', 'DORMANT']);
 

@@ -1,9 +1,9 @@
 import express from 'express';
-import Redis from 'ioredis';
 import { ShareService } from '../standalone/services/ShareService';
+import { getSharedRedisClient } from '../lib/redis';
 
 const router = express.Router();
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const redis = getSharedRedisClient();
 
 /**
  * Generates a signed share URL for a lead.

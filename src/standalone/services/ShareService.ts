@@ -1,10 +1,10 @@
 import crypto from 'crypto';
-import Redis from 'ioredis';
 import { query } from '../../lib/database';
 import { SovereignFirewall } from '../../lib/ai/SovereignFirewall';
 import { getHmacSecret } from '../../lib/secrets';
+import { getSharedRedisClient } from '../../lib/redis';
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const redis = getSharedRedisClient();
 
 export class ShareService {
     /**

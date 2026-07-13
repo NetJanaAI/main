@@ -1,10 +1,10 @@
 import express from 'express';
 import { query, queryWithOrg } from '../lib/database';
-import { influenceQueue, connection } from '../lib/queue';
-import Redis from 'ioredis';
+import { influenceQueue } from '../lib/queue';
+import { getSharedRedisClient } from '../lib/redis';
 import { z } from 'zod';
 
-const redis = new Redis(connection as any);
+const redis = getSharedRedisClient();
 const router = express.Router();
 
 const FeedbackSchema = z.object({

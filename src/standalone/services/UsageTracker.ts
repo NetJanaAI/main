@@ -1,7 +1,7 @@
-import Redis from 'ioredis';
 import { FREEMIUM_LIMITS, FeatureKey } from '../../config/freemiumLimits';
+import { getSharedRedisClient } from '../../lib/redis';
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const redis = getSharedRedisClient();
 
 export interface UsageStatus {
     used: number;
