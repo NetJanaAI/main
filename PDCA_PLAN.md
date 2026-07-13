@@ -9,14 +9,17 @@ This plan details the **Plan-Do-Check-Act (PDCA)** remediation cycle based on th
 ### 1. [P0] RLS Enforcement on Covospan configs & logs (FINDING-MT-01)
 *   **Plan (P)**: 
     *   Protect `covospan_configs` and `covospan_push_log` under Postgres Row-Level Security (RLS) policies.
-    *   Replace direct `db.query` calls in [covospan.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/routes/covospan.ts) with `queryWithOrg` to ensure data isolation.
+    *   Ensure all database operations—including frontend routes, background tasks, and compliance purge routines—carry correct tenant context or explicitly bypass policies where needed.
 *   **Do (D)**: 
-    *   Alter tables to `ENABLE ROW LEVEL SECURITY` in `initDb()` inside [database.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/lib/database.ts) and add `org_isolation_policy` to these tables.
-    *   Refactor the database queries inside [covospan.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/routes/covospan.ts) to utilize `queryWithOrg(text, params, orgId)`.
+    *   Alter tables to `ENABLE ROW LEVEL SECURITY` in `initDb()` inside [database.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/lib/database.ts) and add isolation policies.
+    *   Refactor [covospan.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/routes/covospan.ts) routes to use `queryWithOrg(text, params, orgId)`.
+    *   Refactor background methods `getConfig` and `log` in [CovospanPusher.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/core/CovospanPusher.ts) to utilize `queryWithOrg` to inject correct `org_id` context.
+    *   Update GDPR deletion queries in [VanishProtocol.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/core/rag/VanishProtocol.ts) to explicitly set `SET LOCAL app.bypass_rls = 'true'` inside the purge transaction to allow deletion of RLS-protected tables under system privileges.
 *   **Check (C)**: 
-    *   Verify by querying `/api/covospan/config` with different organization IDs in session token to ensure records of other organizations are not returned.
+    *   Verify tenant isolation on endpoints. Test manual and auto-trigger pushing to verify worker configurations load and write logs under active RLS. Run GDPR purge tests to verify cleanup success.
 *   **Act (A)**: 
-    *   Integrate `queryWithOrg` verification in standard pull-request audits.
+    *   Integrate RLS context audits in CI pipelines and pre-deployment schema migrations.
+
 
 ### 2. [P0] DLQ archiveOldEntries log-spam reduction (FINDING-OPS-01)
 *   **Plan (P)**: 
