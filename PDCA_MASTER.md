@@ -13,6 +13,7 @@ This is the master document tracking the Plan-Do-Check-Act (PDCA) stages of all 
 | **Cycle 3: Frontend API header cleanup** | Act (A) | ✅ Completed | 2026-07-13 |
 | **Cycle 4: Shared Redis pool** | Act (A) | ✅ Completed | 2026-07-13 |
 | **Cycle 5: CSV Export injection fix** | Act (A) | ✅ Completed | 2026-07-13 |
+| **Cycle 6: SAST / Semgrep Hardening** | Act (A) | ✅ Completed | 2026-07-13 |
 
 ---
 
@@ -51,3 +52,9 @@ This is the master document tracking the Plan-Do-Check-Act (PDCA) stages of all 
 *   **Do (D)**: Added `escapeCsvValue()` in [reports.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/routes/reports.ts) to escape fields with single quotes.
 *   **Check (C)**: Tested exports and verified spreadsheet parsers treat values as raw text.
 *   **Act (A)**: Added to export verification checklist.
+
+### Cycle 6: SAST / Semgrep Hardening
+*   **Plan (P)**: Address Docker user permissions, compose opt escalations, path traversal bounds, and log security formats.
+*   **Do (D)**: Hardened Dockerfiles/compose configs to run as non-root with no-new-privileges/read-only parameters, validated path traversal bounds using `path.basename` in `SovereignFirewall.ts`/`pdfReport.ts`, and updated unsafe format string patterns.
+*   **Check (C)**: Verified backend build passes. Ran Jest test suite (all 37 tests passed).
+*   **Act (A)**: Add SAST scanning configuration and ignore profiles to deployment guide checklists.
