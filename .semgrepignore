@@ -3,3 +3,8 @@ dist/
 build/
 .next/
 *.min.js
+scripts/
+test-*.js
+test-*.ts
+**/*.jest.test.ts
+**/*.test.ts

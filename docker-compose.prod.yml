@@ -10,6 +10,13 @@ services:
       dockerfile: Dockerfile
     container_name: netjana-prod
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.cache
+      - /root/.cache
     # Cloud providers like Azure/Render will map their public ports to this EXPOSEd 3000
     ports:
       - "3000:3000"
@@ -54,6 +61,13 @@ services:
     container_name: netjana-scraper-worker
     restart: always
     command: npm run start:scraper
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.cache
+      - /root/.cache
     environment:
       - NODE_ENV=production
       - DATABASE_URL=${PGBOUNCER_DATABASE_URL}
@@ -79,6 +93,11 @@ services:
       dockerfile: Dockerfile
     container_name: netjana-go-pusher-prod
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       - DATABASE_URL=${PGBOUNCER_DATABASE_URL}
       - CONVOSPAN_WEBHOOK_URL=${CONVOSPAN_WEBHOOK_URL}
@@ -98,6 +117,13 @@ services:
     image: edoburu/pgbouncer:latest
     container_name: netjana-pgbouncer-prod
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+      - /var/run/pgbouncer
     ports:
       - "6432:6432"
     environment:
@@ -112,6 +138,13 @@ services:
     image: ghcr.io/berriai/litellm:main-latest
     container_name: netjana-litellm-prod
     restart: always
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.cache
+      - /root/.cache
     ports:
       - "4000:4000"
     volumes:
@@ -124,19 +157,3 @@ services:
 
 volumes:
   netjana_data:
-
-# ─── NOTE ON REDIS PERSISTENCE (P0-4) ───────────────────────────────────────
-# This prod compose uses REDIS_URL which should point to a managed Redis
-# service (Upstash, Redis Cloud, AWS ElastiCache) where AOF/RDB persistence
-# is handled by the provider.
-#
-# If self-hosting Redis alongside this compose, add:
-#
-#   redis:
-#     image: redis:7-alpine
-#     command: redis-server --appendonly yes --appendfsync everysec
-#     volumes:
-#       - redis_data:/data
-#
-# and add redis_data to the volumes block.
-# ─────────────────────────────────────────────────────────────────────────────

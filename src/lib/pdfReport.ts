@@ -83,7 +83,11 @@ export async function generateReport(result: ScrapeResult): Promise<NodeJS.Reada
                 // screenshotPath is like /screenshots/filename.png
                 // We need the local absolute path
                 const filename = path.basename(result.screenshotPath);
-                const localPath = path.join(process.cwd(), 'data', 'screenshots', filename);
+                const basePath = path.join(process.cwd(), 'data', 'screenshots');
+                const localPath = path.resolve(basePath, filename);
+                if (!localPath.startsWith(basePath)) {
+                    throw new Error('Path traversal detected');
+                }
                 
                 if (fs.existsSync(localPath)) {
                     doc.addPage();

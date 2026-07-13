@@ -21,7 +21,8 @@ class RegionalVault {
         this.regionId = regionId;
         this.organizationId = organizationId || null;
         const basePath = path.join(process.cwd(), 'data');
-        const rawVaultPath = path.join(basePath, `vault_${regionId.toLowerCase()}.json`);
+        const safeRegionId = path.basename(regionId.toLowerCase());
+        const rawVaultPath = path.join(basePath, `vault_${safeRegionId}.json`);
         this.vaultPath = path.normalize(rawVaultPath);
         if (!this.vaultPath.startsWith(basePath)) {
             throw new Error(`Invalid regionId specified, path traversal detected: ${regionId}`);

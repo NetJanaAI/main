@@ -8,6 +8,13 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.cache
+      - /root/.cache
     volumes:
       - ./data:/app/data
     environment:
@@ -58,6 +65,13 @@ services:
     container_name: b2b-scraper-worker
     restart: unless-stopped
     command: npm run start:scraper
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.cache
+      - /root/.cache
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - DATABASE_URL=postgres://netjana:netjana@postgres:5432/netjana
@@ -90,6 +104,11 @@ services:
     image: netjana-go-pusher:local
     container_name: b2b-go-pusher
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       - DATABASE_URL=postgres://netjana:netjana@postgres:5432/netjana
       - CONVOSPAN_WEBHOOK_URL=${CONVOSPAN_WEBHOOK_URL}
@@ -105,6 +124,12 @@ services:
     image: postgres:16-alpine
     container_name: b2b-postgres
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     environment:
       POSTGRES_USER: netjana
       POSTGRES_PASSWORD: netjana
@@ -125,6 +150,11 @@ services:
     image: redis:7-alpine
     container_name: b2b-redis
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     # P0-4 Fix: Enable AOF persistence so BullMQ job state survives container restarts.
     # appendfsync everysec is the recommended balance of durability vs. performance.
     command: redis-server --appendonly yes --appendfsync everysec

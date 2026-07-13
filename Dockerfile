@@ -15,8 +15,7 @@ COPY . .
 RUN npm run build
 
 # Stage 3: Production Runtime (Playwright)
-# S2-1 Fix: Image version MUST match installed playwright package version in package.json.
-# Previously v1.45.0 while package installed ^1.58.1 — caused browserType.launch failures.
+# Image version matches installed playwright package version in package.json.
 FROM mcr.microsoft.com/playwright:v1.58.0-jammy
 WORKDIR /app
 
@@ -28,8 +27,8 @@ RUN npm install --only=production --legacy-peer-deps
 COPY --from=server-build /app/dist ./dist
 COPY --from=client-build /app/client/dist ./client/dist
 
-# Ensure the data directory exists for local vault persistence
-RUN mkdir -p /app/data && chmod 777 /app/data
+# Ensure the data directory exists for local vault persistence and is owned by pwuser
+RUN mkdir -p /app/data && chown -R pwuser:pwuser /app && chmod 777 /app/data
 
 # Set environment
 ENV NODE_ENV=production
@@ -45,4 +44,5 @@ LABEL maintainer="NetJana AI Team"
 LABEL version="1.2.0"
 LABEL description="Sovereign Alpha B2B Scraper - Azure Ready"
 
+USER pwuser
 CMD ["npm", "start"]

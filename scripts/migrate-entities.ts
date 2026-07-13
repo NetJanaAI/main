@@ -42,7 +42,7 @@ async function main() {
             ]);
             successCount++;
         } catch (e) {
-            console.error(`[Migration] Failed for ${data.org_id}:`, (e as Error).message);
+            console.error('[Migration] Failed for %s:', data.org_id, (e as Error).message);
         }
     }
 
