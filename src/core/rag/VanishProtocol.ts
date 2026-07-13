@@ -58,6 +58,7 @@ export class VanishProtocol {
 
         try {
             await db.query('BEGIN');
+            await db.query("SET LOCAL app.bypass_rls = 'true'");
 
             // 1. WIPE PII Vault records
             await db.query('DELETE FROM pii_vault WHERE organization_id = $1', [organizationId]);

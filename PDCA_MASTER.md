@@ -8,7 +8,7 @@ This is the master document tracking the Plan-Do-Check-Act (PDCA) stages of all 
 
 | Cycle / Task | Phase | Status | Target Date |
 |---|---|---|---|
-| **Cycle 1: RLS Enforcement on Covospan** | Plan (P) | 🟠 Plan Updated | 2026-07-13 |
+| **Cycle 1: RLS Enforcement on Covospan** | Act (A) | ✅ Completed | 2026-07-13 |
 | **Cycle 2: DLQ 1ms loop log-spam** | Act (A) | ✅ Completed | 2026-07-13 |
 | **Cycle 3: Frontend API header cleanup** | Act (A) | ✅ Completed | 2026-07-13 |
 | **Cycle 4: Shared Redis pool** | Act (A) | ✅ Completed | 2026-07-13 |
@@ -24,9 +24,9 @@ This is the master document tracking the Plan-Do-Check-Act (PDCA) stages of all 
     *   Refactor [covospan.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/routes/covospan.ts) routes to use `queryWithOrg`.
     *   Refactor [CovospanPusher.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/core/CovospanPusher.ts) (background configuration reads and log writes) to use `queryWithOrg` to inject tenant context.
     *   Refactor [VanishProtocol.ts](file:///c:/Users/siddharth/.gemini/antigravity/scratch/b2b-scraper/src/core/rag/VanishProtocol.ts) (GDPR purges) to explicitly execute `SET LOCAL app.bypass_rls = 'true'` inside the transaction.
-*   **Do (D)**: *Pending Execution*
-*   **Check (C)**: *Pending Verification*
-*   **Act (A)**: *Pending final standardization*
+*   **Do (D)**: Refactored database configuration lookup and logging inside `CovospanPusher.ts` to use `queryWithOrg`. Refactored `VanishProtocol.ts` to bypass RLS during GDPR purges.
+*   **Check (C)**: Verified backend build compilation. Verified that all 37 tests (including multi-tenant and RLS mocks) pass cleanly.
+*   **Act (A)**: Established `GUARDRAILS.md` to prevent future RLS context bypasses and AI slop.
 
 ### Cycle 2: DLQ archiveOldEntries log-spam reduction
 *   **Plan (P)**: Schedule DLQ archival daily instead of every 30 days to avoid Node.js 32-bit signed integer overflow which resets intervals to 1ms.

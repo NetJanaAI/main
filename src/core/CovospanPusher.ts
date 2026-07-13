@@ -67,10 +67,11 @@ export class CovospanPusher {
     static async getConfig(orgId: string): Promise<CovospanConfig | null> {
         // 1. Try per-org DB config first
         try {
-            const res = await db.query(
+            const res = await db.queryWithOrg(
                 `SELECT endpoint_url, api_key, hmac_secret, campaign_id
                  FROM covospan_configs WHERE org_id = $1 AND is_active = TRUE LIMIT 1`,
-                [orgId]
+                [orgId],
+                orgId
             );
             if (res.rows[0]) {
                 const row = res.rows[0] as CovospanConfig;
@@ -275,11 +276,12 @@ export class CovospanPusher {
         campaignId?: string
     ): Promise<void> {
         try {
-            await db.query(
+            await db.queryWithOrg(
                 `INSERT INTO covospan_push_log
                     (lead_id, org_id, status, detail, triggered_by, attempts, campaign_id)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [leadId, orgId, status, detail, triggeredBy, attempts, campaignId || null]
+                [leadId, orgId, status, detail, triggeredBy, attempts, campaignId || null],
+                orgId
             );
         } catch (e: any) {
             console.warn('[CovospanPusher] Failed to write push log:', e.message);
