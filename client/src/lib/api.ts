@@ -16,6 +16,22 @@ async function getClerkToken() {
     }
 }
 
+export const API_BASE_URL = (
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_BACKEND_URL ||
+    ''
+).replace(/\/+$/, '');
+
+export const resolveApiUrl = (url: string): string => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+    }
+    if (API_BASE_URL) {
+        return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+    return url;
+};
+
 export class ApiError extends Error {
     status: number;
 
@@ -27,6 +43,7 @@ export class ApiError extends Error {
 }
 
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
+    const fullUrl = resolveApiUrl(url);
     const token = await getClerkToken();
     const headers = new Headers(options.headers);
 
@@ -39,7 +56,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
     }
 
     try {
-        const response = await fetch(url, {
+        const response = await fetch(fullUrl, {
             ...options,
             headers
         });

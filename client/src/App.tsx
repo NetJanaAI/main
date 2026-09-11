@@ -12,8 +12,9 @@ import Analytics from './components/views/Analytics';
 import IntentMatcher from './components/views/IntentMatcher';
 import SystemHealthWidget from './components/SystemHealthWidget';
 import DeadLetterQueue from './components/views/DeadLetterQueue';
+import { API_BASE_URL } from './lib/api';
 
-const socket: Socket = io();
+const socket: Socket = io(API_BASE_URL || undefined);
 
 type Tab = 'live' | 'pipeline' | 'health' | 'analytics' | 'matcher' | 'dlq';
 

@@ -31,3 +31,5 @@ temp/
 
 # large files/assets
 frontend-test-render.png
+
+.vercel

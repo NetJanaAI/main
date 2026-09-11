@@ -161,7 +161,7 @@ export class OutreachDispatcher {
                 success: false,
                 channel: 'WABA',
                 unconfigured: true, // S1-3: signals the outreach worker to DLQ this job
-                error: 'STUB_UNIMPLEMENTED: Set WABA_TOKEN and WABA_PHONE_NUMBER_ID to enable WhatsApp dispatch.'
+                error: 'WABA_NOT_CONFIGURED: Set WABA_TOKEN and WABA_PHONE_NUMBER_ID in environment to enable WhatsApp dispatch.'
             };
         }
 

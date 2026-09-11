@@ -12,6 +12,7 @@ import {
 import { io as socketIOClient } from 'socket.io-client';
 import EntityOrganogram from '../../components/EntityOrganogram';
 import EntityStatutoryCard from '../../components/EntityStatutoryCard';
+import { resolveApiUrl, API_BASE_URL } from '../../lib/api';
 
 interface SearchResultPayload {
   entity: any;
@@ -53,7 +54,7 @@ export const EntityIntelligence: React.FC = () => {
       setSearchParams(nextParams);
 
       try {
-        const response = await fetch('/api/v1/entities/search', {
+        const response = await fetch(resolveApiUrl('/api/v1/entities/search'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -91,7 +92,7 @@ export const EntityIntelligence: React.FC = () => {
 
   // Listen for real-time WebSocket enrichment updates
   useEffect(() => {
-    const socket = socketIOClient();
+    const socket = socketIOClient(API_BASE_URL || undefined);
 
     socket.on('entity:enriched', (data: any) => {
       console.log('[EntityIntelligence] Real-time enrichment push received:', data);
@@ -115,7 +116,7 @@ export const EntityIntelligence: React.FC = () => {
 
       // Also trigger a background fetch to get the full updated entity object
       if (searchResult && searchResult.entity.entityId === data.entityId) {
-        fetch(`/api/v1/entities/${data.entityId}/organogram`)
+        fetch(resolveApiUrl(`/api/v1/entities/${data.entityId}/organogram`))
           .then((res) => res.json())
           .then((updated) => {
             if (updated && updated.entity) {

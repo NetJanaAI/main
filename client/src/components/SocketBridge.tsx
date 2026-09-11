@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../lib/auth';
 import { useAppStore } from '../store/appStore';
+import { API_BASE_URL } from '../lib/api';
 
 export default function SocketBridge() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
@@ -18,7 +19,7 @@ export default function SocketBridge() {
       const token = await getToken();
       if (cancelled) return;
 
-      socketInstance = io({
+      socketInstance = io(API_BASE_URL || undefined, {
         auth: token ? { token } : undefined,
         query: {
           organizationId: localStorage.getItem('netjana_tenant_id') || undefined,
