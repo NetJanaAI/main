@@ -1,63 +1,10 @@
-import { doubleMetaphone } from 'double-metaphone';
 import axios from 'axios';
 import crypto from 'crypto';
 import { cache } from '../lib/cache';
 import { query } from '../lib/database';
+import { cleanCompanyName, getPhoneticKey, LEGAL_SUFFIXES, INDUSTRY_NOISE } from '../lib/text-utils';
 
-const LEGAL_SUFFIXES = [
-    'PRIVATE LIMITED', 'PVT LTD', 'PVT. LTD.', 'PRIVATE LTD',
-    'PUBLIC LIMITED', 'LIMITED', ' LTD', ' LLP', ' LLC',
-    'INCORPORATED', '& CO', 'AND CO', 'CORPORATION', 'CORP',
-];
-
-const INDUSTRY_NOISE = [
-    'INDUSTRIES', 'INDUSTRY', 'ENTERPRISE', 'ENTERPRISES',
-    'TRADING', 'TRADERS', 'INTERNATIONAL', 'INDIA', 'INDIAN',
-    'EXPORTS', 'IMPORTS', 'SOLUTIONS', 'SERVICES', 'SYSTEMS',
-    'TECHNOLOGIES', 'TECH', 'GROUP', 'ASSOCIATES', 'GLOBAL',
-    'MANUFACTURING', 'MANUFACTURERS', 'SUPPLIERS', 'SUPPLIER',
-    'DISTRIBUTORS', 'DISTRIBUTION', 'LOGISTICS', 'VENTURES',
-];
-
-function stripLegalSuffix(name: string): string {
-    let cleanName = name.trim();
-    let previous = '';
-
-    while (cleanName !== previous) {
-        previous = cleanName;
-        const withoutTrailingComma = cleanName.replace(/,\s*$/, '').trim();
-        const suffix = LEGAL_SUFFIXES
-            .map(item => item.trim())
-            .find(item => withoutTrailingComma === item || withoutTrailingComma.endsWith(` ${item}`));
-
-        if (suffix) {
-            cleanName = withoutTrailingComma.slice(0, -suffix.length).replace(/,\s*$/, '').trim();
-        }
-    }
-
-    return cleanName;
-}
-
-export function cleanCompanyName(raw: string): string {
-    let name = stripLegalSuffix(raw.toUpperCase().trim());
-
-    const words = name.split(/\s+/);
-    if (words.length > 1) {
-        const filtered = words.filter(w => !INDUSTRY_NOISE.includes(w));
-        if (filtered.length > 0) name = filtered.join(' ');
-    }
-
-    name = name.replace(/[^A-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
-    return name;
-}
-
-export function getPhoneticKey(cleanName: string): string {
-    const words = cleanName.split(' ');
-    return words
-        .map(w => doubleMetaphone(w)[0])
-        .filter(Boolean)
-        .join('-');
-}
+export { cleanCompanyName, getPhoneticKey, LEGAL_SUFFIXES, INDUSTRY_NOISE };
 
 export async function resolveEntity(
     rawName: string,
@@ -131,24 +78,36 @@ export async function resolveEntity(
         }
     }
 
-    // 4. MCA API Fallback
-    if (process.env.SANDBOX_API_KEY) {
+    // 4. HybridEntityResolver Integration (InstaFinancials / Canonical Pipeline)
+    if (process.env.ENTITY_INSTA_SEARCH_ENABLED !== 'false' && process.env.NODE_ENV !== 'test') {
         try {
-            const response = await axios.get('https://api.sandbox.co.in/entity/gstin/v2/details', {
-                headers: { 'x-api-key': process.env.SANDBOX_API_KEY },
-                params: { legal_name: cleanName },
-                timeout: 5000
+            const { hybridEntityResolver } = await import('./entity-resolution/hybrid-entity-resolver');
+            const canonical = await hybridEntityResolver.resolve({
+                rawName,
+                geoState,
+                cinHint: cinHint || undefined,
+            }, {
+                enableInstaSearch: true,
+                enableAsyncEnrichment: true,
             });
-            const data = response.data;
-            if (data?.data?.cin || data?.data?.id) {
-                const orgId = data.data.cin || data.data.id;
-                await registerOrg(orgId, cleanName, geoState, phoneticKey, 'MCA_API', data.data.cin || null);
-                await cache.set(exactKey, orgId, { ex: 86400 });
-                if (data.data.cin) await cache.set(`entity:cin:${data.data.cin}`, orgId, { ex: 86400 });
-                return orgId;
+
+            if (canonical && canonical.resolutionMethod !== 'LOCAL_FALLBACK') {
+                const orgId = canonical.cin || canonical.entityId;
+
+                // Check for existing record to avoid ID-space collision
+                const existingRes = await query(
+                    'SELECT org_id FROM org_registry WHERE cin = $1 OR canonical_name = $2 LIMIT 1',
+                    [canonical.cin || null, canonical.canonicalName]
+                );
+                const finalId = existingRes.rows[0]?.org_id || orgId;
+
+                await registerOrg(finalId, canonical.canonicalName, geoState, phoneticKey, canonical.resolutionMethod, canonical.cin || null);
+                await cache.set(exactKey, finalId, { ex: 86400 });
+                if (canonical.cin) await cache.set(`entity:cin:${canonical.cin}`, finalId, { ex: 86400 });
+                return finalId;
             }
-        } catch (e) {
-            console.warn(`[EntityResolver] MCA API lookup failed for ${cleanName}`);
+        } catch (e: any) {
+            console.warn(`[EntityResolver] HybridEntityResolver lookup failed for "${cleanName}":`, e.message);
         }
     }
 

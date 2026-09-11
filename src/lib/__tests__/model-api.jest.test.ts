@@ -35,22 +35,24 @@ jest.mock('../database', () => ({
     queryWithOrg: jest.fn(),
 }));
 
-// Mock ioredis
-jest.mock('ioredis', () => {
-    return jest.fn().mockImplementation(() => {
-        return {
-            on: jest.fn(),
-            get: jest.fn().mockResolvedValue(null),
-            set: jest.fn().mockResolvedValue('OK'),
-            decr: jest.fn().mockResolvedValue(0),
-            pipeline: jest.fn().mockReturnValue({
-                incr: jest.fn().mockReturnThis(),
-                expire: jest.fn().mockReturnThis(),
-                exec: jest.fn().mockResolvedValue([[null, 1], [null, 1]]),
-            }),
-        };
-    });
+// Mock redis
+jest.mock('../redis', () => {
+    const mockRedis = {
+        on: jest.fn(),
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue('OK'),
+        decr: jest.fn().mockResolvedValue(0),
+        pipeline: jest.fn().mockReturnValue({
+            incr: jest.fn().mockReturnThis(),
+            expire: jest.fn().mockReturnThis(),
+            exec: jest.fn().mockResolvedValue([[null, 1], [null, 1]]),
+        }),
+    };
+    return {
+        getSharedRedisClient: jest.fn(() => mockRedis),
+    };
 });
+
 
 describe('ModelAPI - LiteLLM Integration', () => {
     const originalEnv = process.env;

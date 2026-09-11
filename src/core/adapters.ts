@@ -67,43 +67,8 @@ function hashPII(value: string | undefined | null, prefix: string): string | und
     return prefix + createHash('sha256').update(value.toLowerCase().trim()).digest('hex');
 }
 
-export function cleanCompanyName(rawName: string): string {
-    let clean = rawName || '';
-
-    const stripPhrasePatterns = [
-        /(?:^|\s)Private Limited(?:$|\s|\.|,)/gi,
-        /(?:^|\s)Pvt Ltd(?:$|\s|\.|,)/gi,
-        /(?:^|\s)Pvt\. Ltd\.(?:$|\s|\.|,)/gi,
-        /(?:^|\s)Limited(?:$|\s|\.|,)/gi,
-        /(?:^|\s)Ltd(?:$|\s|\.|,)/gi,
-        /(?:^|\s)LLP(?:$|\s|\.|,)/gi,
-        /(?:^|\s)& Co(?:$|\s|\.|,)/gi,
-        /(?:^|\s)Incorporated(?:$|\s|\.|,)/gi,
-        /(?:^|\s)Corp(?:$|\s|\.|,)/gi,
-        /(?:^|\s)Industries(?:$|\s|\.|,)/gi,
-        /(?:^|\s)Enterprises(?:$|\s|\.|,)/gi,
-        /(?:^|\s)FZE(?:$|\s|\.|,)/gi,
-        /(?:^|\s)FZCO(?:$|\s|\.|,)/gi,
-        /(?:^|\s)LLC(?:$|\s|\.|,)/gi,
-        /(?:^|\s)PJSC(?:$|\s|\.|,)/gi,
-        /(?:^|\s)PSC(?:$|\s|\.|,)/gi,
-    ];
-
-    // Repeatedly replace to handle consecutive matches
-    let previous = '';
-    while (clean !== previous) {
-        previous = clean;
-        for (const pattern of stripPhrasePatterns) {
-            clean = clean.replace(pattern, ' ');
-        }
-    }
-
-    // Remove special chars, keep alphanumeric (including Arabic range) and spaces
-    // Arabic Unicode Range: \u0600-\u06FF
-    clean = clean.replace(/[^a-zA-Z0-9\s\u0600-\u06FF]/g, ' ');
-    // Trim whitespace and uppercase
-    return clean.replace(/\s+/g, ' ').trim().toUpperCase();
-}
+import { cleanCompanyName } from '../lib/text-utils';
+export { cleanCompanyName };
 
 export async function adaptGeM(payload: GeMCollectorPayload): Promise<RawSignal | null> {
     // Determine TIER based on bid_deadline

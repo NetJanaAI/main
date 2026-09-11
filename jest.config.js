@@ -4,4 +4,7 @@ module.exports = {
     testEnvironment: 'node',
     testMatch: ['**/__tests__/**/*.jest.test.ts'],
     clearMocks: true,
+    transformIgnorePatterns: [
+        'node_modules/(?!(double-metaphone)/)'
+    ],
 };

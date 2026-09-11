@@ -47,7 +47,23 @@ export function getRegionalQueueName(base: string, region?: string): string {
     return r ? `${base}:${r.toLowerCase()}` : base;
 }
 
-export const scrapeQueue = new Queue(SCRAPE_QUEUE_NAME, {
+class DummyQueue {
+    add = jest.fn(async (name: string, data: any, opts?: any) => {
+        return { id: 'dummy-job-id', name, data };
+    });
+    async close() {}
+    on() { return this; }
+}
+
+
+const createQueue = (name: string, opts: any): Queue => {
+    if (process.env.NODE_ENV === 'test') {
+        return new DummyQueue() as unknown as Queue;
+    }
+    return new Queue(name, opts);
+};
+
+export const scrapeQueue = createQueue(SCRAPE_QUEUE_NAME, {
     connection,
     defaultJobOptions: {
         attempts: 3,
@@ -60,7 +76,7 @@ export const scrapeQueue = new Queue(SCRAPE_QUEUE_NAME, {
     }
 });
 
-export const influenceQueue = new Queue(INFLUENCE_QUEUE_NAME, {
+export const influenceQueue = createQueue(INFLUENCE_QUEUE_NAME, {
     connection,
     defaultJobOptions: {
         attempts: 2,
@@ -70,43 +86,55 @@ export const influenceQueue = new Queue(INFLUENCE_QUEUE_NAME, {
     }
 });
 
-export const rawSignalsQueue = new Queue(RAW_SIGNALS_QUEUE_NAME, {
+export const rawSignalsQueue = createQueue(RAW_SIGNALS_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true }
 });
 
-export const tier1Queue = new Queue(TIER1_QUEUE_NAME, {
+export const tier1Queue = createQueue(TIER1_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true }
 });
 
-export const tier2Queue = new Queue(TIER2_QUEUE_NAME, {
+export const tier2Queue = createQueue(TIER2_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true }
 });
 
-export const tier3Queue = new Queue(TIER3_QUEUE_NAME, {
+export const tier3Queue = createQueue(TIER3_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true }
 });
 
 export const DECAY_QUEUE_NAME = 'decay-rescore';
 
-export const decayRescoreQueue = new Queue(DECAY_QUEUE_NAME, {
+export const decayRescoreQueue = createQueue(DECAY_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 2, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true }
 });
 
-export const outreachQueue = new Queue(OUTREACH_QUEUE_NAME, {
+export const outreachQueue = createQueue(OUTREACH_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 10000 }, removeOnComplete: true }
 });
 
-export const dlqQueue = new Queue(DLQ_QUEUE_NAME, {
+export const dlqQueue = createQueue(DLQ_QUEUE_NAME, {
     connection,
     defaultJobOptions: { 
         attempts: 1, // We don't retry failure-logging itself
         removeOnComplete: true,
+        removeOnFail: false
+    }
+});
+
+export const ENTITY_ENRICHMENT_QUEUE_NAME = 'entity_enrichment';
+
+export const entityEnrichmentQueue = createQueue(ENTITY_ENRICHMENT_QUEUE_NAME, {
+    connection,
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 10000 },
+        removeOnComplete: { age: 86400, count: 5000 },
         removeOnFail: false
     }
 });

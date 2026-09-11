@@ -523,6 +523,8 @@ export async function initDb() {
         await client.query(`CREATE INDEX IF NOT EXISTS idx_org_canonical ON org_registry (canonical_name, geo_state);`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_org_phonetic  ON org_registry (phonetic_key, geo_state);`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_org_cin       ON org_registry (cin) WHERE cin IS NOT NULL;`);
+        await client.query(`ALTER TABLE org_registry ADD COLUMN IF NOT EXISTS pan TEXT;`);
+        await client.query(`ALTER TABLE org_registry ADD COLUMN IF NOT EXISTS company_status TEXT NOT NULL DEFAULT 'ACTIVE';`);
         await client.query(`ALTER TABLE org_registry ENABLE ROW LEVEL SECURITY;`);
 
         // 11B. Entity Merge Log (Phase 2)
@@ -539,6 +541,54 @@ export async function initDb() {
         await client.query(`CREATE INDEX IF NOT EXISTS idx_merge_org ON entity_merge_log (merged_into);`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_merge_at  ON entity_merge_log (merged_at);`);
         await client.query(`ALTER TABLE entity_merge_log ENABLE ROW LEVEL SECURITY;`);
+
+        // 11C. Canonical Entity Cache (InstaFinancials & Hybrid Entity Resolution)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS canonical_entity_cache (
+                entity_id           TEXT PRIMARY KEY,
+                canonical_name      TEXT NOT NULL,
+                cin                 TEXT,
+                pan                 TEXT,
+                company_status      TEXT NOT NULL DEFAULT 'ACTIVE',
+                incorporation_date  DATE,
+                authorized_capital  NUMERIC(15,2),
+                paid_up_capital     NUMERIC(15,2),
+                registered_address  TEXT,
+                registered_state    TEXT,
+                registered_pincode  TEXT,
+                nic_code            TEXT,
+                nic_description     TEXT,
+                directors           JSONB DEFAULT '[]'::jsonb,
+                charges             JSONB DEFAULT '[]'::jsonb,
+                establishments      JSONB DEFAULT '[]'::jsonb,
+                group_hierarchy     JSONB DEFAULT '{}'::jsonb,
+                resolution_method   TEXT NOT NULL,
+                enrichment_status   TEXT NOT NULL DEFAULT 'PENDING',
+                created_at          TIMESTAMPTZ DEFAULT NOW(),
+                updated_at          TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_cin ON canonical_entity_cache (cin) WHERE cin IS NOT NULL;`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_pan ON canonical_entity_cache (pan) WHERE pan IS NOT NULL;`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_status ON canonical_entity_cache (company_status);`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_enrichment ON canonical_entity_cache (enrichment_status);`);
+        await client.query(`ALTER TABLE canonical_entity_cache ENABLE ROW LEVEL SECURITY;`);
+        await client.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_policies WHERE tablename = 'canonical_entity_cache' AND policyname = 'allow_all_read'
+                ) THEN
+                    CREATE POLICY allow_all_read ON canonical_entity_cache FOR SELECT USING (TRUE);
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_policies WHERE tablename = 'canonical_entity_cache' AND policyname = 'allow_system_write'
+                ) THEN
+                    CREATE POLICY allow_system_write ON canonical_entity_cache FOR ALL USING (TRUE) WITH CHECK (TRUE);
+                END IF;
+            END
+            $$;
+        `);
 
         // 12. Knowledge Graph Nodes
         await client.query(`

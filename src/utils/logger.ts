@@ -1,4 +1,19 @@
-import * as Sentry from "@sentry/node";
+let Sentry: any;
+try {
+    if (process.env.NODE_ENV !== 'test') {
+        Sentry = require("@sentry/node");
+    }
+} catch (e) {
+    // Sentry unavailable or disabled
+}
+
+function captureSentryError(arg: any) {
+    if (!Sentry) return;
+    try {
+        if (arg instanceof Error) Sentry.captureException(arg);
+        else if (typeof arg === 'string') Sentry.captureMessage(arg, 'error');
+    } catch (_) {}
+}
 
 /**
  * Secure Logger
@@ -55,10 +70,7 @@ export const SecureLogger = {
             const safeArgs = args.map(arg => maskPII(arg));
             
             // Forward error objects to Sentry
-            safeArgs.forEach(arg => {
-                if (arg instanceof Error) Sentry.captureException(arg);
-                else if (typeof arg === 'string') Sentry.captureMessage(arg, 'error');
-            });
+            safeArgs.forEach(arg => captureSentryError(arg));
             
             originalError.apply(console, safeArgs);
         };
@@ -66,3 +78,4 @@ export const SecureLogger = {
         originalLog('[SecureLogger] Strict Logging Filter Attached. PII leaks will be automatically redacted.');
     }
 };
+

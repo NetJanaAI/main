@@ -76,7 +76,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { tenantRateLimiter, scrapeLimiter } from './middleware/rateLimit';
+import { tenantRateLimiter, scrapeLimiter, entitySearchLimiter } from './middleware/rateLimit';
 import path from 'path';
 
 import scrapeRoutes from './routes/scrape';
@@ -103,6 +103,7 @@ import usageRoutes from './routes/usage';
 import netjanaIntelRoutes from './routes/netjana-intel';
 import analyticsRoutes from './routes/analytics';
 import dlqRoutes from './routes/dlq';
+import entitiesRoutes from './routes/entities';
 
 import { bootstrapSchedules } from './lib/scheduler';
 import { setupRecalibrationCron } from './lib/recalibration';
@@ -119,6 +120,7 @@ import { startDecayRescoreWorker } from './workers/decayRescoreWorker';
 import { setupRouterWorker } from './core/router';
 import { setupGeminiWorkers } from './core/gemini-chain';
 import { setupTier3Worker } from './workers/tier3Worker';
+import { setupEntityEnrichmentWorker } from './workers/entityEnrichmentWorker';
 import { replayGuard } from './middleware/replayGuard';
 import { socketAuthMiddleware } from './middleware/socketAuth';
 
@@ -189,6 +191,7 @@ async function startWorkers(ioInstance: Server) {
         const { tier1Worker, tier2Worker } = setupGeminiWorkers(ioInstance);
         // S1-1: Wire Tier 3 enrichment worker — was missing, LOW-confidence signals were silently queued forever
         const tier3Worker = setupTier3Worker(ioInstance);
+        const entityEnrichmentWorker = setupEntityEnrichmentWorker(ioInstance);
         setupRecalibrationCron(ioInstance);
 
         console.log('[Startup] Workers initialized successfully.');
@@ -204,6 +207,7 @@ async function startWorkers(ioInstance: Server) {
             tier1Worker,
             tier2Worker,
             tier3Worker,
+            entityEnrichmentWorker,
         ].filter(Boolean) as import('bullmq').Worker[];
 
         return allWorkers;
@@ -361,6 +365,7 @@ app.use('/api/telemetry', telemetryRoutes);
 app.use('/api/sources', sourceRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/dlq', dlqRoutes);
+app.use('/api/v1/entities', entitySearchLimiter, entitiesRoutes);
 
 // NetJana Intel Pull API — external pull endpoint for full lead card details.
 // Mounted at /v1 (not /api) to clearly distinguish it from internal APIs.

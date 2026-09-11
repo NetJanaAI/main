@@ -12,6 +12,8 @@
     "dev:standalone": "cross-env NETJANA_MODE=standalone tsx watch src/modes/standalone/index.ts",
     "dev:scraper": "cross-env NETJANA_MODE=worker ROLE=worker tsx watch src/modes/worker/index.ts",
     "test": "jest --runInBand",
+    "test:clean": "jest --clearCache && node -e \"const fs=require('fs'),path=require('path'),os=require('os');try{fs.rmSync('coverage',{recursive:true,force:true})}catch{}try{const tmp=os.tmpdir();fs.readdirSync(tmp).filter(f=>f.startsWith('jest_')).forEach(f=>fs.rmSync(path.join(tmp,f),{recursive:true,force:true}))}catch{}\"",
+    "test:core": "npm run test:clean && jest --runInBand --testPathPatterns=src/core/__tests__",
     "build:covospan": "cross-env NETJANA_MODE=covospan tsc",
     "build:standalone": "cross-env NETJANA_MODE=standalone tsc",
     "build:scraper": "cross-env NETJANA_MODE=worker tsc",

@@ -12,7 +12,8 @@ import {
   Send,
   User,
   ExternalLink,
-  Eye
+  Eye,
+  Network
 } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { id: 'dashboard', label: 'Terminal Index', icon: Activity, path: '/app/dashboard' },
   { id: 'signals', label: 'Signal Matrix', icon: HeartPulse, path: '/app/signals' },
   { id: 'query', label: 'Intent Matcher', icon: Target, path: '/app/query' },
+  { id: 'entities', label: 'Entity Intel', icon: Network, path: '/app/entities' },
   { id: 'watch', label: 'Tender Watch', icon: Eye, path: '/app/watch' },
   { id: 'reports', label: 'Alpha Reports', icon: PieChart, path: '/app/reports' },
   { id: 'api', label: 'Registry Keys', icon: Settings, path: '/app/api' },

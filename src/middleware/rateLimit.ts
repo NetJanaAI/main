@@ -71,3 +71,21 @@ export const pullApiRateLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+/**
+ * Entity Search Limiter
+ * Limits company resolution & organogram lookups to protect InstaFinancials API budget.
+ */
+export const entitySearchLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute window
+    max: process.env.NODE_ENV !== 'production' ? 200 : (parseInt(process.env.ENTITY_SEARCH_RPM || '20', 10)),
+    keyGenerator: (req: any) => req.organizationId || req.ip || 'unknown',
+    validate: false,
+    handler: (_req: Request, res: Response) => res.status(429).json({
+        error: 'EntitySearchQuotaExceeded',
+        message: 'Entity search is limited to 20 requests/min to protect InstaFinancials API budget.',
+        retryAfter: '60s',
+    }),
+    standardHeaders: true,
+    legacyHeaders: false,
+});

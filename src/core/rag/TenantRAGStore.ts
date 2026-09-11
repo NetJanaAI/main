@@ -1,7 +1,8 @@
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { Document } from "@langchain/core/documents";
-import { RAGAuditLog } from "./RAGAuditLog.js";
+import { RAGAuditLog } from "./RAGAuditLog";
 import { IS_COVOSPAN } from "../../config/mode";
+
 import { AuditTrail } from "../compliance/AuditTrail";
 import { ComplianceMatrix, ComplianceRegion } from "../compliance/ComplianceMatrix";
 
