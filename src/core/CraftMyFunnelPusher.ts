@@ -115,8 +115,12 @@ function assertValidPayload(payload: CraftMyFunnelLeadPayload) {
     }
 }
 
-function buildEndpointUrl(apiBaseUrl: string): string {
-    return `${apiBaseUrl.replace(/\/+$/, '')}/api/webhooks/netjana-intel`;
+export function buildEndpointUrl(apiBaseUrl: string): string {
+    const trimmed = apiBaseUrl.trim().replace(/\/+$/, '');
+    if (trimmed.endsWith('/webhooks/netjana-intel') || trimmed.endsWith('/api/webhooks/netjana-intel')) {
+        return trimmed;
+    }
+    return `${trimmed}/api/webhooks/netjana-intel`;
 }
 
 function buildSigningInput(timestamp: string, nonce: string, rawJsonBody: string): string {
@@ -260,6 +264,7 @@ export async function sendCraftMyFunnelLeadSignal(
 
     const headers = {
         'Authorization': `Bearer ${config.apiKey}`,
+        'x-api-key': config.apiKey,
         'Content-Type': 'application/json',
         'x-source': 'netjana-intel',
         'x-netjana-timestamp': timestamp,

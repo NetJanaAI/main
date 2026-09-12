@@ -90,10 +90,19 @@ describe('CraftMyFunnelPusher', () => {
         const [, request] = fetchMock.mock.calls[0];
         expect(request.headers).toEqual(expect.objectContaining({
             'Authorization': 'Bearer cmf_test_key_1234',
+            'x-api-key': 'cmf_test_key_1234',
             'Content-Type': 'application/json',
             'x-source': 'netjana-intel',
             'x-netjana-signature': expect.any(String),
         }));
+    });
+
+    it('builds endpoint URL whether given bare base URL, /webhooks/netjana-intel, or /api/webhooks/netjana-intel', async () => {
+        const { buildEndpointUrl } = await import('../CraftMyFunnelPusher');
+        expect(buildEndpointUrl('https://api.craftmyfunnel.live')).toBe('https://api.craftmyfunnel.live/api/webhooks/netjana-intel');
+        expect(buildEndpointUrl('https://api.craftmyfunnel.live/')).toBe('https://api.craftmyfunnel.live/api/webhooks/netjana-intel');
+        expect(buildEndpointUrl('https://api.craftmyfunnel.live/webhooks/netjana-intel')).toBe('https://api.craftmyfunnel.live/webhooks/netjana-intel');
+        expect(buildEndpointUrl('https://api.craftmyfunnel.live/api/webhooks/netjana-intel/')).toBe('https://api.craftmyfunnel.live/api/webhooks/netjana-intel');
     });
 
     it('does not retry 401 or 403 auth failures', async () => {
