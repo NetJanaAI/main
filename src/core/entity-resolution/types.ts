@@ -158,10 +158,24 @@ export interface InstaBasicReport {
         DateOfAppointment?: string;
         DateOfCessation?: string;
     }>;
+    Signatories?: Array<{
+        DIN?: string;
+        DirectorName?: string;
+        Designation?: string;
+        DateOfAppointment?: string;
+        DateOfCessation?: string;
+    }>;
+    Charges?: Array<{
+        ChargeID?: string;
+        ChargeHolder?: string;
+        Amount?: number;
+        DateOfCreation?: string;
+        Status?: string;
+    }>;
     [key: string]: any;
 }
 
-export interface InstaDetailedReport {
+export interface BRiskFinancialsReport {
     CompanyCIN?: string;
     Charges?: Array<{
         ChargeID?: string;
@@ -188,6 +202,9 @@ export interface InstaDetailedReport {
     }>;
     [key: string]: any;
 }
+
+export type InstaDetailedReport = BRiskFinancialsReport;
+
 
 export interface InstaGSTEstablishment {
     GSTIN?: string;

@@ -16,12 +16,18 @@ import {
     InstaOrderResponse,
     InstaOrderStatusResponse,
     LocationClue,
-    deriveEntityId
+    deriveEntityId,
+    BRiskFinancialsReport
 } from './types';
 import { disambiguateBranches } from './branch-disambiguator';
 import { UNSUPPORTED_GST_STATE_CODES } from './statutory-extractor';
 
-const INSTA_BASE_URL = process.env.INSTAFINANCIALS_BASE_URL || 'https://api.instafinancials.com/InstaReports/v1';
+// Base URL normalization: strip trailing /InstaReports/v1 or v2 so root is always hostname
+const rawBaseUrl = process.env.INSTAFINANCIALS_BASE_URL || 'https://api.instafinancials.com';
+const INSTA_BASE_URL = rawBaseUrl.replace(/\/InstaReports\/v[12]\/?$/, '').replace(/\/+$/, '');
+
+// Sandbox-approved test CIN (Indian Oil Corporation Limited)
+export const SANDBOX_APPROVED_TEST_CIN = 'L23201MH1959GOI011388';
 
 const STATUS_CACHE_TTL_SEC = 7 * 24 * 3600;      // 7 days
 const REPORT_CACHE_TTL_SEC = 30 * 24 * 3600;     // 30 days
@@ -43,8 +49,12 @@ export class InstaClient {
 
     constructor(apiKey?: string, baseUrl?: string) {
         this.apiKey = apiKey || process.env.INSTAFINANCIALS_API_KEY || '';
+        const effectiveBaseUrl = baseUrl
+            ? baseUrl.replace(/\/InstaReports\/v[12]\/?$/, '').replace(/\/+$/, '')
+            : INSTA_BASE_URL;
+
         this.client = axios.create({
-            baseURL: baseUrl || INSTA_BASE_URL,
+            baseURL: effectiveBaseUrl,
             timeout: 20000,
             headers: {
                 'user-key': this.apiKey,
@@ -64,7 +74,7 @@ export class InstaClient {
     }
 
     /**
-     * Search CIN by company name using InstaFinancials GetCIN API.
+     * Search CIN by company name using InstaFinancials GetCIN API (v1 GET).
      */
     async searchCIN(searchTerm: string, mode: 'SW' | 'NC' = 'SW'): Promise<GetCINCandidate[]> {
         if (!searchTerm || !searchTerm.trim()) return [];
@@ -83,7 +93,7 @@ export class InstaClient {
         }
 
         try {
-            const url = `/GetCIN/Search/${encodeURIComponent(cleanTerm)}/Mode/${mode}`;
+            const url = `/InstaReports/v1/GetCIN/Search/${encodeURIComponent(cleanTerm)}/Mode/${mode}`;
             const response = await this.client.get(url);
             const data = response.data;
 
@@ -109,9 +119,10 @@ export class InstaClient {
 
     /**
      * Orders a report asynchronously from InstaFinancials.
+     * For BRiskFinancials (ownership), passes ["FIN","OD"].
      */
     async orderReport(
-        product: 'InstaBasic' | 'InstaDetailed' | 'InstaGST',
+        product: 'BRiskFinancials' | 'InstaDetailed' | 'InstaGST',
         cinOrPan: string,
         stateCode?: string
     ): Promise<InstaOrderResponse> {
@@ -120,14 +131,18 @@ export class InstaClient {
         }
 
         let url = '';
-        if (product === 'InstaGST') {
+        let body: any = {};
+
+        if (product === 'BRiskFinancials' || product === 'InstaDetailed') {
+            url = `/InstaReports/v1/BRiskFinancials/CompanyCIN/${cinOrPan}/OrderReport`;
+            body = ['FIN', 'OD'];
+        } else if (product === 'InstaGST') {
             const code = resolveStateCode(stateCode);
-            url = `/InstaGST/Input/${cinOrPan}/StateCode/${code}/OrderReport`;
-        } else {
-            url = `/${product}/CompanyCIN/${cinOrPan}/OrderReport`;
+            url = `/InstaReports/v1/InstaGST/Input/${cinOrPan}/StateCode/${code}/OrderReport`;
+            body = {};
         }
 
-        const response = await this.client.post<InstaOrderResponse>(url, {});
+        const response = await this.client.post<InstaOrderResponse>(url, body);
         return response.data;
     }
 
@@ -135,16 +150,17 @@ export class InstaClient {
      * Polls the status of an ordered report with exponential backoff until completion or timeout.
      */
     async pollStatus(
-        product: 'InstaBasic' | 'InstaDetailed' | 'InstaGST',
+        product: 'BRiskFinancials' | 'InstaDetailed' | 'InstaGST',
         orderId: number | string,
         maxWaitMs: number = 45000
     ): Promise<InstaOrderStatusResponse> {
         const startTime = Date.now();
         let currentDelay = 2000;
+        const actualProduct = product === 'InstaDetailed' ? 'BRiskFinancials' : product;
 
         while (Date.now() - startTime < maxWaitMs) {
             try {
-                const url = `/${product}/OrderID/${orderId}/GetStatus`;
+                const url = `/InstaReports/v1/${actualProduct}/OrderID/${orderId}/GetStatus`;
                 const response = await this.client.get<InstaOrderStatusResponse>(url);
                 const data = response.data;
                 const status = (data.OrderStatus || '').toLowerCase();
@@ -177,18 +193,21 @@ export class InstaClient {
      * Downloads report payload after order is completed.
      */
     async downloadReport<T = any>(
-        product: 'InstaBasic' | 'InstaDetailed' | 'InstaGST',
+        product: 'BRiskFinancials' | 'InstaDetailed' | 'InstaGST',
         orderId: number | string
     ): Promise<T> {
-        const url = `/${product}/OrderID/${orderId}/DownloadReport`;
+        const actualProduct = product === 'InstaDetailed' ? 'BRiskFinancials' : product;
+        const url = `/InstaReports/v1/${actualProduct}/OrderID/${orderId}/DownloadReport`;
         const response = await this.client.get<T>(url);
         return response.data;
     }
 
     /**
-     * Fetches full InstaBasic report with split Redis caching (7-day status, 30-day report).
+     * Fetches full InstaBasic report via current documented v2 GET endpoint:
+     * GET /InstaReports/v2/InstaBasic/CompanyCIN/{cin}?daysToIgnore=999
+     * Returns company master data, current/past directors & signatories, and charge information.
      */
-    async fetchInstaBasic(cin: string): Promise<InstaBasicReport | null> {
+    async fetchInstaBasic(cin: string, daysToIgnore: number = 999): Promise<InstaBasicReport | null> {
         const cleanCin = cin.toUpperCase().trim();
         const reportCacheKey = `insta:basic:${cleanCin}`;
         const statusCacheKey = `insta:status:${cleanCin}`;
@@ -196,13 +215,15 @@ export class InstaClient {
         const cachedReport = await cache.get<InstaBasicReport>(reportCacheKey);
         if (cachedReport) return cachedReport;
 
-        try {
-            const order = await this.orderReport('InstaBasic', cleanCin);
-            const orderId = order.OrderID;
-            if (!orderId) return null;
+        if (!this.apiKey) {
+            console.warn('[InstaClient] API key missing, skipping remote fetchInstaBasic');
+            return null;
+        }
 
-            await this.pollStatus('InstaBasic', orderId);
-            const report = await this.downloadReport<InstaBasicReport>('InstaBasic', orderId);
+        try {
+            const url = `/InstaReports/v2/InstaBasic/CompanyCIN/${cleanCin}?daysToIgnore=${daysToIgnore}`;
+            const response = await this.client.get<InstaBasicReport>(url);
+            const report = response.data;
 
             if (report) {
                 // Cache full basic report for 30 days
@@ -226,22 +247,28 @@ export class InstaClient {
     }
 
     /**
-     * Fetches full InstaDetailed report.
+     * Fetches BRiskFinancials report with Ownership Details (OD) and Financials (FIN).
+     * Replaces legacy InstaDetailed report for corporate ownership/subsidiary hierarchy.
      */
-    async fetchInstaDetailed(cin: string): Promise<InstaDetailedReport | null> {
+    async fetchBRiskFinancials(cin: string): Promise<BRiskFinancialsReport | null> {
         const cleanCin = cin.toUpperCase().trim();
-        const reportCacheKey = `insta:detailed:${cleanCin}`;
+        const reportCacheKey = `insta:brisk:${cleanCin}`;
 
-        const cached = await cache.get<InstaDetailedReport>(reportCacheKey);
+        const cached = await cache.get<BRiskFinancialsReport>(reportCacheKey);
         if (cached) return cached;
 
+        if (!this.apiKey) {
+            console.warn('[InstaClient] API key missing, skipping remote fetchBRiskFinancials');
+            return null;
+        }
+
         try {
-            const order = await this.orderReport('InstaDetailed', cleanCin);
+            const order = await this.orderReport('BRiskFinancials', cleanCin);
             const orderId = order.OrderID;
             if (!orderId) return null;
 
-            await this.pollStatus('InstaDetailed', orderId);
-            const report = await this.downloadReport<InstaDetailedReport>('InstaDetailed', orderId);
+            await this.pollStatus('BRiskFinancials', orderId);
+            const report = await this.downloadReport<BRiskFinancialsReport>('BRiskFinancials', orderId);
 
             if (report) {
                 await cache.set(reportCacheKey, report, { ex: REPORT_CACHE_TTL_SEC });
@@ -249,9 +276,16 @@ export class InstaClient {
 
             return report;
         } catch (error: any) {
-            console.error(`[InstaClient] fetchInstaDetailed failed for CIN ${cleanCin}:`, error.message);
+            console.error(`[InstaClient] fetchBRiskFinancials failed for CIN ${cleanCin}:`, error.message);
             return null;
         }
+    }
+
+    /**
+     * Alias for fetchBRiskFinancials for backward compatibility.
+     */
+    async fetchInstaDetailed(cin: string): Promise<InstaDetailedReport | null> {
+        return this.fetchBRiskFinancials(cin);
     }
 
     /**
@@ -263,6 +297,11 @@ export class InstaClient {
 
         const cached = await cache.get<InstaGSTReport>(reportCacheKey);
         if (cached) return cached;
+
+        if (!this.apiKey) {
+            console.warn('[InstaClient] API key missing, skipping remote fetchInstaGST');
+            return null;
+        }
 
         try {
             const order = await this.orderReport('InstaGST', cleanPan, stateCode);
@@ -285,8 +324,8 @@ export class InstaClient {
 
     /**
      * Executes the full enrichment lifecycle:
-     * 1. InstaBasic sequentially (to extract PAN)
-     * 2. InstaDetailed & InstaGST in parallel
+     * 1. InstaBasic v2 sequentially (to extract PAN, directors, charges)
+     * 2. BRiskFinancials (with OD ownership) & InstaGST in parallel
      * 3. Disambiguate GST branches
      * 4. Persist to Postgres canonical_entity_cache
      */
@@ -300,23 +339,23 @@ export class InstaClient {
         const cleanCin = cin.toUpperCase().trim();
         const tiers = options?.enrichTiers || ['BASIC', 'DETAILED', 'GST'];
 
-        // Step 1: Run InstaBasic first
+        // Step 1: Run InstaBasic v2 first
         const basic = await this.fetchInstaBasic(cleanCin);
         const pan = basic?.PAN;
 
-        let detailed: InstaDetailedReport | null = null;
+        let detailed: BRiskFinancialsReport | null = null;
         let gst: InstaGSTReport | null = null;
 
-        // Step 2: Run Detailed and GST in parallel if requested
+        // Step 2: Run BRiskFinancials (ownership) and GST in parallel if requested
         if (tiers.includes('DETAILED') && tiers.includes('GST') && pan) {
             const [detRes, gstRes] = await Promise.allSettled([
-                this.fetchInstaDetailed(cleanCin),
+                this.fetchBRiskFinancials(cleanCin),
                 this.fetchInstaGST(pan)
             ]);
             if (detRes.status === 'fulfilled') detailed = detRes.value;
             if (gstRes.status === 'fulfilled') gst = gstRes.value;
         } else if (tiers.includes('DETAILED')) {
-            detailed = await this.fetchInstaDetailed(cleanCin);
+            detailed = await this.fetchBRiskFinancials(cleanCin);
         } else if (tiers.includes('GST') && pan) {
             gst = await this.fetchInstaGST(pan);
         }
@@ -332,23 +371,37 @@ export class InstaClient {
         else if (rawStatus.includes('ACTIVE')) status = 'ACTIVE';
         else status = 'UNKNOWN';
 
-        // Directors
-        const directors: Director[] = (basic?.Directors || []).map(d => ({
-            din: d.DIN || '',
-            name: d.DirectorName || '',
-            designation: d.Designation || '',
-            appointedDate: d.DateOfAppointment,
-            cessationDate: d.DateOfCessation
-        }));
+        // Directors and Signatories (deduplicated by DIN or name)
+        const allDirectorSources = [
+            ...(basic?.Directors || []),
+            ...(basic?.Signatories || [])
+        ];
+        const seenKeys = new Set<string>();
+        const directors: Director[] = [];
+        for (const d of allDirectorSources) {
+            const key = d.DIN || d.DirectorName;
+            if (key && !seenKeys.has(key)) {
+                seenKeys.add(key);
+                directors.push({
+                    din: d.DIN || '',
+                    name: d.DirectorName || '',
+                    designation: d.Designation || '',
+                    appointedDate: d.DateOfAppointment,
+                    cessationDate: d.DateOfCessation
+                });
+            }
+        }
 
-        // Charges
-        const charges: CompanyCharge[] = (detailed?.Charges || []).map(c => ({
+        // Charges (from BRiskFinancials and/or InstaBasic v2)
+        const rawCharges = detailed?.Charges || basic?.Charges || [];
+        const charges: CompanyCharge[] = rawCharges.map(c => ({
             chargeId: c.ChargeID,
             holderName: c.ChargeHolder || '',
             amount: c.Amount || 0,
             creationDate: c.DateOfCreation,
             status: c.Status
         }));
+
 
         // Establishments from GST
         const rawEstablishments: Establishment[] = [];
