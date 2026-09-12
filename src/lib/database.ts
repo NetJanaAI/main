@@ -1,10 +1,15 @@
 import { Pool, PoolClient } from 'pg';
 import format from 'pg-format';
 
-// Read database configuration from environment
-const DATABASE_URL = process.env.DATABASE_URL;
+// Read database configuration from environment (supports direct DATABASE_URL or Vercel Supabase integration POSTGRES_URL)
+const DATABASE_URL = process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.SUPABASE_POSTGRES_URL;
 
 let pool: Pool | null = null;
+
 
 if (DATABASE_URL) {
     try {
