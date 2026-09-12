@@ -5,6 +5,7 @@ import { getInstaClient } from '../core/entity-resolution/insta-client';
 import { EnrichmentJobData } from '../core/entity-resolution/types';
 import { query } from '../lib/database';
 import { buildMermaidOrganogram } from '../core/entity-resolution/mermaid-organogram';
+import { EntityIndexer } from '../core/rag/EntityIndexer';
 
 export function setupEntityEnrichmentWorker(io?: Server): Worker | null {
     if (process.env.NODE_ENV === 'test') {
@@ -38,6 +39,11 @@ export function setupEntityEnrichmentWorker(io?: Server): Worker | null {
                 });
 
                 console.log(`[EntityEnrichmentWorker] Successfully enriched CIN: ${cin} -> ${result.canonicalName}`);
+
+                // Auto-index into RAG Vector Store
+                EntityIndexer.enqueueEntityIndex(result).catch(idxErr => {
+                    console.warn(`[EntityEnrichmentWorker] Auto-index warning for ${result.canonicalName}:`, idxErr.message);
+                });
 
                 // Broadcast real-time update to connected UI clients
                 if (io) {

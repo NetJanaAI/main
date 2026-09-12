@@ -139,4 +139,16 @@ export const entityEnrichmentQueue = createQueue(ENTITY_ENRICHMENT_QUEUE_NAME, {
     }
 });
 
+export const RAG_INDEX_QUEUE_NAME = 'rag_index_queue';
+
+export const ragIndexQueue = createQueue(RAG_INDEX_QUEUE_NAME, {
+    connection,
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: { age: 3600, count: 2000 },
+        removeOnFail: false
+    }
+});
+
 console.log(`[Queue] Initialized BullMQ on ${REDIS_HOST}:${REDIS_PORT}`);

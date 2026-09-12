@@ -11,6 +11,7 @@ import { safeQueueIndiaMARTLead } from './collectors/indiamart-dedup';
 import { callModel, parseModelJson } from '../lib/model-api';
 import { jsonToToon } from '../lib/ai/toon';
 import { TokenTracker } from '../lib/ai/token-tracker';
+import { EntityIndexer } from './rag/EntityIndexer';
 
 function computeIntentScore(baseStrength: number, lambda: number, collectedAt: string, corroborated: boolean, buyingStage: string): number {
     const collectedDate = new Date(collectedAt);
@@ -92,6 +93,11 @@ export function setupGeminiWorkers(io: Server) {
         };
 
         await emitLeadCard(io, leadCard);
+
+        // Auto-index signal into RAG Vector Store
+        EntityIndexer.enqueueSignalIndex(signal, orgId).catch(err => {
+            console.warn(`[GeminiChain:Tier1] Signal auto-index warning:`, err.message);
+        });
 
         if (intentScore >= 90) {
             await OutreachService.enqueueForApproval(leadCard.lead_id, leadCard.org_id);
@@ -257,6 +263,11 @@ OUT: { "company": "Name · Target", "why_now": "Citing multiple sources <2s", "w
         };
 
         await emitLeadCard(io, leadCard);
+
+        // Auto-index signal into RAG Vector Store
+        EntityIndexer.enqueueSignalIndex(signal, orgId).catch(err => {
+            console.warn(`[GeminiChain:Tier2] Signal auto-index warning:`, err.message);
+        });
 
         if (intentScore >= 70) {
             await OutreachService.enqueueForApproval(leadCard.lead_id, leadCard.org_id);

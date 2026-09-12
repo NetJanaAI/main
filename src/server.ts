@@ -85,6 +85,7 @@ import capsulesRoutes from './routes/capsules';
 import campaignsRoutes from './routes/campaigns';
 import schedulesRoutes from './routes/schedules';
 import knowledgeRoutes from './routes/knowledge';
+import wikiRoutes from './routes/wiki';
 import vaultRoutes from './routes/vault';
 import adminRoutes from './routes/admin';
 import ingestRoutes from './routes/ingest';
@@ -121,6 +122,7 @@ import { setupRouterWorker } from './core/router';
 import { setupGeminiWorkers } from './core/gemini-chain';
 import { setupTier3Worker } from './workers/tier3Worker';
 import { setupEntityEnrichmentWorker } from './workers/entityEnrichmentWorker';
+import { setupRagIndexWorker } from './workers/ragIndexWorker';
 import { replayGuard } from './middleware/replayGuard';
 import { socketAuthMiddleware } from './middleware/socketAuth';
 
@@ -192,6 +194,7 @@ async function startWorkers(ioInstance: Server) {
         // S1-1: Wire Tier 3 enrichment worker — was missing, LOW-confidence signals were silently queued forever
         const tier3Worker = setupTier3Worker(ioInstance);
         const entityEnrichmentWorker = setupEntityEnrichmentWorker(ioInstance);
+        const ragIndexWorker = setupRagIndexWorker();
         setupRecalibrationCron(ioInstance);
 
         console.log('[Startup] Workers initialized successfully.');
@@ -208,6 +211,7 @@ async function startWorkers(ioInstance: Server) {
             tier2Worker,
             tier3Worker,
             entityEnrichmentWorker,
+            ragIndexWorker,
         ].filter(Boolean) as import('bullmq').Worker[];
 
         return allWorkers;
@@ -346,6 +350,7 @@ app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/campaign', campaignsRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
+app.use('/api/wiki', wikiRoutes);
 app.use('/api/vault', vaultRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/usage', usageRoutes);

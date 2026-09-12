@@ -13,7 +13,8 @@ import {
   User,
   ExternalLink,
   Eye,
-  Network
+  Network,
+  BookOpen
 } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { id: 'signals', label: 'Signal Matrix', icon: HeartPulse, path: '/app/signals' },
   { id: 'query', label: 'Intent Matcher', icon: Target, path: '/app/query' },
   { id: 'entities', label: 'Entity Intel', icon: Network, path: '/app/entities' },
+  { id: 'knowledge', label: 'Knowledge & Wiki', icon: BookOpen, path: '/app/knowledge' },
   { id: 'watch', label: 'Tender Watch', icon: Eye, path: '/app/watch' },
   { id: 'reports', label: 'Alpha Reports', icon: PieChart, path: '/app/reports' },
   { id: 'api', label: 'Registry Keys', icon: Settings, path: '/app/api' },

@@ -17,6 +17,7 @@ import Profile from "./pages/app/Profile";
 import ConvospanSync from "./pages/app/ConvospanSync";
 import TenderWatch from "./pages/app/TenderWatch";
 import EntityIntelligence from "./pages/app/EntityIntelligence";
+import KnowledgeBase from "./pages/app/KnowledgeBase";
 
 export default function AppRoutes() {
   return (
@@ -35,6 +36,7 @@ export default function AppRoutes() {
           <Route path="signals" element={<Signals />} />
           <Route path="query" element={<Query />} />
           <Route path="entities" element={<EntityIntelligence />} />
+          <Route path="knowledge" element={<KnowledgeBase />} />
           <Route path="reports" element={<Reports />} />
           <Route path="api" element={<ApiManager />} />
           <Route path="sync" element={<ConvospanSync />} />

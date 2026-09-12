@@ -910,6 +910,139 @@ export async function initDb() {
             END $$;
         `);
 
+        // 21. Persistent RAG Vector Store & Company Wiki
+        try {
+            await client.query('CREATE EXTENSION IF NOT EXISTS vector;');
+        } catch (extErr: any) {
+            console.warn('[Database] pgvector extension not available or failed to load:', extErr.message);
+        }
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS rag_embeddings (
+                id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                org_id        TEXT NOT NULL,
+                entity_id     TEXT,
+                doc_type      TEXT NOT NULL,
+                source_id     TEXT,
+                chunk_index   INT NOT NULL DEFAULT 0,
+                content       TEXT NOT NULL,
+                content_hash  TEXT NOT NULL,
+                metadata      JSONB DEFAULT '{}'::jsonb,
+                created_at    TIMESTAMPTZ DEFAULT NOW(),
+                updated_at    TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (org_id, doc_type, content_hash)
+            );
+        `);
+
+        // Check if vector extension type exists
+        const vectorTypeCheck = await client.query("SELECT 1 FROM pg_type WHERE typname = 'vector'");
+        const hasVectorType = vectorTypeCheck.rows.length > 0;
+
+        if (hasVectorType) {
+            await client.query(`
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'rag_embeddings' AND column_name = 'embedding'
+                    ) THEN
+                        ALTER TABLE rag_embeddings ADD COLUMN embedding vector(768);
+                    END IF;
+                END $$;
+            `);
+        } else {
+            await client.query(`
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'rag_embeddings' AND column_name = 'embedding'
+                    ) THEN
+                        ALTER TABLE rag_embeddings ADD COLUMN embedding JSONB;
+                    END IF;
+                END $$;
+            `);
+        }
+
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_rag_embeddings_org_type ON rag_embeddings (org_id, doc_type);`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_rag_embeddings_entity ON rag_embeddings (entity_id) WHERE entity_id IS NOT NULL;`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_rag_embeddings_hash ON rag_embeddings (content_hash);`);
+        await client.query(`ALTER TABLE rag_embeddings ENABLE ROW LEVEL SECURITY;`);
+
+        await client.query(`
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'rag_embeddings' AND policyname = 'org_isolation_policy_rag') THEN
+                    DROP POLICY org_isolation_policy_rag ON rag_embeddings;
+                END IF;
+                CREATE POLICY org_isolation_policy_rag ON rag_embeddings
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
+            END $$;
+        `);
+
+        // Wiki Pages & Revisions
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS wiki_pages (
+                id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                org_id        TEXT NOT NULL,
+                entity_id     TEXT NOT NULL,
+                slug          TEXT NOT NULL,
+                title         TEXT NOT NULL,
+                body_md       TEXT NOT NULL DEFAULT '',
+                author_id     TEXT,
+                author_name   TEXT,
+                version       INT NOT NULL DEFAULT 1,
+                is_published  BOOLEAN DEFAULT TRUE,
+                created_at    TIMESTAMPTZ DEFAULT NOW(),
+                updated_at    TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (org_id, entity_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS wiki_revisions (
+                id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                page_id       UUID NOT NULL REFERENCES wiki_pages(id) ON DELETE CASCADE,
+                org_id        TEXT NOT NULL,
+                entity_id     TEXT NOT NULL,
+                body_md       TEXT NOT NULL,
+                author_id     TEXT,
+                author_name   TEXT,
+                version       INT NOT NULL,
+                change_summary TEXT,
+                created_at    TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
+
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_wiki_pages_org_entity ON wiki_pages (org_id, entity_id);`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_wiki_pages_org_slug ON wiki_pages (org_id, slug);`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_wiki_revisions_page ON wiki_revisions (page_id, version DESC);`);
+        await client.query(`ALTER TABLE wiki_pages ENABLE ROW LEVEL SECURITY;`);
+        await client.query(`ALTER TABLE wiki_revisions ENABLE ROW LEVEL SECURITY;`);
+
+        await client.query(`
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'wiki_pages' AND policyname = 'org_isolation_policy_wiki') THEN
+                    DROP POLICY org_isolation_policy_wiki ON wiki_pages;
+                END IF;
+                CREATE POLICY org_isolation_policy_wiki ON wiki_pages
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
+
+                IF EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'wiki_revisions' AND policyname = 'org_isolation_policy_wiki_rev') THEN
+                    DROP POLICY org_isolation_policy_wiki_rev ON wiki_revisions;
+                END IF;
+                CREATE POLICY org_isolation_policy_wiki_rev ON wiki_revisions
+                USING (
+                    current_setting('app.bypass_rls', true) = 'true'
+                    OR org_id = current_setting('app.current_organization_id')
+                );
+            END $$;
+        `);
 
         await client.query('COMMIT');
         console.log('[Database] Schema migration complete.');
