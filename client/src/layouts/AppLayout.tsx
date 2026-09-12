@@ -15,7 +15,8 @@ import {
   Eye,
   Network,
   BookOpen,
-  Layers
+  Layers,
+  UploadCloud
 } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { id: 'query', label: 'Intent Matcher', icon: Target, path: '/app/query' },
   { id: 'dossier', label: 'Company Dossier', icon: Layers, path: '/app/dossier' },
   { id: 'entities', label: 'Entity Intel', icon: Network, path: '/app/entities' },
+  { id: 'ingest', label: 'CSV Ingest', icon: UploadCloud, path: '/app/csv-ingest' },
   { id: 'knowledge', label: 'Knowledge & Wiki', icon: BookOpen, path: '/app/knowledge' },
   { id: 'watch', label: 'Tender Watch', icon: Eye, path: '/app/watch' },
   { id: 'reports', label: 'Alpha Reports', icon: PieChart, path: '/app/reports' },

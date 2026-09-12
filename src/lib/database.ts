@@ -564,6 +564,7 @@ export async function initDb() {
                 nic_code            TEXT,
                 nic_description     TEXT,
                 directors           JSONB DEFAULT '[]'::jsonb,
+                employees           JSONB DEFAULT '[]'::jsonb,
                 charges             JSONB DEFAULT '[]'::jsonb,
                 establishments      JSONB DEFAULT '[]'::jsonb,
                 group_hierarchy     JSONB DEFAULT '{}'::jsonb,
@@ -573,6 +574,7 @@ export async function initDb() {
                 updated_at          TIMESTAMPTZ DEFAULT NOW()
             );
         `);
+        await client.query(`ALTER TABLE canonical_entity_cache ADD COLUMN IF NOT EXISTS employees JSONB DEFAULT '[]'::jsonb;`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_cin ON canonical_entity_cache (cin) WHERE cin IS NOT NULL;`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_pan ON canonical_entity_cache (pan) WHERE pan IS NOT NULL;`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_status ON canonical_entity_cache (company_status);`);

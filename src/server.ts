@@ -105,6 +105,7 @@ import netjanaIntelRoutes from './routes/netjana-intel';
 import analyticsRoutes from './routes/analytics';
 import dlqRoutes from './routes/dlq';
 import entitiesRoutes from './routes/entities';
+import csvIngestRoutes from './routes/csv-ingest';
 
 import { bootstrapSchedules } from './lib/scheduler';
 import { setupRecalibrationCron } from './lib/recalibration';
@@ -371,6 +372,8 @@ app.use('/api/sources', sourceRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/dlq', dlqRoutes);
 app.use('/api/v1/entities', entitySearchLimiter, entitiesRoutes);
+app.use('/api/v1/ingest/csv', csvIngestRoutes);
+app.use('/api/ingest/csv', csvIngestRoutes);
 
 // NetJana Intel Pull API — external pull endpoint for full lead card details.
 // Mounted at /v1 (not /api) to clearly distinguish it from internal APIs.

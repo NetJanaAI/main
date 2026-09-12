@@ -19,6 +19,7 @@ import TenderWatch from "./pages/app/TenderWatch";
 import EntityIntelligence from "./pages/app/EntityIntelligence";
 import KnowledgeBase from "./pages/app/KnowledgeBase";
 import CompanyDossier from "./pages/app/CompanyDossier";
+import CsvIngestion from "./pages/app/CsvIngestion";
 
 export default function AppRoutes() {
   return (
@@ -38,6 +39,8 @@ export default function AppRoutes() {
           <Route path="query" element={<Query />} />
           <Route path="dossier" element={<CompanyDossier />} />
           <Route path="entities" element={<EntityIntelligence />} />
+          <Route path="csv-ingest" element={<CsvIngestion />} />
+          <Route path="ingest" element={<CsvIngestion />} />
           <Route path="knowledge" element={<KnowledgeBase />} />
           <Route path="reports" element={<Reports />} />
           <Route path="api" element={<ApiManager />} />

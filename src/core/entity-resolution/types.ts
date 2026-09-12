@@ -61,6 +61,20 @@ export interface GroupHierarchy {
     associates?: Array<{ cin: string; name: string }>;
 }
 
+export interface EmployeeContact {
+    id: string;
+    name: string;
+    designation: string;
+    department?: string;
+    email?: string;
+    phone?: string;
+    linkedinUrl?: string;
+    companyName?: string;
+    cin?: string;
+    source?: string;
+    createdAt?: string;
+}
+
 export interface CanonicalEntity {
     entityId: string;
     canonicalName: string;
@@ -76,6 +90,7 @@ export interface CanonicalEntity {
     nicCode?: string;
     nicDescription?: string;
     directors: Director[];
+    employees?: EmployeeContact[];
     charges: CompanyCharge[];
     establishments: Establishment[];
     groupHierarchy: GroupHierarchy;
