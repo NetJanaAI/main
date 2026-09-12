@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import {
   Search,
   ArrowRight,
@@ -8,11 +8,13 @@ import {
   Network,
   Sparkles,
   Info,
+  Layers,
 } from 'lucide-react';
 import { io as socketIOClient } from 'socket.io-client';
 import EntityOrganogram from '../../components/EntityOrganogram';
 import EntityStatutoryCard from '../../components/EntityStatutoryCard';
 import { resolveApiUrl, API_BASE_URL } from '../../lib/api';
+
 
 interface SearchResultPayload {
   entity: any;
@@ -230,11 +232,30 @@ export const EntityIntelligence: React.FC = () => {
 
       {/* Main Results View */}
       {searchResult ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Statutory Profile Card */}
-          <div className="lg:col-span-5">
-            <EntityStatutoryCard entity={searchResult.entity} onSearchCin={handleNodeClick} />
+        <div className="space-y-4">
+          {/* Quick Pivot Banner to 360° Dossier */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-gradient-to-r from-[#00ffca]/10 via-indigo-500/10 to-transparent border border-[#00ffca]/20 font-mono text-xs">
+            <div className="flex items-center gap-2 text-white">
+              <Layers className="w-4 h-4 text-[#00ffca]" />
+              <span>
+                Want live Google News & Search Trends collaged for <strong>{searchResult.entity.canonicalName}</strong>?
+              </span>
+            </div>
+            <Link
+              to={`/app/dossier?q=${encodeURIComponent(searchResult.entity.canonicalName)}&cin=${searchResult.entity.cin || ''}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#00ffca] text-black font-black uppercase text-[11px] tracking-wider hover:bg-[#00ffca]/90 transition-all shrink-0"
+            >
+              <span>Open 360° Dossier</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Column: Statutory Profile Card */}
+            <div className="lg:col-span-5">
+              <EntityStatutoryCard entity={searchResult.entity} onSearchCin={handleNodeClick} />
+            </div>
+
 
           {/* Right Column: Mermaid Organogram */}
           <div className="lg:col-span-7">
@@ -247,7 +268,9 @@ export const EntityIntelligence: React.FC = () => {
             />
           </div>
         </div>
+      </div>
       ) : !isLoading ? (
+
         /* Empty / Landing Prompt */
         <div className="flex flex-col items-center justify-center py-20 px-4 text-center rounded-xl bg-black/20 border border-white/5 space-y-4">
           <div className="p-4 rounded-2xl bg-[#00ffca]/5 border border-[#00ffca]/20">

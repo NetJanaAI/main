@@ -306,4 +306,51 @@ export class ChunkingPipeline {
             };
         });
     }
+
+    /**
+     * Chunks recent Google News articles into structured, timestamped RAG intelligence chunks.
+     */
+    static chunkNews(companyName: string, entityId: string, articles: Array<{
+        title: string;
+        sourceName: string;
+        pubDate: string;
+        snippet: string;
+        link: string;
+        category?: string;
+        sentiment?: string;
+    }>): TextChunk[] {
+        if (!articles || articles.length === 0) return [];
+
+        return articles.map((article, idx) => {
+            const lines = [
+                `Company: ${companyName}`,
+                `Headline: ${article.title}`,
+                `Source: ${article.sourceName}`,
+                `Published Date: ${article.pubDate}`,
+                article.category ? `Category: ${article.category}` : null,
+                article.sentiment ? `Market Sentiment: ${article.sentiment}` : null,
+                `Summary: ${article.snippet}`,
+                article.link ? `Article Link: ${article.link}` : null
+            ].filter(Boolean);
+
+            const content = `[LIVE GOOGLE NEWS & MARKET RADAR - ${companyName}]\n${lines.join('\n')}`;
+
+            return {
+                content,
+                section: 'NEWS',
+                chunkIndex: idx,
+                contentHash: this.hashContent(content),
+                metadata: {
+                    entityId,
+                    companyName,
+                    source: article.sourceName,
+                    pubDate: article.pubDate,
+                    category: article.category || 'GENERAL',
+                    sentiment: article.sentiment || 'NEUTRAL',
+                    section: 'NEWS'
+                }
+            };
+        });
+    }
 }
+

@@ -70,6 +70,40 @@ export class EntityIndexer {
     }
 
     /**
+     * Indexes live Google News articles into the RAG vector store.
+     * Replaces previous news chunks for this entity to prevent stale duplication.
+     */
+    static async indexNews(
+        entityId: string,
+        companyName: string,
+        articles: Array<{
+            title: string;
+            sourceName: string;
+            pubDate: string;
+            snippet: string;
+            link: string;
+            category?: string;
+            sentiment?: string;
+        }>,
+        orgId: string = 'default'
+    ): Promise<number> {
+        try {
+            if (!articles || articles.length === 0) return 0;
+            const store = new TenantRAGStore(orgId);
+            // Delete prior news chunks for this entity to keep fresh
+            await store.delete('news', entityId);
+
+            const chunks = ChunkingPipeline.chunkNews(companyName, entityId, articles);
+            const count = await store.upsertBatch(chunks, 'news', `news_${entityId}`, entityId);
+            console.log(`[EntityIndexer] Indexed ${count} news chunks for: ${companyName} (${entityId}) [Org: ${orgId}]`);
+            return count;
+        } catch (error: any) {
+            console.error(`[EntityIndexer] Failed to index news for ${companyName}:`, error.message);
+            return 0;
+        }
+    }
+
+    /**
      * Enqueues an indexing task to BullMQ for asynchronous non-blocking background processing.
      */
     static async enqueueEntityIndex(entity: CanonicalEntity, orgId: string = 'default'): Promise<void> {
@@ -104,3 +138,4 @@ export class EntityIndexer {
         }
     }
 }
+

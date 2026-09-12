@@ -4,8 +4,12 @@ import { randomUUID } from 'crypto';
 import { TenantRequest } from '../middleware/tenant';
 import { hybridEntityResolver } from '../core/entity-resolution/hybrid-entity-resolver';
 import { buildMermaidOrganogram } from '../core/entity-resolution/mermaid-organogram';
+import { GoogleNewsTrendsService } from '../core/news-trends/GoogleNewsTrendsService';
+import { EntityIndexer } from '../core/rag/EntityIndexer';
+import { query as dbQuery } from '../lib/database';
 
 const router = Router();
+
 
 const CIN_REGEX = /^[LUu][0-9]{5}[A-Za-z]{2}[0-9]{4}[A-Za-z]{3}[0-9]{6}$/;
 const PAN_REGEX = /^[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}$/;
@@ -164,4 +168,189 @@ router.get('/:entityId/status', async (req: TenantRequest, res: Response) => {
     }
 });
 
+/**
+ * GET /api/v1/entities/:entityId/news
+ * Live Google News articles for the canonical company name.
+ */
+router.get('/:entityId/news', async (req: TenantRequest, res: Response) => {
+    const { entityId } = req.params;
+    const limit = parseInt((req.query.limit as string) || '15', 10);
+
+    try {
+        const entity = await hybridEntityResolver.getEntityById(entityId);
+        if (!entity) {
+            return res.status(404).json({ error: 'NotFound', message: `Entity "${entityId}" not found.` });
+        }
+
+        const articles = await GoogleNewsTrendsService.fetchCompanyNews(entity.canonicalName, limit);
+        const positiveCount = articles.filter(a => a.sentiment === 'POSITIVE').length;
+        const negativeCount = articles.filter(a => a.sentiment === 'NEGATIVE').length;
+        const neutralCount = articles.length - positiveCount - negativeCount;
+
+        return res.json({
+            entityId,
+            companyName: entity.canonicalName,
+            total: articles.length,
+            sentimentSummary: { positiveCount, neutralCount, negativeCount },
+            articles,
+            fetchedAt: new Date().toISOString()
+        });
+    } catch (error: any) {
+        console.error(`[EntityAPI] News error for ${entityId}:`, error.message);
+        return res.status(500).json({ error: 'InternalServerError', message: 'Failed to fetch Google News.' });
+    }
+});
+
+/**
+ * GET /api/v1/entities/:entityId/trends
+ * Google search trends, momentum, and related topics for the company.
+ */
+router.get('/:entityId/trends', async (req: TenantRequest, res: Response) => {
+    const { entityId } = req.params;
+
+    try {
+        const entity = await hybridEntityResolver.getEntityById(entityId);
+        if (!entity) {
+            return res.status(404).json({ error: 'NotFound', message: `Entity "${entityId}" not found.` });
+        }
+
+        const trends = await GoogleNewsTrendsService.fetchSearchTrends(entity.canonicalName);
+        return res.json({
+            entityId,
+            companyName: entity.canonicalName,
+            ...trends
+        });
+    } catch (error: any) {
+        console.error(`[EntityAPI] Trends error for ${entityId}:`, error.message);
+        return res.status(500).json({ error: 'InternalServerError', message: 'Failed to fetch search trends.' });
+    }
+});
+
+/**
+ * POST /api/v1/entities/:entityId/news/index
+ * Auto-indexes recent Google News articles into the RAG vector store for instant Q&A.
+ */
+router.post('/:entityId/news/index', async (req: TenantRequest, res: Response) => {
+    const { entityId } = req.params;
+    const orgId = req.organizationId || 'default';
+
+    try {
+        const entity = await hybridEntityResolver.getEntityById(entityId);
+        if (!entity) {
+            return res.status(404).json({ error: 'NotFound', message: `Entity "${entityId}" not found.` });
+        }
+
+        const articles = await GoogleNewsTrendsService.fetchCompanyNews(entity.canonicalName, 20);
+        const indexedCount = await EntityIndexer.indexNews(entityId, entity.canonicalName, articles, orgId);
+
+        return res.json({
+            success: true,
+            indexedCount,
+            companyName: entity.canonicalName,
+            message: `Indexed ${indexedCount} news articles into RAG vector knowledge base.`
+        });
+    } catch (error: any) {
+        console.error(`[EntityAPI] News index error for ${entityId}:`, error.message);
+        return res.status(500).json({ error: 'InternalServerError', message: 'Failed to index news into RAG.' });
+    }
+});
+
+/**
+ * GET /api/v1/entities/:entityId/dossier
+ * Unified 360° Company Dossier Collage:
+ * Aggregates canonical entity, organogram, live Google News, Search Trends, and Wiki status in one payload.
+ */
+router.get('/:entityId/dossier', async (req: TenantRequest, res: Response) => {
+    const { entityId } = req.params;
+    const orgId = req.organizationId || 'default';
+
+
+    try {
+        const entity = await hybridEntityResolver.getEntityById(entityId);
+        if (!entity) {
+            return res.status(404).json({ error: 'NotFound', message: `Entity "${entityId}" not found in cache.` });
+        }
+
+        // 1. Generate Corporate Organogram
+        const organogram = buildMermaidOrganogram(entity);
+
+        // 2. Fetch News and Trends in parallel
+        const [newsResult, trendsResult, wikiResult] = await Promise.allSettled([
+            GoogleNewsTrendsService.fetchCompanyNews(entity.canonicalName, 15),
+            GoogleNewsTrendsService.fetchSearchTrends(entity.canonicalName),
+            dbQuery(
+                `SELECT revision_id, revision_number, updated_at FROM wiki_pages WHERE org_id = $1 AND entity_id = $2 LIMIT 1`,
+                [orgId, entityId]
+            ).catch(() => ({ rows: [] }))
+        ]);
+
+        const articles = newsResult.status === 'fulfilled' ? newsResult.value : [];
+        const positiveCount = articles.filter(a => a.sentiment === 'POSITIVE').length;
+        const negativeCount = articles.filter(a => a.sentiment === 'NEGATIVE').length;
+        const neutralCount = articles.length - positiveCount - negativeCount;
+
+        const trends = trendsResult.status === 'fulfilled' ? trendsResult.value : {
+            query: entity.canonicalName,
+            momentumScore: 60,
+            velocityLabel: 'STEADY',
+            changePercent: 0,
+            timeframe: 'Past 30 days',
+            dataPoints: [],
+            relatedTopics: [],
+            topSearchQueries: []
+        };
+
+        const wikiRows = wikiResult.status === 'fulfilled' ? (wikiResult.value?.rows || []) : [];
+        const hasWiki = wikiRows.length > 0;
+        const wikiSummary = {
+            hasWiki,
+            revisionCount: hasWiki ? (wikiRows[0].revision_number || 1) : 0,
+            lastEdited: hasWiki ? wikiRows[0].updated_at : undefined
+        };
+
+        return res.json({
+            entity,
+            organogram: {
+                diagram: organogram.diagram,
+                nodeCount: organogram.nodeCount,
+                isTruncated: organogram.isTruncated
+            },
+            news: {
+                articles,
+                total: articles.length,
+                sentimentSummary: { positiveCount, neutralCount, negativeCount },
+                lastUpdated: new Date().toISOString()
+            },
+            trends,
+            wikiSummary
+        });
+    } catch (error: any) {
+        console.error(`[EntityAPI] Dossier error for ${entityId}:`, error.message);
+        return res.status(500).json({
+            error: 'InternalServerError',
+            message: 'Failed to compile 360° company intelligence dossier.'
+        });
+    }
+});
+
+/**
+ * GET /api/v1/entities/live/trends
+ * Direct lookup for trends by any keyword or company name.
+ */
+router.get('/live/trends', async (req: TenantRequest, res: Response) => {
+    const query = (req.query.q as string || '').trim();
+    if (!query) {
+        return res.status(400).json({ error: 'BadRequest', message: 'Query parameter q is required.' });
+    }
+
+    try {
+        const trends = await GoogleNewsTrendsService.fetchSearchTrends(query);
+        return res.json(trends);
+    } catch (error: any) {
+        console.error('[EntityAPI] Live trends query error:', error.message);
+        return res.status(500).json({ error: 'InternalServerError', message: 'Failed to fetch trends.' });
+    }
+});
+
 export default router;
+

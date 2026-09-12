@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Eye,
   Network,
-  BookOpen
+  BookOpen,
+  Layers
 } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { id: 'dashboard', label: 'Terminal Index', icon: Activity, path: '/app/dashboard' },
   { id: 'signals', label: 'Signal Matrix', icon: HeartPulse, path: '/app/signals' },
   { id: 'query', label: 'Intent Matcher', icon: Target, path: '/app/query' },
+  { id: 'dossier', label: 'Company Dossier', icon: Layers, path: '/app/dossier' },
   { id: 'entities', label: 'Entity Intel', icon: Network, path: '/app/entities' },
   { id: 'knowledge', label: 'Knowledge & Wiki', icon: BookOpen, path: '/app/knowledge' },
   { id: 'watch', label: 'Tender Watch', icon: Eye, path: '/app/watch' },
@@ -33,6 +35,7 @@ const NAV_ITEMS = [
   { id: 'sync', label: 'Sync Node', icon: Send, path: '/app/sync' },
   { id: 'profile', label: 'User Protocol', icon: User, path: '/app/profile' },
 ];
+
 
 export default function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
