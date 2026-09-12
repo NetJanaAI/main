@@ -14,7 +14,6 @@ import {
   BookOpen,
   Sparkles,
   Share2,
-  FileCheck,
   Calendar,
   Layers,
   MapPin,
