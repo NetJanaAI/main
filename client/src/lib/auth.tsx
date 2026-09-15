@@ -1,4 +1,25 @@
+/**
+ * auth.tsx — Auth abstraction layer
+ *
+ * When VITE_CLERK_PUBLISHABLE_KEY is a real key, this wraps @clerk/clerk-react normally.
+ * When the key is absent/dummy, vite.config.ts aliases @clerk/clerk-react to clerk-stub.ts,
+ * so Clerk's CDN script is never bundled or injected.
+ *
+ * Auth state in fallback/demo mode is driven by localStorage: netjana_demo_auth = 'true'
+ */
 import React from 'react';
+import {
+  ClerkProvider,
+  OrganizationSwitcher as ClerkOrganizationSwitcher,
+  SignInButton as ClerkSignInButton,
+  SignUpButton as ClerkSignUpButton,
+  SignedIn as ClerkSignedIn,
+  SignedOut as ClerkSignedOut,
+  UserButton as ClerkUserButton,
+  useAuth as useClerkAuth,
+  useOrganization as useClerkOrganization,
+  useUser as useClerkUser,
+} from '@clerk/clerk-react';
 
 /* eslint-disable react-hooks/rules-of-hooks */
 
@@ -7,77 +28,45 @@ const isDummyPublishableKey =
   !publishableKey ||
   publishableKey.includes('ZHVtbXlrZXk') ||
   publishableKey.toLowerCase().includes('dummy');
-const fallbackAuthEnabled = isDummyPublishableKey;
+
+// fallbackAuthEnabled is true when no real Clerk key is configured.
+// In this mode, @clerk/clerk-react is already replaced with a stub by vite.config.ts,
+// so ClerkProvider etc. are no-ops. Auth state comes from localStorage.
+export const isFallbackAuthActive = isDummyPublishableKey;
+
 const isDemoAuthStored =
   typeof window !== 'undefined' &&
   window.localStorage?.getItem('netjana_demo_auth') === 'true';
+
+export const isDemoSessionActive = isDemoAuthStored;
+
+// In fallback mode: signed in if in dev, or if user clicked "Enter Demo Mode"
 const fallbackSignedIn =
-  fallbackAuthEnabled &&
+  isFallbackAuthActive &&
   (import.meta.env.DEV ||
     import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true' ||
     import.meta.env.VITE_ALLOW_DEMO_AUTH === 'true' ||
     isDemoAuthStored);
 
-export const isFallbackAuthActive = fallbackAuthEnabled;
-export const isDemoSessionActive = isDemoAuthStored;
-
-// ---------------------------------------------------------------------------
-// Lazy Clerk import — only resolves when a real key is present.
-// This prevents Clerk's CDN script from being injected when using a dummy key,
-// which caused ERR_CONNECTION_CLOSED errors on Vercel deployments.
-// ---------------------------------------------------------------------------
-type ClerkMod = typeof import('@clerk/clerk-react');
-let _clerk: ClerkMod | null = null;
-
-if (!fallbackAuthEnabled) {
-  import('@clerk/clerk-react').then((mod) => {
-    _clerk = mod;
-  });
-}
-
-function clk(): ClerkMod {
-  if (!_clerk) {
-    throw new Error(
-      '[Auth] Clerk module accessed before dynamic import resolved. ' +
-        'Make sure you are not calling Clerk hooks/components when fallbackAuthEnabled = true.'
-    );
-  }
-  return _clerk;
-}
-
 // ---------------------------------------------------------------------------
 // AuthProvider
 // ---------------------------------------------------------------------------
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  if (!fallbackAuthEnabled) {
-    // We know _clerk will be loaded by the time React renders because the
-    // dynamic import is triggered synchronously at module evaluation time
-    // (micro-task queue), so by first render it will be resolved.
-    const ClerkProviderLazy = React.lazy(
-      () =>
-        import('@clerk/clerk-react').then((mod) => ({
-          default: ({ children: c }: { children: React.ReactNode }) => (
-            <mod.ClerkProvider publishableKey={publishableKey!} afterSignOutUrl="/">
-              {c}
-            </mod.ClerkProvider>
-          ),
-        }))
-    );
+  if (!isFallbackAuthActive) {
+    // Real Clerk key — mount ClerkProvider normally
     return (
-      <React.Suspense fallback={
-        <div className="min-h-screen bg-[#020813] flex items-center justify-center">
-          <div className="h-8 w-8 rounded-full border-2 border-white/10 border-t-[#00ffca] animate-spin" />
-        </div>
-      }>
-        <ClerkProviderLazy>{children}</ClerkProviderLazy>
-      </React.Suspense>
+      <ClerkProvider publishableKey={publishableKey!} afterSignOutUrl="/">
+        {children}
+      </ClerkProvider>
     );
   }
 
+  // Fallback mode: ClerkProvider is the stub (no-op), just render children.
+  // Log a warning in production so devs know auth is in demo mode.
   if (import.meta.env.PROD) {
     console.warn(
-      '[Auth] VITE_CLERK_PUBLISHABLE_KEY is missing or a placeholder; ' +
-        'running with fallback/demo authentication.'
+      '[Auth] VITE_CLERK_PUBLISHABLE_KEY is missing or a placeholder. ' +
+        'Running in demo/fallback auth mode. Set a real key in Vercel env vars to enable Clerk.'
     );
   }
   return <>{children}</>;
@@ -86,11 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 // ---------------------------------------------------------------------------
 // UserButton
 // ---------------------------------------------------------------------------
-export function UserButton(props: Record<string, unknown>) {
-  if (!fallbackAuthEnabled) {
-    const { UserButton: ClerkUserButton } = clk();
-    return <ClerkUserButton {...(props as Parameters<typeof ClerkUserButton>[0])} />;
-  }
+export function UserButton(props: React.ComponentProps<typeof ClerkUserButton>) {
+  if (!isFallbackAuthActive) return <ClerkUserButton {...props} />;
   return (
     <button
       onClick={() => {
@@ -110,15 +96,8 @@ export function UserButton(props: Record<string, unknown>) {
 // ---------------------------------------------------------------------------
 // OrganizationSwitcher
 // ---------------------------------------------------------------------------
-export function OrganizationSwitcher(props: Record<string, unknown>) {
-  if (!fallbackAuthEnabled) {
-    const { OrganizationSwitcher: ClerkOrganizationSwitcher } = clk();
-    return (
-      <ClerkOrganizationSwitcher
-        {...(props as Parameters<typeof ClerkOrganizationSwitcher>[0])}
-      />
-    );
-  }
+export function OrganizationSwitcher(props: React.ComponentProps<typeof ClerkOrganizationSwitcher>) {
+  if (!isFallbackAuthActive) return <ClerkOrganizationSwitcher {...props} />;
   return (
     <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white">
       {isDemoAuthStored ? 'Demo Organization' : 'Local Dev Org'}
@@ -129,18 +108,8 @@ export function OrganizationSwitcher(props: Record<string, unknown>) {
 // ---------------------------------------------------------------------------
 // SignInButton
 // ---------------------------------------------------------------------------
-export function SignInButton({
-  children,
-  ...props
-}: { children?: React.ReactNode } & Record<string, unknown>) {
-  if (!fallbackAuthEnabled) {
-    const { SignInButton: ClerkSignInButton } = clk();
-    return (
-      <ClerkSignInButton {...(props as Parameters<typeof ClerkSignInButton>[0])}>
-        {children}
-      </ClerkSignInButton>
-    );
-  }
+export function SignInButton({ children, ...props }: React.ComponentProps<typeof ClerkSignInButton>) {
+  if (!isFallbackAuthActive) return <ClerkSignInButton {...props}>{children}</ClerkSignInButton>;
   if (React.isValidElement<{ onClick?: () => void; title?: string }>(children) && !fallbackSignedIn) {
     return React.cloneElement(children, {
       onClick: () => {
@@ -163,18 +132,8 @@ export function SignInButton({
 // ---------------------------------------------------------------------------
 // SignUpButton
 // ---------------------------------------------------------------------------
-export function SignUpButton({
-  children,
-  ...props
-}: { children?: React.ReactNode } & Record<string, unknown>) {
-  if (!fallbackAuthEnabled) {
-    const { SignUpButton: ClerkSignUpButton } = clk();
-    return (
-      <ClerkSignUpButton {...(props as Parameters<typeof ClerkSignUpButton>[0])}>
-        {children}
-      </ClerkSignUpButton>
-    );
-  }
+export function SignUpButton({ children, ...props }: React.ComponentProps<typeof ClerkSignUpButton>) {
+  if (!isFallbackAuthActive) return <ClerkSignUpButton {...props}>{children}</ClerkSignUpButton>;
   if (React.isValidElement<{ onClick?: () => void; title?: string }>(children) && !fallbackSignedIn) {
     return React.cloneElement(children, {
       onClick: () => {
@@ -198,18 +157,12 @@ export function SignUpButton({
 // SignedIn / SignedOut
 // ---------------------------------------------------------------------------
 export function SignedIn({ children }: { children: React.ReactNode }) {
-  if (!fallbackAuthEnabled) {
-    const { SignedIn: ClerkSignedIn } = clk();
-    return <ClerkSignedIn>{children}</ClerkSignedIn>;
-  }
+  if (!isFallbackAuthActive) return <ClerkSignedIn>{children}</ClerkSignedIn>;
   return fallbackSignedIn ? <>{children}</> : null;
 }
 
 export function SignedOut({ children }: { children: React.ReactNode }) {
-  if (!fallbackAuthEnabled) {
-    const { SignedOut: ClerkSignedOut } = clk();
-    return <ClerkSignedOut>{children}</ClerkSignedOut>;
-  }
+  if (!isFallbackAuthActive) return <ClerkSignedOut>{children}</ClerkSignedOut>;
   return fallbackSignedIn ? null : <>{children}</>;
 }
 
@@ -217,10 +170,7 @@ export function SignedOut({ children }: { children: React.ReactNode }) {
 // Hooks
 // ---------------------------------------------------------------------------
 export function useUser() {
-  if (!fallbackAuthEnabled) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return clk().useUser();
-  }
+  if (!isFallbackAuthActive) return useClerkUser();
   return {
     user: fallbackSignedIn
       ? {
@@ -230,28 +180,22 @@ export function useUser() {
       : null,
     isLoaded: true,
     isSignedIn: fallbackSignedIn,
-  } as ReturnType<ClerkMod['useUser']>;
+  } as ReturnType<typeof useClerkUser>;
 }
 
 export function useOrganization() {
-  if (!fallbackAuthEnabled) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return clk().useOrganization();
-  }
+  if (!isFallbackAuthActive) return useClerkOrganization();
   return {
     organization: { name: 'Local Dev Organization' },
     isLoaded: true,
-  } as ReturnType<ClerkMod['useOrganization']>;
+  } as ReturnType<typeof useClerkOrganization>;
 }
 
 export function useAuth() {
-  if (!fallbackAuthEnabled) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return clk().useAuth();
-  }
+  if (!isFallbackAuthActive) return useClerkAuth();
   return {
     getToken: async () => null,
     isLoaded: true,
     isSignedIn: fallbackSignedIn,
-  } as ReturnType<ClerkMod['useAuth']>;
+  } as ReturnType<typeof useClerkAuth>;
 }
