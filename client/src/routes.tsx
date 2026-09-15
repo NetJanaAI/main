@@ -6,6 +6,7 @@ import Help from "./pages/Help";
 import AppLayout from "./layouts/AppLayout";
 import Meta from "./components/Meta";
 import RequireAuth from "./components/RequireAuth";
+import { isFallbackAuthActive } from "./lib/auth";
 
 // App Pages
 import Dashboard from "./pages/app/Dashboard";
@@ -28,7 +29,13 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/setup" element={<RequireAuth><SetupWizard /></RequireAuth>} />
+        {/* Setup is the onboarding entry point — accessible without auth in fallback/demo mode */}
+        <Route
+          path="/setup"
+          element={
+            isFallbackAuthActive ? <SetupWizard /> : <RequireAuth><SetupWizard /></RequireAuth>
+          }
+        />
         <Route path="/help" element={<Help />} />
         
         {/* Protected App Routes */}
