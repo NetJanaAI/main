@@ -47,9 +47,8 @@ export async function socketAuthMiddleware(socket: any, next: (err?: Error) => v
     }
 
     // 3. Dev / Staging Fallback
-    if (process.env.NODE_ENV !== 'production') {
-        const clientRequestedOrg = socket.handshake.query?.organizationId;
-        socket.organizationId = clientRequestedOrg || DEV_DEFAULT_ORG;
+    if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH === 'true') {
+        socket.organizationId = DEV_DEFAULT_ORG;
         console.warn(`[SocketAuth] Local/Dev fallback active. Assigned socket ${socket.id} to org: ${socket.organizationId}`);
         return next();
     }

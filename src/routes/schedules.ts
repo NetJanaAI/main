@@ -9,12 +9,13 @@ const router = Router();
 router.get('/', async (req: TenantRequest, res) => {
     try {
         const orgId = req.organizationId;
+        if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
         const result = await query(`
             SELECT id, domain, cron_expression, use_online_ai, spider_mode, max_pages, organization_id, created_at, last_run
             FROM scrape_schedules
-            WHERE (organization_id = $1 OR organization_id IS NULL)
+            WHERE organization_id = $1
             ORDER BY created_at DESC
-        `, [orgId || null]);
+        `, [orgId]);
         res.json(result.rows);
     } catch (e: any) {
         res.status(500).json({ error: e.message });
@@ -25,6 +26,7 @@ router.get('/', async (req: TenantRequest, res) => {
 router.post('/', async (req: TenantRequest, res) => {
     const { domain, cron_expression, use_online_ai, spider_mode, max_pages } = req.body;
     const orgId = req.organizationId;
+    if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
     if (!domain || !cron_expression) {
         return res.status(400).json({ error: 'domain and cron_expression are required' });
     }
@@ -50,12 +52,13 @@ router.post('/', async (req: TenantRequest, res) => {
 router.delete('/:id', async (req: TenantRequest, res) => {
     const { id } = req.params;
     const orgId = req.organizationId;
+    if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
     try {
         const result = await query(`
             DELETE FROM scrape_schedules 
-            WHERE id = $1 AND (organization_id = $2 OR organization_id IS NULL)
+            WHERE id = $1 AND organization_id = $2
             RETURNING domain
-        `, [id, orgId || null]);
+        `, [id, orgId]);
         if (!result.rows.length) return res.status(404).json({ error: 'Schedule not found' });
         removeSchedule(result.rows[0].domain);
         res.json({ message: `Schedule for ${result.rows[0].domain} removed.` });

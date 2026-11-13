@@ -139,7 +139,7 @@ router.post('/:id/enrich-influence', async (req, res) => {
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
 
         // Get region from lead
-        const lead = await query("SELECT geo_country FROM scrape_results WHERE job_id = $1", [leadId]);
+        const lead = await query("SELECT geo_country FROM scrape_results WHERE job_id = $1 AND organization_id = $2", [leadId, organizationId]);
         if (lead.rows.length === 0) return res.status(404).json({ error: "Lead not found" });
 
         const region = lead.rows[0].geo_country?.toLowerCase().includes('uae') ? 'UAE' : 'India';
@@ -204,6 +204,8 @@ router.get('/:id/influence', async (req, res) => {
 router.patch('/:id/feedback', async (req, res) => {
     try {
         const lead_id = req.params.id;
+        const orgId = (req as any).organizationId;
+        if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
         const validation = FeedbackSchema.safeParse(req.body);
         if (!validation.success) {
             return res.status(400).json({ error: 'Invalid feedback status' });
@@ -213,7 +215,7 @@ router.patch('/:id/feedback', async (req, res) => {
         const now = new Date().toISOString();
         const dateStr = now.split('T')[0];
 
-        const result = await query('SELECT source_id FROM lead_cards WHERE lead_id = $1', [lead_id]);
+        const result = await query('SELECT source_id FROM lead_cards WHERE lead_id = $1 AND org_id = $2', [lead_id, orgId]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Lead not found' });
         }
@@ -221,8 +223,8 @@ router.patch('/:id/feedback', async (req, res) => {
         const source_id = result.rows[0].source_id;
 
         await query(
-            `UPDATE lead_cards SET feedback_status = $1, feedback_at = $2 WHERE lead_id = $3`,
-            [status, now, lead_id]
+            `UPDATE lead_cards SET feedback_status = $1, feedback_at = $2 WHERE lead_id = $3 AND org_id = $4`,
+            [status, now, lead_id, orgId]
         );
 
         await redis.incr(`fb:${source_id}:${status}:${dateStr}`);

@@ -10,7 +10,8 @@ const router = express.Router();
  */
 router.get('/', async (req: any, res: any) => {
     try {
-        const orgId = req.organizationId || (req as any).user?.organizationId || 'default';
+        const orgId = req.organizationId;
+        if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
         const page = parseInt(req.query.page as string || '1');
         const limit = 50;
         const offset = (page - 1) * limit;
@@ -18,11 +19,12 @@ router.get('/', async (req: any, res: any) => {
         const results = await query(`
             SELECT id, url, error, raw_text, source_queue, created_at
             FROM dead_letter_queue
+            WHERE organization_id = $3
             ORDER BY created_at DESC
             LIMIT $1 OFFSET $2
-        `, [limit, offset]);
+        `, [limit, offset, orgId]);
 
-        const countRes = await query(`SELECT COUNT(*) FROM dead_letter_queue`);
+        const countRes = await query(`SELECT COUNT(*) FROM dead_letter_queue WHERE organization_id = $1`, [orgId]);
         const total = parseInt(countRes.rows[0]?.count || '0', 10);
 
         res.json({
@@ -43,9 +45,11 @@ router.get('/', async (req: any, res: any) => {
  */
 router.post('/:id/retry', async (req: any, res: any) => {
     try {
+        const orgId = req.organizationId;
+        if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
         const dlqId = req.params.id;
 
-        const result = await query(`SELECT * FROM dead_letter_queue WHERE id = $1`, [dlqId]);
+        const result = await query(`SELECT * FROM dead_letter_queue WHERE id = $1 AND organization_id = $2`, [dlqId, orgId]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'DLQ item not found' });
         }
@@ -77,7 +81,7 @@ router.post('/:id/retry', async (req: any, res: any) => {
         }
 
         // Delete from DLQ after successful re-queue
-        await query(`DELETE FROM dead_letter_queue WHERE id = $1`, [dlqId]);
+        await query(`DELETE FROM dead_letter_queue WHERE id = $1 AND organization_id = $2`, [dlqId, orgId]);
 
         res.json({ success: true, message: 'Re-queued successfully' });
     } catch (e: any) {

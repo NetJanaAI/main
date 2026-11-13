@@ -108,7 +108,7 @@ describe('tenantContext public route policy', () => {
 
     it('uses dev fallback Default Organization in non-production when no auth provided', async () => {
         const mockQuery = jest.fn().mockResolvedValueOnce({ rows: [{ id: 'default-dev-tenant-id' }] });
-        const { tenantContext } = await loadTenantContext({ NODE_ENV: 'development' }, mockQuery);
+        const { tenantContext } = await loadTenantContext({ NODE_ENV: 'development', ALLOW_DEV_AUTH: 'true' }, mockQuery);
 
         const req = { path: '/api/leads', headers: {} } as Request;
         const res = mockResponse();
@@ -118,5 +118,33 @@ describe('tenantContext public route policy', () => {
 
         expect((req as any).organizationId).toBe('default-dev-tenant-id');
         expect(next).toHaveBeenCalled();
+    });
+
+    it('stays closed in non-production unless ALLOW_DEV_AUTH is set', async () => {
+        const mockQuery = jest.fn().mockResolvedValue({ rows: [{ id: 'default-dev-tenant-id' }] });
+        const { tenantContext } = await loadTenantContext({ NODE_ENV: 'development' }, mockQuery);
+
+        const req = { path: '/api/leads', headers: {} } as Request;
+        const res = mockResponse();
+        const next: NextFunction = jest.fn();
+
+        await tenantContext(req as any, res, next);
+
+        expect((req as any).organizationId).toBeUndefined();
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('does not let a non-webhook path skip auth by containing /webhooks', async () => {
+        const { tenantContext } = await loadTenantContext({ NODE_ENV: 'production' });
+
+        const req = { path: '/api/integrations/webhooks', headers: {} } as Request;
+        const res = mockResponse();
+        const next: NextFunction = jest.fn();
+
+        await tenantContext(req as any, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(next).not.toHaveBeenCalled();
     });
 });

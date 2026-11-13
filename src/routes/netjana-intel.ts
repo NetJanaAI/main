@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
-import { queryAsSystem } from '../lib/database';
+import { query, queryWithOrg } from '../lib/database';
+import { getApiKeySecret } from '../lib/secrets';
 import { pullApiRateLimiter } from '../middleware/rateLimit';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -9,31 +10,16 @@ const router = express.Router();
 // ---------------------------------------------------------------------------
 // Pull API Key validation
 // ---------------------------------------------------------------------------
-// NETJANA_PULL_API_KEY is the key NetJana issues to authorised callers
-// (e.g. ConvoSpan). Simple constant-time comparison — no DB round-trip needed
-// for a single shared key.  If you need per-tenant pull keys in future, swap
-// this for a DB lookup similar to ingestAuth.ts.
+// One key per tenant: the caller presents a tenant's own API key in x-api-key
+// (the same key the rest of the API accepts) and can only pull that tenant's
+// lead cards. There is no shared platform key.
 // ---------------------------------------------------------------------------
 
-const PULL_API_KEY = process.env.NETJANA_PULL_API_KEY || '';
-
-function verifyPullApiKey(incoming: string | undefined): boolean {
-    if (!PULL_API_KEY) {
-        // Safety valve: if key is not configured in production, block all pulls.
-        const isProd = process.env.NODE_ENV === 'production';
-        if (isProd) return false;
-        // In dev, allow if key is not configured (degraded mode).
-        return true;
-    }
-    if (!incoming) return false;
-    // Use timing-safe comparison to prevent timing attacks.
-    try {
-        const a = Buffer.from(PULL_API_KEY.padEnd(64));
-        const b = Buffer.from((incoming as string).padEnd(64));
-        return a.length === b.length && crypto.timingSafeEqual(a, b);
-    } catch {
-        return false;
-    }
+async function resolvePullTenant(incoming: string | undefined): Promise<string | null> {
+    if (!incoming) return null;
+    const hash = crypto.createHmac('sha256', getApiKeySecret()).update(incoming).digest('hex');
+    const result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [hash]);
+    return result.rows[0]?.id ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,7 +35,14 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
     const callerSource = (req.headers['x-source'] as string | undefined) || 'unknown';
 
     // --- Auth ---
-    if (!verifyPullApiKey(callerKey)) {
+    let orgId: string | null = null;
+    try {
+        orgId = await resolvePullTenant(callerKey);
+    } catch (err: any) {
+        console.error(`[Intel Pull] 500 | reqId=${requestId} auth lookup failed err=${err.message}`);
+        return res.status(500).json({ error: 'InternalServerError', message: 'Failed to fetch lead details', request_id: requestId });
+    }
+    if (!orgId) {
         console.warn(`[Intel Pull] 403 | reqId=${requestId} lead=${lead_id} source=${callerSource} key_present=${!!callerKey}`);
         return res.status(403).json({
             error: 'Forbidden',
@@ -70,9 +63,8 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
 
     try {
         // --- Fetch full lead card ---
-        // DB-01: Use queryAsSystem to bypass tenant RLS boundaries since this is an
-        // authenticated platform-to-platform webhook query.
-        const leadResult = await queryAsSystem(
+        // Scoped to the tenant that owns the presented key.
+        const leadResult = await queryWithOrg(
             `SELECT
                 lead_id,
                 company_name,
@@ -89,9 +81,10 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
                 card_do_this,
                 created_at
              FROM lead_cards
-             WHERE lead_id = $1
+             WHERE lead_id = $1 AND org_id = $2
              LIMIT 1`,
-            [lead_id]
+            [lead_id, orgId],
+            orgId
         );
 
         if (leadResult.rows.length === 0) {
@@ -109,9 +102,10 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
         // --- Fetch optional graph (influence map) ---
         let graph: { nodes: any[]; edges: any[] } | null = null;
         try {
-            const graphResult = await queryAsSystem(
-                `SELECT influence_map FROM lead_influence_data WHERE lead_id = $1 LIMIT 1`,
-                [lead_id]
+            const graphResult = await queryWithOrg(
+                `SELECT influence_map FROM lead_influence_data WHERE lead_id = $1 AND organization_id = $2 LIMIT 1`,
+                [lead_id, orgId],
+                orgId
             );
             if (graphResult.rows.length > 0 && graphResult.rows[0].influence_map) {
                 const raw = graphResult.rows[0].influence_map;

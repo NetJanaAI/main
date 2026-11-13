@@ -40,7 +40,7 @@ router.post('/gem', async (req: Request, res: Response) => {
         }
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
-        (req as any).io?.emit('ingest_signal', {
+        (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'GeM',
             type: 'PROCUREMENT_BID',
@@ -61,7 +61,7 @@ router.post('/indiamart', async (req: Request, res: Response) => {
         const signal = await adaptIndiaMART(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
-        (req as any).io?.emit('ingest_signal', {
+        (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'IndiaMART',
             type: 'BUYER_INTENT',
@@ -82,7 +82,7 @@ router.post('/funding', async (req: Request, res: Response) => {
         const signal = await adaptFunding(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
-        (req as any).io?.emit('ingest_signal', {
+        (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'Funding',
             type: 'VC_ROUND',
@@ -103,7 +103,7 @@ router.post('/naukri', async (req: Request, res: Response) => {
         const signal = await adaptNaukri(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
-        (req as any).io?.emit('ingest_signal', {
+        (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'Naukri',
             type: 'HIRING_SURGE',
@@ -124,7 +124,7 @@ router.post('/zauba', async (req: Request, res: Response) => {
         const signal = await adaptZauba(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
-        (req as any).io?.emit('ingest_signal', {
+        (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'Zauba',
             type: 'TRADE_LICENSE',
@@ -145,7 +145,7 @@ router.post('/mca', async (req: Request, res: Response) => {
         const signal = await adaptMca(payload);
 
         await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
-        (req as any).io?.emit('ingest_signal', {
+        (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'MCA',
             type: 'DIRECTOR_CHANGE',

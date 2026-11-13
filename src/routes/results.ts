@@ -3,6 +3,7 @@ import { query, queryWithOrg } from '../lib/database';
 import { generateReport } from '../lib/pdfReport';
 import { generateCapsule, signCapsule } from '../lib/dataCapsule';
 import { TenantRequest } from '../middleware/tenant';
+import { signScreenshotPath } from '../lib/signedScreenshot';
 
 const router = Router();
 
@@ -55,7 +56,7 @@ router.get('/report/:jobId', async (req: TenantRequest, res) => {
             estimatedRoi: row.estimated_roi,
             complianceVerified: row.compliance_verified,
             timestamp: row.timestamp,
-            screenshotPath: row.screenshot_path,
+            screenshotPath: signScreenshotPath(row.screenshot_path),
             spiderStats: row.spider_stats,
             criticAnalysis: row.critic_analysis,
             signals: row.signals
@@ -98,7 +99,7 @@ router.get('/capsule/:jobId', async (req: TenantRequest, res) => {
             estimatedRoi: row.estimated_roi,
             complianceVerified: row.compliance_verified,
             timestamp: row.timestamp,
-            screenshotPath: row.screenshot_path,
+            screenshotPath: signScreenshotPath(row.screenshot_path),
             spiderStats: row.spider_stats,
             criticAnalysis: row.critic_analysis,
             signals: row.signals

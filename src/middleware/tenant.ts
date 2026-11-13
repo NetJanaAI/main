@@ -104,8 +104,9 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 
     // 3. Local Dev Fallback
     // Allows the app to be exercised end-to-end with Docker Postgres/Redis before
-    // real Clerk/API-key secrets are provisioned. Never active in production.
-    if (!req.organizationId && process.env.NODE_ENV !== 'production') {
+    // real Clerk/API-key secrets are provisioned. Never active in production, and
+    // only when ALLOW_DEV_AUTH=true is set, so a deploy that forgets NODE_ENV stays closed.
+    if (!req.organizationId && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH === 'true') {
         try {
             const result = await query("SELECT id FROM tenants WHERE name = 'Default Organization' LIMIT 1");
             if (result.rows.length > 0) {
@@ -117,7 +118,7 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
         }
     }
     
-    if (!req.organizationId && req.path.startsWith('/api') && !req.path.includes('/webhooks')) {
+    if (!req.organizationId && req.path.startsWith('/api') && !req.path.startsWith('/api/webhooks/')) {
         return res.status(401).json({ error: 'Unauthorized: Valid Session or API Key Required' });
     }
 
