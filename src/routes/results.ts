@@ -22,7 +22,11 @@ router.get('/', async (req: TenantRequest, res) => {
         );
 
         res.json({
-            data: result ? result.rows : [],
+            // Stored paths are server filesystem paths and the static mount only serves signed links.
+            data: (result ? result.rows : []).map((row: any) => ({
+                ...row,
+                screenshot_path: signScreenshotPath(row.screenshot_path),
+            })),
             page,
             limit
         });

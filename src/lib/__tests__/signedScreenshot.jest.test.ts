@@ -38,4 +38,34 @@ describe('signed screenshot links', () => {
     it('returns null when there is no screenshot', () => {
         expect(signScreenshotPath(null)).toBeNull();
     });
+
+    it('expires within 10 minutes', () => {
+        const exp = Number(new URL(signScreenshotPath('/screenshots/a.png')!, 'http://x').searchParams.get('exp'));
+        expect(exp * 1000 - Date.now()).toBeLessThanOrEqual(600_000);
+    });
+
+    it('blocks extending the expiry of a signed link', () => {
+        const u = new URL(signScreenshotPath('/screenshots/acme_com_1.png')!, 'http://x');
+        u.searchParams.set('exp', String(Number(u.searchParams.get('exp')) + 86_400));
+        const { res, next } = run(u.pathname + u.search);
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['non-numeric exp', '?exp=abc&sig=00'],
+        ['missing exp', '?sig=00'],
+        ['short signature', `?exp=${Math.floor(Date.now() / 1000) + 60}&sig=00`],
+        ['empty signature', `?exp=${Math.floor(Date.now() / 1000) + 60}&sig=`],
+    ])('blocks %s', (_name, qs) => {
+        const { res, next } = run('/screenshots/acme_com_1.png' + qs);
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it('blocks an undecodable path', () => {
+        const { res, next } = run(signScreenshotPath('/screenshots/a.png')!.replace('a.png', '%E0%A4%A'));
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(next).not.toHaveBeenCalled();
+    });
 });
