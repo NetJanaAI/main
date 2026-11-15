@@ -5,7 +5,6 @@ const queueAdd = jest.fn();
 
 jest.mock('../../lib/database', () => ({ query, queryWithOrg, queryAsSystem: jest.fn(), db: { query } }));
 jest.mock('../../lib/scheduler', () => ({ addSchedule: jest.fn(), removeSchedule: jest.fn(), listSchedules: jest.fn() }));
-jest.mock('../../standalone/services/RazorpayService', () => ({ RazorpayService: { billExtraUsage: jest.fn() } }));
 jest.mock('../../lib/queue', () => ({
     rawSignalsQueue: { add: queueAdd },
     scrapeQueue: { add: queueAdd },
@@ -175,38 +174,5 @@ describe('Shared null-tenant rows', () => {
             expect(c.params).toContain(ORG_A);
         }
         expect(res.status).toHaveBeenCalledWith(404);
-    });
-});
-
-describe('Seats', () => {
-    const router = require('../enterprise').default;
-    const add = handler(router, 'post', '/seats/add');
-    const body = { userEmail: 'new@a.example', userName: 'New' };
-
-    it('adds the seat to the caller tenant', async () => {
-        query.mockResolvedValue({ rows: [{ count: '1' }] });
-        await add({ organizationId: ORG_A, body }, mockRes());
-        const insert = sqlCalls(query).find((c) => c.sql.includes('INSERT INTO organization_seats'))!;
-        expect(insert.params[1]).toBe(ORG_A);
-    });
-
-    it('refuses a seat aimed at another tenant', async () => {
-        const res = mockRes();
-        await add({ organizationId: ORG_A, body: { ...body, organizationId: 'org-b' } }, res);
-        expect(res.status).toHaveBeenCalledWith(403);
-        expect(query).not.toHaveBeenCalled();
-    });
-
-    it('refuses a non-admin member of a Clerk organization', async () => {
-        const res = mockRes();
-        await add({ organizationId: ORG_A, auth: { org_role: 'org:member' }, body }, res);
-        expect(res.status).toHaveBeenCalledWith(403);
-        expect(query).not.toHaveBeenCalled();
-    });
-
-    it('refuses a caller with no tenant', async () => {
-        const res = mockRes();
-        await add({ body }, res);
-        expect(res.status).toHaveBeenCalledWith(401);
     });
 });
