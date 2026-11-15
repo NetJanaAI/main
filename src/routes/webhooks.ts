@@ -4,6 +4,7 @@ import { query } from '../lib/database';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { RazorpayService } from '../standalone/services/RazorpayService';
 
 const router = express.Router();
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET || '';
@@ -81,6 +82,52 @@ router.post('/clerk', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('[Clerk Webhook] DB Error:', err);
+        res.status(500).json({ error: 'Internal database error' });
+    }
+});
+
+const RAZORPAY_STATUSES = new Set([
+    'created', 'authenticated', 'active', 'pending', 'halted', 'cancelled', 'completed', 'expired', 'paused',
+]);
+
+// Razorpay subscription lifecycle events. The status stored is the one Razorpay reports in the
+// payload, and the tenant is found by the subscription id we stored at signup, never by payload notes.
+router.post('/razorpay', async (req, res) => {
+    if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
+        console.error('[Razorpay Webhook] Missing RAZORPAY_WEBHOOK_SECRET');
+        return res.status(500).json({ error: 'Config error' });
+    }
+    const raw: Buffer | string = (req as any).rawBody;
+    const signature = req.headers['x-razorpay-signature'] as string | undefined;
+    if (!raw || !RazorpayService.verifyWebhook(raw, signature)) {
+        return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    let evt: any;
+    try {
+        evt = JSON.parse(raw.toString());
+    } catch {
+        return res.status(400).json({ error: 'Invalid payload' });
+    }
+
+    const entity = evt?.payload?.subscription?.entity;
+    if (typeof evt?.event !== 'string' || !evt.event.startsWith('subscription.') || !entity?.id) {
+        return res.json({ success: true, ignored: true });
+    }
+    if (!RAZORPAY_STATUSES.has(entity.status)) {
+        console.warn(`[Razorpay Webhook] Ignoring unexpected status for ${entity.id}`);
+        return res.json({ success: true, ignored: true });
+    }
+
+    try {
+        const result = await query(
+            'UPDATE tenants SET razorpay_subscription_status = $1 WHERE razorpay_subscription_id = $2 RETURNING id',
+            [entity.status, entity.id]
+        );
+        if (result.rows.length === 0) console.warn(`[Razorpay Webhook] No tenant for subscription ${entity.id}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[Razorpay Webhook] DB Error:', err);
         res.status(500).json({ error: 'Internal database error' });
     }
 });

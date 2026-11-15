@@ -38,16 +38,17 @@ export class RazorpayService {
     }
 
     /**
-     * Creates a subscription for a given plan.
+     * Creates a subscription for a plan. Razorpay's create call takes no customer id: the
+     * customer authorises through the returned `short_url`, and `notes` carry our tenant id.
      */
-    static async createSubscription(customerId: string, planId: string) {
+    static async createSubscription(planId: string, notes: Record<string, string>) {
         try {
             const res = await axios.post(`${this.BASE_URL}/subscriptions`, {
                 plan_id: planId,
-                customer_id: customerId,
                 total_count: 12, // 1 year of monthly billing
                 quantity: 1,
-                addons: []
+                customer_notify: true,
+                notes
             }, { auth: this.auth });
             return res.data;
         } catch (e: any) {
@@ -57,14 +58,15 @@ export class RazorpayService {
     }
 
     /**
-     * Verifies webhook signature for payment/subscription updates.
+     * Verifies the X-Razorpay-Signature header: HMAC-SHA256 of the raw request body keyed with
+     * the webhook secret. An unset secret fails closed (an empty-key HMAC is trivially forgeable).
      */
-    static verifyWebhook(payload: string, signature: string): boolean {
-        const expectedSignature = crypto
-            .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET || '')
-            .update(payload)
-            .digest('hex');
-        return expectedSignature === signature;
+    static verifyWebhook(rawBody: Buffer | string, signature: string | undefined): boolean {
+        const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        if (!secret || !signature) return false;
+        const expected = crypto.createHmac('sha256', secret).update(rawBody).digest();
+        const given = Buffer.from(signature, 'hex');
+        return given.length === expected.length && crypto.timingSafeEqual(given, expected);
     }
 
     /**
