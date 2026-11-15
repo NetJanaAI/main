@@ -6,6 +6,7 @@ import { EnrichmentJobData } from '../core/entity-resolution/types';
 import { query } from '../lib/database';
 import { buildMermaidOrganogram } from '../core/entity-resolution/mermaid-organogram';
 import { EntityIndexer } from '../core/rag/EntityIndexer';
+import { emitToOrg } from '../lib/socketRooms';
 
 export function setupEntityEnrichmentWorker(io?: Server): Worker | null {
     if (process.env.NODE_ENV === 'test') {
@@ -20,7 +21,7 @@ export function setupEntityEnrichmentWorker(io?: Server): Worker | null {
     const worker = new Worker<EnrichmentJobData>(
         ENTITY_ENRICHMENT_QUEUE_NAME,
         async (job: Job<EnrichmentJobData>) => {
-            const { cin, entityId, enrichTiers, locationClues } = job.data;
+            const { cin, entityId, enrichTiers, locationClues, organizationId } = job.data;
             console.log(`[EntityEnrichmentWorker] Processing enrichment for CIN: ${cin} (EntityId: ${entityId}, Job: ${job.id})`);
 
             try {
@@ -48,7 +49,7 @@ export function setupEntityEnrichmentWorker(io?: Server): Worker | null {
                 // Broadcast real-time update to connected UI clients
                 if (io) {
                     const organogram = buildMermaidOrganogram(result);
-                    io.emit('entity:enriched', {
+                    emitToOrg(io, organizationId, 'entity:enriched', {
                         entityId: result.entityId,
                         canonicalName: result.canonicalName,
                         cin: result.cin,
@@ -73,14 +74,12 @@ export function setupEntityEnrichmentWorker(io?: Server): Worker | null {
                     [entityId]
                 );
 
-                if (io) {
-                    io.emit('entity:enrichment_failed', {
-                        entityId,
-                        cin,
-                        error: error.message,
-                        timestamp: new Date().toISOString()
-                    });
-                }
+                emitToOrg(io, organizationId, 'entity:enrichment_failed', {
+                    entityId,
+                    cin,
+                    error: error.message,
+                    timestamp: new Date().toISOString()
+                });
 
                 throw error; // Let BullMQ handle retry / backoff
             }

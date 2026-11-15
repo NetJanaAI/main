@@ -125,6 +125,7 @@ export interface ResolverOptions {
     enableAsyncEnrichment?: boolean;
     autoEnrichTiers?: ('BASIC' | 'DETAILED' | 'GST')[];
     fuzzyThreshold?: number;
+    organizationId?: string;
 }
 
 export interface InstaOrderResponse {
@@ -263,6 +264,8 @@ export interface EnrichmentJobData {
     canonicalName: string;
     enrichTiers?: ('BASIC' | 'DETAILED' | 'GST')[];
     locationClues?: LocationClue;
+    /** Tenant that requested the enrichment; progress events go only to this tenant's room. */
+    organizationId?: string;
 }
 
 /**

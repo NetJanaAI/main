@@ -12,6 +12,7 @@ import { register, getSystemHealth } from './lib/telemetry';
 import Redis from 'ioredis';
 import { connection } from './lib/queue';
 import { requireSignedScreenshot } from './lib/signedScreenshot';
+import { relayWorkerEvent } from './lib/socketRooms';
 
 export async function createSharedApp() {
     // Initialize Secure Logger
@@ -41,12 +42,7 @@ export async function createSharedApp() {
         });
         subscriber.on('message', (channel, message) => {
             if (channel === 'worker_events') {
-                try {
-                    const { event, data } = JSON.parse(message);
-                    io.emit(event, data);
-                } catch (e) {
-                    console.error('[API] Failed to parse worker event payload', e);
-                }
+                relayWorkerEvent(io, message);
             }
         });
     } catch (e) {

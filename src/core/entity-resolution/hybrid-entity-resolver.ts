@@ -196,7 +196,8 @@ export class HybridEntityResolver {
                         entityId,
                         canonicalName: stubName,
                         enrichTiers: options.autoEnrichTiers,
-                        locationClues: rawQuery.locationClues
+                        locationClues: rawQuery.locationClues,
+                        organizationId: options.organizationId
                     },
                     {
                         jobId: `enrich:${cin}`, // Deduplication: same CIN won't re-enqueue while active

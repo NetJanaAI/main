@@ -17,6 +17,7 @@ import { AdversarialCritic } from '../engines/AdversarialCritic';
 import { DeadLetterQueue } from '../lib/DeadLetterQueue';
 import { Server } from 'socket.io';
 import { db } from '../lib/database';
+import { emitToOrg } from '../lib/socketRooms';
 
 export function setupTier3Worker(io?: Server | null): Worker {
     const critic = new AdversarialCritic();
@@ -51,13 +52,11 @@ export function setupTier3Worker(io?: Server | null): Worker {
                     jobId: `enriched_${signal?.signal_id || Date.now()}`,
                 });
 
-                if (io) {
-                    io.emit('tier3:promoted', {
-                        signal_id: signal?.signal_id,
-                        org_id,
-                        frictionScore: result.frictionScore,
-                    });
-                }
+                emitToOrg(io, org_id, 'tier3:promoted', {
+                    signal_id: signal?.signal_id,
+                    org_id,
+                    frictionScore: result.frictionScore,
+                });
 
                 return { status: 'promoted_to_tier2', frictionScore: result.frictionScore };
             }

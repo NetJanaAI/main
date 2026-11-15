@@ -73,7 +73,8 @@ router.post('/search', async (req: TenantRequest, res: Response) => {
             panHint: detectedPan,
             gstinHint
         }, {
-            enableInstaSearch: enableRemoteSearch !== false
+            enableInstaSearch: enableRemoteSearch !== false,
+            organizationId: req.organizationId
         });
 
         // 2. Generate corporate hierarchy organogram
