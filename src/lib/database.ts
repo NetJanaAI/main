@@ -1,5 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import format from 'pg-format';
+import { tenantRlsStatements } from './db/rlsPolicies';
 
 // Read database configuration from environment (supports direct DATABASE_URL or Vercel Supabase integration POSTGRES_URL)
 const DATABASE_URL = process.env.DATABASE_URL ||
@@ -90,16 +91,25 @@ export async function queryWithOrg(text: string, params: any[], orgId: string | 
 
     const client = await pool.connect();
     try {
-        // Set the org context for this transaction so Postgres RLS policies activate
+        // set_config(..., true) lasts only for the current transaction. Without an explicit
+        // BEGIN each statement is its own transaction, the setting is gone before the real
+        // query runs, and (behind a transaction pooler) the two could use different connections.
+        await client.query('BEGIN');
         await client.query("SELECT set_config('app.current_organization_id', $1, true)", [orgId]);
         const res = await client.query(text, params);
+        await client.query('COMMIT');
         return res;
     } catch (error: any) {
+        await rollbackQuietly(client);
         console.error(`[Database:RLS] Query error (org=${orgId}):`, error.message);
         throw error;
     } finally {
         client.release();
     }
+}
+
+async function rollbackQuietly(client: PoolClient) {
+    try { await client.query('ROLLBACK'); } catch { /* connection already broken; release will discard it */ }
 }
 
 /**
@@ -114,10 +124,13 @@ export async function queryAsSystem(text: string, params: any[]) {
 
     const client = await pool.connect();
     try {
+        await client.query('BEGIN');
         await client.query("SELECT set_config('app.bypass_rls', 'true', true)");
         const res = await client.query(text, params);
+        await client.query('COMMIT');
         return res;
     } catch (error: any) {
+        await rollbackQuietly(client);
         console.error('[Database:System] Query error:', error.message);
         throw error;
     } finally {
@@ -1051,8 +1064,16 @@ export async function initDb() {
             END $$;
         `);
 
+        // Single hardened isolation policy per tenant table. FORCE (so the policy also binds the
+        // table owner) is opt-in: many background paths still call db.query without a tenant and
+        // would see no rows. See docs/rls-rollout.md before setting RLS_FORCE=true.
+        const forceRls = process.env.RLS_FORCE === 'true';
+        for (const statement of tenantRlsStatements({ force: forceRls })) {
+            await client.query(statement);
+        }
+
         await client.query('COMMIT');
-        console.log('[Database] Schema migration complete.');
+        console.log(`[Database] Schema migration complete (RLS force=${forceRls}).`);
     } catch (e: any) {
         await client.query('ROLLBACK');
         console.error('[Database] Migration failed:', e.message);

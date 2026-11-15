@@ -11,7 +11,7 @@
     "dev:covospan": "cross-env NETJANA_MODE=covospan tsx watch src/modes/covospan/index.ts",
     "dev:standalone": "cross-env NETJANA_MODE=standalone tsx watch src/modes/standalone/index.ts",
     "dev:scraper": "cross-env NETJANA_MODE=worker ROLE=worker tsx watch src/modes/worker/index.ts",
-    "test": "jest --runInBand",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:clean": "jest --clearCache && node -e \"const fs=require('fs'),path=require('path'),os=require('os');try{fs.rmSync('coverage',{recursive:true,force:true})}catch{}try{const tmp=os.tmpdir();fs.readdirSync(tmp).filter(f=>f.startsWith('jest_')).forEach(f=>fs.rmSync(path.join(tmp,f),{recursive:true,force:true}))}catch{}\"",
     "test:core": "npm run test:clean && jest --runInBand --testPathPatterns=src/core/__tests__",
     "build:covospan": "cross-env NETJANA_MODE=covospan tsc",
@@ -74,6 +74,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
