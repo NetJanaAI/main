@@ -12,10 +12,11 @@ const router = Router();
 router.get('/export', async (req: TenantRequest, res: Response) => {
     try {
         const orgId = req.organizationId;
+        if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
         
         const result = await queryWithOrg(
-            'SELECT domain, friction_score, geo_country, estimated_roi, timestamp FROM scrape_results WHERE (organization_id = $1 OR organization_id IS NULL) ORDER BY timestamp DESC',
-            [orgId || null],
+            'SELECT domain, friction_score, geo_country, estimated_roi, timestamp FROM scrape_results WHERE organization_id = $1 ORDER BY timestamp DESC',
+            [orgId],
             orgId
         );
         

@@ -9,12 +9,17 @@ const router = Router();
  * POST /api/enterprise/seats/add
  */
 router.post('/seats/add', async (req: any, res) => {
-    const { organizationId, userEmail, userName } = req.body;
-    const callerOrgId = req.user?.organizationId;
-
-    // Security: Only org admins or internal netjana can add seats
-    if (callerOrgId !== organizationId && req.user?.role !== 'admin') {
+    const { userEmail, userName } = req.body;
+    // The tenant comes from the authenticated session or API key, never from the body.
+    const organizationId = req.organizationId;
+    if (!organizationId) return res.status(401).json({ error: 'Unauthorized' });
+    if (req.body.organizationId && req.body.organizationId !== organizationId) {
         return res.status(403).json({ error: 'Unauthorized: Cannot manage seats for other organizations.' });
+    }
+    // Inside a Clerk organization only its admins add seats (a seat can be billed).
+    const orgRole = req.auth?.org_role;
+    if (orgRole && orgRole !== 'org:admin' && orgRole !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden: Organization admin role required to add seats.' });
     }
 
     try {

@@ -11,6 +11,7 @@ import { tenantContext } from './middleware/tenant';
 import { register, getSystemHealth } from './lib/telemetry';
 import Redis from 'ioredis';
 import { connection } from './lib/queue';
+import { requireSignedScreenshot } from './lib/signedScreenshot';
 
 export async function createSharedApp() {
     // Initialize Secure Logger
@@ -79,7 +80,7 @@ export async function createSharedApp() {
 
     // Static Assets
     const screenshotsDist = path.join(process.cwd(), 'data', 'screenshots');
-    app.use('/screenshots', express.static(screenshotsDist));
+    app.use('/screenshots', requireSignedScreenshot, express.static(screenshotsDist));
 
     return { app, httpServer, io };
 }

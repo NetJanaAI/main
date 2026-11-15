@@ -118,6 +118,7 @@ import { setupScrapeWorker } from './workers/scrapeWorker';
 import { setupDlqWorker } from './workers/dlqWorker';
 import { startOutreachWorker } from './workers/outreach_worker';
 import { startInfluenceWorker } from './workers/influenceMapWorker';
+import { requireSignedScreenshot } from './lib/signedScreenshot';
 import { startDecayRescoreWorker } from './workers/decayRescoreWorker';
 import { setupRouterWorker } from './core/router';
 import { setupGeminiWorkers } from './core/gemini-chain';
@@ -404,7 +405,7 @@ io.on('connection', (socket: any) => {
 
 // Serve screenshots independently of dev/prod mode
 const screenshotsDist = path.join(process.cwd(), 'data', 'screenshots');
-app.use('/screenshots', express.static(screenshotsDist));
+app.use('/screenshots', requireSignedScreenshot, express.static(screenshotsDist));
 
 // Serve frontend in production or if build exists (default behavior outside dev)
 if (process.env.NODE_ENV === 'production' || process.env.SERVE_FRONTEND === 'true') {

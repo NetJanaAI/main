@@ -40,7 +40,7 @@ export class ShareService {
         if (Date.now() > expiresAt) return null;
 
         // Fetch lead from DB
-        const res = await query("SELECT * FROM scrape_results WHERE job_id = $1 AND (organization_id = $2 OR organization_id IS NULL)", [leadId, organizationId]);
+        const res = await query("SELECT * FROM scrape_results WHERE job_id = $1 AND organization_id = $2", [leadId, organizationId]);
         if (res.rows.length === 0) return null;
 
         const leadData = res.rows[0];
