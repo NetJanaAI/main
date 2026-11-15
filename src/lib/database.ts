@@ -200,6 +200,8 @@ export async function initDb() {
         try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS clerk_org_id TEXT UNIQUE"); } catch(e) {}
         try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free'"); } catch(e) {}
         try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free'"); } catch(e) {}
+        // Razorpay subscription that extra seats are billed to (NULL = no paid plan on file).
+        try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT"); } catch(e) {}
 
         // 1.5 Data Source Credentials Table
         await client.query(`
