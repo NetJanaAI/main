@@ -2,14 +2,17 @@ import { Router } from 'express';
 import { UsageTracker } from '../standalone/services/UsageTracker';
 import { FREEMIUM_LIMITS, FeatureKey } from '../config/freemiumLimits';
 
+import { requireTenant } from '../middleware/tenant';
+
 const router = Router();
+router.use(requireTenant);
 
 /**
  * GET /api/usage
  * Returns the current authenticated organization's usage stats.
  */
 router.get('/', async (req: any, res) => {
-    const organizationId = req.organizationId || 'default';
+    const organizationId = req.organizationId as string;
     
     try {
         const features = Object.keys(FREEMIUM_LIMITS) as FeatureKey[];

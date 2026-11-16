@@ -3,14 +3,17 @@ import { TokenTracker } from '../lib/ai/token-tracker';
 import { db } from '../lib/database';
 import { getDedupStats } from '../core/collectors/indiamart-dedup';
 
+import { requireTenant } from '../middleware/tenant';
+
 const router = Router();
+router.use(requireTenant);
 
 /**
  * GET /api/telemetry/tokens
  * Returns real-time and historical token usage for the organization.
  */
 router.get('/tokens', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     const days = parseInt(req.query.days as string || '7', 10);
 
     try {
@@ -61,7 +64,7 @@ router.get('/tokens', async (req: any, res: Response) => {
  */
 router.get('/health', async (req: any, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         
         // 1. Get Blocked IP Count (Last 24h)
         const blocks = await db.query(`

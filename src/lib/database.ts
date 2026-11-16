@@ -283,6 +283,13 @@ export async function initDb() {
         try { await client.query("ALTER TABLE dead_letter_queue ADD COLUMN IF NOT EXISTS source_queue TEXT"); } catch(e) {}
         try { await client.query("ALTER TABLE dead_letter_queue ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES tenants(id)"); } catch(e) {}
         try { await client.query("ALTER TABLE dead_letter_queue ADD COLUMN IF NOT EXISTS metadata JSONB"); } catch(e) {}
+        // Created here (not only lazily by DeadLetterQueue.archiveOldEntries) so it gets a tenant policy below.
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS dead_letter_queue_archive (
+                LIKE dead_letter_queue INCLUDING ALL,
+                archived_at TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
 
         // 2. PII Vault Table
         await client.query(`

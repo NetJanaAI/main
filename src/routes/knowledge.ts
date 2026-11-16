@@ -5,10 +5,11 @@ const pdf = require('pdf-parse');
 import { TenantRAGStore } from '../core/rag/TenantRAGStore';
 import { ChunkingPipeline } from '../core/rag/ChunkingPipeline';
 import { RAGQueryEngine } from '../core/rag/RAGQueryEngine';
-import { TenantRequest } from '../middleware/tenant';
+import { TenantRequest, requireTenant } from '../middleware/tenant';
 import { query } from '../lib/database';
 
 const router = Router();
+router.use(requireTenant);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
 const QuerySchema = z.object({
@@ -24,7 +25,7 @@ const QuerySchema = z.object({
  */
 router.post('/query', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const parseResult = QuerySchema.safeParse(req.body);
 
         if (!parseResult.success) {
@@ -58,7 +59,7 @@ router.post('/query', async (req: TenantRequest, res: Response) => {
  */
 router.post('/upload', upload.single('file'), async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
@@ -117,7 +118,7 @@ router.post('/upload', upload.single('file'), async (req: TenantRequest, res: Re
  */
 router.get('/sources', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
 
         const result = await query(
             `SELECT 
@@ -151,7 +152,7 @@ router.get('/sources', async (req: TenantRequest, res: Response) => {
  */
 router.get('/stats', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const store = new TenantRAGStore(orgId);
         const stats = await store.getTenantStats();
         res.json({ stats });
@@ -167,7 +168,7 @@ router.get('/stats', async (req: TenantRequest, res: Response) => {
  */
 router.delete('/sources/:sourceId', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const { sourceId } = req.params;
 
         await query(

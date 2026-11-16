@@ -1,11 +1,12 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { query } from '../lib/database';
-import { TenantRequest } from '../middleware/tenant';
+import { TenantRequest, requireTenant } from '../middleware/tenant';
 import { EntityIndexer } from '../core/rag/EntityIndexer';
 import { hybridEntityResolver } from '../core/entity-resolution/hybrid-entity-resolver';
 
 const router = Router();
+router.use(requireTenant);
 
 const WikiUpsertSchema = z.object({
     title: z.string().min(1, 'Title is required'),
@@ -29,7 +30,7 @@ function slugify(text: string): string {
  */
 router.get('/', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const result = await query(
             `SELECT id, entity_id, slug, title, author_name, version, is_published, created_at, updated_at
              FROM wiki_pages 
@@ -54,7 +55,7 @@ router.get('/', async (req: TenantRequest, res: Response) => {
  */
 router.get('/:entityId', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const { entityId } = req.params;
 
         const result = await query(
@@ -102,7 +103,7 @@ router.get('/:entityId', async (req: TenantRequest, res: Response) => {
  */
 router.put('/:entityId', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const { entityId } = req.params;
 
         const parseResult = WikiUpsertSchema.safeParse(req.body);
@@ -195,7 +196,7 @@ router.put('/:entityId', async (req: TenantRequest, res: Response) => {
  */
 router.get('/:entityId/history', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const { entityId } = req.params;
 
         const result = await query(
@@ -220,7 +221,7 @@ router.get('/:entityId/history', async (req: TenantRequest, res: Response) => {
  */
 router.get('/:entityId/revisions/:version', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const { entityId, version } = req.params;
 
         const result = await query(
@@ -247,7 +248,7 @@ router.get('/:entityId/revisions/:version', async (req: TenantRequest, res: Resp
  */
 router.delete('/:entityId', async (req: TenantRequest, res: Response) => {
     try {
-        const orgId = req.organizationId || 'default';
+        const orgId = req.organizationId as string;
         const { entityId } = req.params;
 
         await query(

@@ -13,6 +13,17 @@ export interface TenantRequest extends Request {
 }
 
 /**
+ * Guard for tenant-scoped routers: a request with no authenticated tenant is rejected,
+ * never defaulted to a shared tenant or to an id the caller supplies.
+ */
+export const requireTenant = (req: TenantRequest, res: Response, next: NextFunction) => {
+    if (!req.organizationId) {
+        return res.status(401).json({ error: 'Unauthorized: Valid Session or API Key Required' });
+    }
+    next();
+};
+
+/**
  * Enhanced middleware to support Clerk OAuth + Legacy API Keys
  */
 export const tenantContext = async (req: TenantRequest, res: Response, next: NextFunction) => {
