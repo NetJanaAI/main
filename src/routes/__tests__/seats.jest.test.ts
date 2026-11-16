@@ -25,9 +25,9 @@ function mockRes() {
 }
 
 /** Scripts the tenant row, the insert and the post-insert seat count. */
-function scriptDb(opts: { subscription: string | null; count: number; duplicate?: boolean }) {
+function scriptDb(opts: { subscription: string | null; count: number; duplicate?: boolean; status?: string | null }) {
     txQuery.mockImplementation(async (sql: string) => {
-        if (sql.includes('FROM tenants')) return { rows: [{ razorpay_subscription_id: opts.subscription }] };
+        if (sql.includes('FROM tenants')) return { rows: [{ razorpay_subscription_id: opts.subscription, razorpay_subscription_status: opts.status === undefined ? (opts.subscription ? 'active' : null) : opts.status }] };
         if (sql.includes('INSERT INTO organization_seats')) return { rows: opts.duplicate ? [] : [{ id: 'seat_x' }] };
         if (sql.includes('COUNT(*)')) return { rows: [{ count: String(opts.count) }] };
         return { rows: [] };
@@ -75,6 +75,16 @@ describe('POST /seats/add billing', () => {
         expect(res.status).toHaveBeenCalledWith(402);
         expect(billExtraUsage).not.toHaveBeenCalled();
         expect(res.json).not.toHaveBeenCalledWith(expect.objectContaining({ message: 'Seat added successfully' }));
+    });
+
+    it('rolls the seat back (402) when the subscription is not active', async () => {
+        for (const status of ['created', 'halted', 'cancelled']) {
+            scriptDb({ subscription: 'sub_a', count: 4, status });
+            const res = mockRes();
+            await add()({ organizationId: ORG_A, body }, res);
+            expect(res.status).toHaveBeenCalledWith(402);
+        }
+        expect(billExtraUsage).not.toHaveBeenCalled();
     });
 
     it('rolls the seat back (502) when Razorpay fails', async () => {
