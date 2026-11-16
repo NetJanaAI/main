@@ -1,5 +1,6 @@
 import { Worker, Job } from 'bullmq';
-import { connection, scrapeQueue } from '../lib/queue';
+import { connection } from '../lib/queue';
+import { enqueueScrape, QuotaExceededError } from '../lib/quota';
 import { query } from '../lib/database';
 import { calculateDecay } from '../core/signals/intentDecay';
 import { SecureLogger } from '../utils/logger';
@@ -61,16 +62,21 @@ export async function startDecayRescoreWorker(io: Server) {
                     if (IS_COVOSPAN && isFeatureEnabled(Feature.AUTONOMOUS_HUNTER, 'paid')) {
                         if (decay.decayedScore > 75) {
                             console.log(`[Hunter] Auto-rescrape triggered for ${lead.id} due to decay.`);
-                            await scrapeQueue.add('scrape', {
-                                jobId: `rescrape_${lead.id}_${Date.now()}`,
-                                url: lead.url,
-                                organizationId: lead.organization_id,
-                                reason: 'decay_threshold'
-                            });
-                            io.to(`org:${lead.organization_id}`).emit('hunter:auto_rescrape_queued', {
-                                leadId: lead.id,
-                                reason: 'decay_threshold'
-                            });
+                            try {
+                                await enqueueScrape(lead.organization_id, {
+                                    jobId: `rescrape_${lead.id}_${Date.now()}`,
+                                    url: lead.url,
+                                    organizationId: lead.organization_id,
+                                    reason: 'decay_threshold'
+                                });
+                                io.to(`org:${lead.organization_id}`).emit('hunter:auto_rescrape_queued', {
+                                    leadId: lead.id,
+                                    reason: 'decay_threshold'
+                                });
+                            } catch (e: any) {
+                                if (!(e instanceof QuotaExceededError)) throw e;
+                                console.warn(`[Hunter] Rescrape of ${lead.id} skipped: ${e.message}`);
+                            }
                         }
                     }
                 }
