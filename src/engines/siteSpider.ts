@@ -1,9 +1,18 @@
-import axios from 'axios';
+import { safeGet, validateTargetUrl } from '../middleware/urlValidator';
 
 /**
  * Discover internal URLs for Spider Mode scraping.
  * Strategies: 1. sitemap.xml 2. BFS crawler over anchor tags.
  */
+function isSameOriginHttps(candidate: string, origin: string): boolean {
+    try {
+        const u = new URL(candidate);
+        return u.origin === origin && u.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
 export async function discoverUrls(baseUrl: string, maxPages: number, intent: string = ''): Promise<string[]> {
     const urls = new Map<string, number>();
     urls.set(baseUrl, 100); // Base URL always 100 score
@@ -36,13 +45,13 @@ export async function discoverUrls(baseUrl: string, maxPages: number, intent: st
     // 1. Try sitemap fast path
     try {
         const sitemapUrl = `${origin}/sitemap.xml`;
-        const res = await axios.get(sitemapUrl, { timeout: 5000 });
+        const res = await safeGet(sitemapUrl);
         if (res.status === 200 && typeof res.data === 'string') {
             const matches = res.data.match(/<loc>(.*?)<\/loc>/g);
             if (matches) {
                 for (const match of matches) {
                     const loc = match.replace(/<\/?loc>/g, '').trim();
-                    if (loc.startsWith(origin) && urls.size < maxPages * 2) {
+                    if (urls.size < maxPages * 2 && isSameOriginHttps(loc, origin)) {
                         urls.set(loc, scoreUrl(loc));
                     }
                 }
@@ -62,8 +71,8 @@ export async function discoverUrls(baseUrl: string, maxPages: number, intent: st
         visited.add(currentUrl);
 
         try {
-            const res = await axios.get(currentUrl, { timeout: 5000 });
-            if (typeof res.data === 'string') {
+            const res = await safeGet(currentUrl);
+            if (res.status === 200 && typeof res.data === 'string') {
                 const linkMap = res.data.match(/href=["'](.*?)["']/gi);
                 if (linkMap) {
                     for (const linkMatch of linkMap) {
@@ -92,10 +101,14 @@ export async function discoverUrls(baseUrl: string, maxPages: number, intent: st
         }
     }
 
-    const resultList = Array.from(urls.entries())
+    const ranked = Array.from(urls.entries())
         .sort((a, b) => b[1] - a[1]) // highest score first
         .slice(0, maxPages)
         .map(e => e[0]);
+
+    // Every URL handed to the browser, spider or hunter, is validated first.
+    const verdicts = await Promise.all(ranked.map((u) => validateTargetUrl(u)));
+    const resultList = ranked.filter((_, i) => verdicts[i].isValid);
 
     console.log(`[SiteSpider] Discovered ${resultList.length} weighted URLs for scraping.`);
     return resultList;
