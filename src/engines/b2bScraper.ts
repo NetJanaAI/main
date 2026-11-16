@@ -4,6 +4,7 @@ import { checkLegalSafety } from '../sentinel/compliance';
 import { sendResults } from '../dispatcher';
 import { ScrapeResult } from '../lib/schemas';
 import { validateTargetUrl } from '../middleware/urlValidator';
+import { startGuardProxy } from '../lib/guardProxy';
 // @ts-ignore
 import * as geoipLite from 'geoip-lite';
 import axios from 'axios';
@@ -66,17 +67,18 @@ export async function scrapeB2BSignals(
         }
     }
 
+    // Every browser request (redirect hops and sub-resources included) goes through a local proxy that
+    // refuses non-public addresses; a regional exit node, if any, is chained behind it.
+    const guard = await startGuardProxy({
+        upstream: proxy ? { host: proxy.host, port: proxy.port, username: proxy.username, password: proxy.password } : undefined
+    });
     const launchOptions: any = {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        proxy: { server: guard.url, bypass: '<-loopback>' }
     };
 
     if (proxy) {
-        launchOptions.proxy = {
-            server: `${proxy.protocol}://${proxy.host}:${proxy.port}`,
-            username: proxy.username,
-            password: proxy.password
-        };
         if (onProgress) onProgress(`Sovereign Proxy Mesh active: Using ${proxy.region} exit node.`, 'info');
     }
 
@@ -439,5 +441,7 @@ export async function scrapeB2BSignals(
         }
     } catch (outerError) {
         throw outerError;
+    } finally {
+        await guard.close();
     }
 }
