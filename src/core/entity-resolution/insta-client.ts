@@ -64,7 +64,8 @@ export class InstaClient {
         });
 
         // Unconditional in production code; tests should mock axios-retry directly
-        axiosRetry(this.client, {
+        // ts-jest resolves axios's CJS typings separately from tsc, so the two AxiosInstance types differ.
+        axiosRetry(this.client as Parameters<typeof axiosRetry>[0], {
             retries: 3,
             retryDelay: axiosRetry.exponentialDelay,
             retryCondition: (error) =>

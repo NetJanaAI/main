@@ -1,6 +1,6 @@
-import { db } from './src/lib/database';
-import { KnowledgeGraphService } from './src/core/knowledge-graph';
-import { RawSignal } from './src/lib/schemas';
+import { db } from '../src/lib/database';
+import { KnowledgeGraphService } from '../src/core/knowledge-graph';
+import { RawSignal } from '../src/lib/schemas';
 import { v4 as uuidv4 } from 'uuid';
 
 async function verifyKnowledgeGraph() {

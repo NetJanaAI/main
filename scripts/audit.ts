@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import { query } from './src/lib/database';
+import { query } from '../src/lib/database';
 import Redis from 'ioredis';
 
 async function runAudit() {
     try {
-        await require('./src/lib/database').db.initDb();
+        await require('../src/lib/database').db.initDb();
         console.log("=== Q1: Prompt 3 Outputs (Generic vs Specific) ===");
         const res1 = await query(`
             SELECT card_what_they_need, card_do_this 

@@ -1,4 +1,4 @@
-import { connection, rawSignalsQueue } from './src/lib/queue';
+import { connection, rawSignalsQueue } from '../src/lib/queue';
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 
