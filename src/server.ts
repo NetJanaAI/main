@@ -374,7 +374,6 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/dlq', dlqRoutes);
 app.use('/api/v1/entities', entitySearchLimiter, entitiesRoutes);
 app.use('/api/v1/ingest/csv', csvIngestRoutes);
-app.use('/api/ingest/csv', csvIngestRoutes);
 
 // NetJana Intel Pull API — external pull endpoint for full lead card details.
 // Mounted at /v1 (not /api) to clearly distinguish it from internal APIs.

@@ -2,7 +2,10 @@ import { Router, Response } from 'express';
 import { db } from '../lib/database';
 import { cache } from '../lib/cache';
 
+import { requireTenant } from '../middleware/tenant';
+
 const router = Router();
+router.use(requireTenant);
 const DEFAULT_SOURCES = ['indiamart', 'gem', 'mca', 'zauba', 'webscrape', 'funding', 'naukri', 'rera', 'parivesh'];
 
 /**
@@ -10,7 +13,7 @@ const DEFAULT_SOURCES = ['indiamart', 'gem', 'mca', 'zauba', 'webscrape', 'fundi
  * Returns all source configurations for the organization.
  */
 router.get('/', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     try {
         const results = await db.queryWithOrg(
             `SELECT source_id, is_enabled FROM source_configs WHERE org_id = $1`,
@@ -31,7 +34,7 @@ router.get('/', async (req: any, res: Response) => {
  * Toggles a source enablement status.
  */
 router.post('/toggle', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     const { sourceId, enabled } = req.body;
 
     if (!sourceId) {

@@ -5,7 +5,10 @@ import { getSharedRedisClient } from '../lib/redis';
 import { z } from 'zod';
 
 const redis = getSharedRedisClient();
+import { requireTenant } from '../middleware/tenant';
+
 const router = express.Router();
+router.use(requireTenant);
 
 const FeedbackSchema = z.object({
     status: z.enum(["contacted", "responded", "converted", "wrong"])
@@ -254,7 +257,7 @@ router.patch('/:id/feedback', async (req, res) => {
 router.get('/:id/intelligence', async (req: any, res: any) => {
     try {
         const lead_id = req.params.id;
-        const orgId = req.organizationId || (req as any).user?.organizationId || 'default';
+        const orgId = req.organizationId as string;
 
         const result = await queryWithOrg(`
             SELECT 

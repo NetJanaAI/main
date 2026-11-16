@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
-import { TenantRequest } from '../middleware/tenant';
+import { TenantRequest, requireTenant } from '../middleware/tenant';
 import { hybridEntityResolver } from '../core/entity-resolution/hybrid-entity-resolver';
 import { buildMermaidOrganogram } from '../core/entity-resolution/mermaid-organogram';
 import { GoogleNewsTrendsService } from '../core/news-trends/GoogleNewsTrendsService';
@@ -9,6 +9,7 @@ import { EntityIndexer } from '../core/rag/EntityIndexer';
 import { query as dbQuery } from '../lib/database';
 
 const router = Router();
+router.use(requireTenant);
 
 
 const CIN_REGEX = /^[LUu][0-9]{5}[A-Za-z]{2}[0-9]{4}[A-Za-z]{3}[0-9]{6}$/;
@@ -233,7 +234,7 @@ router.get('/:entityId/trends', async (req: TenantRequest, res: Response) => {
  */
 router.post('/:entityId/news/index', async (req: TenantRequest, res: Response) => {
     const { entityId } = req.params;
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
 
     try {
         const entity = await hybridEntityResolver.getEntityById(entityId);
@@ -263,7 +264,7 @@ router.post('/:entityId/news/index', async (req: TenantRequest, res: Response) =
  */
 router.get('/:entityId/dossier', async (req: TenantRequest, res: Response) => {
     const { entityId } = req.params;
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
 
 
     try {

@@ -11,6 +11,7 @@ export interface FailedAnalysis {
 }
 
 import { query } from './database';
+import { tenantRlsStatements, TENANT_TABLES } from './db/rlsPolicies';
 import { dlqQueue, tier2Queue } from './queue';
 import crypto from 'crypto';
 
@@ -140,6 +141,10 @@ export const DeadLetterQueue = {
                     archived_at TIMESTAMPTZ DEFAULT NOW()
                 )
             `);
+            // LIKE does not copy row level security, so an archive created here would be readable by every tenant.
+            for (const statement of tenantRlsStatements({ force: false, tables: TENANT_TABLES.filter((t) => t.table === 'dead_letter_queue_archive') })) {
+                await query(statement);
+            }
 
             // Move old entries to archive table
             const result = await query(`

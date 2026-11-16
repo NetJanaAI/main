@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { CsvIngestionService, IngestOptions } from '../core/ingest/csv-ingestion-service';
-import { TenantRequest } from '../middleware/tenant';
+import { TenantRequest, requireTenant } from '../middleware/tenant';
 
 const router = Router();
+router.use(requireTenant);
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 15 * 1024 * 1024 } // 15MB max
@@ -66,7 +67,7 @@ router.post('/process', upload.single('file'), async (req: TenantRequest, res: R
 
         const type = (req.body?.type as any) || 'company';
         const indexVector = req.body?.indexVector === 'true' || req.body?.indexVector === true;
-        const orgId = req.organizationId || req.headers['x-organization-id'] as string || 'default';
+        const orgId = req.organizationId as string;
 
         const options: IngestOptions = {
             type,

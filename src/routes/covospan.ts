@@ -5,7 +5,10 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { encryptCredential } from '../lib/credentialVault';
 
+import { requireTenant } from '../middleware/tenant';
+
 const router = Router();
+router.use(requireTenant);
 
 const ConfigSchema = z.object({
     endpoint_url: z.string().url('Must be a valid URL'),
@@ -17,7 +20,7 @@ const ConfigSchema = z.object({
 // ─── GET /api/covospan/config ─────────────────────────────────────────────────
 // Returns current ConvoSpan endpoint config for this org (masked api_key)
 router.get('/config', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     try {
         const result = await db.queryWithOrg(
             `SELECT id, endpoint_url, 
@@ -37,7 +40,7 @@ router.get('/config', async (req: any, res: Response) => {
 // ─── POST /api/covospan/config ────────────────────────────────────────────────
 // Upsert ConvoSpan endpoint config
 router.post('/config', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     const validation = ConfigSchema.safeParse(req.body);
     if (!validation.success) {
         return res.status(400).json({ error: 'Validation failed', details: validation.error.flatten() });
@@ -73,7 +76,7 @@ router.post('/config', async (req: any, res: Response) => {
 // ─── DELETE /api/covospan/config ─────────────────────────────────────────────
 // Deactivate (soft-disable) ConvoSpan push for this org
 router.delete('/config', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     try {
         await db.queryWithOrg(
             `UPDATE covospan_configs SET is_active = FALSE, updated_at = NOW() WHERE org_id = $1`,
@@ -89,7 +92,7 @@ router.delete('/config', async (req: any, res: Response) => {
 // ─── GET /api/covospan/log ────────────────────────────────────────────────────
 // Paginated push log — what was sent, when, status
 router.get('/log', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     const limit = Math.min(parseInt(req.query.limit as string || '50'), 200);
     const offset = parseInt(req.query.offset as string || '0');
     const status = req.query.status; // filter by SUCCESS/FAILED/SKIPPED
@@ -138,7 +141,7 @@ router.get('/log', async (req: any, res: Response) => {
 // ─── GET /api/covospan/stats ──────────────────────────────────────────────────
 // Aggregate push stats — total pushed, success rate, campaign breakdown
 router.get('/stats', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     try {
         const [totals, byCampaign, bySource, byBuyingStage, recentFailures] = await Promise.all([
             // Overall counts
@@ -203,7 +206,7 @@ router.get('/stats', async (req: any, res: Response) => {
 // ─── POST /api/covospan/push/:leadId ─────────────────────────────────────────
 // Manually re-push a specific lead to ConvoSpan
 router.post('/push/:leadId', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     const { leadId } = req.params;
 
     try {
@@ -230,7 +233,7 @@ router.post('/push/:leadId', async (req: any, res: Response) => {
 // ─── POST /api/covospan/test ─────────────────────────────────────────────────
 // Send a synthetic test signal to verify ConvoSpan endpoint connectivity
 router.post('/test', async (req: any, res: Response) => {
-    const orgId = req.organizationId || 'default';
+    const orgId = req.organizationId as string;
     const mockLead = {
         lead_id: crypto.randomUUID(),
         org_id: orgId,
