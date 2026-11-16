@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
 import { AuditTrail } from '../core/compliance/AuditTrail';
+import { isPlatformAdmin } from './adminAuth';
 
 const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
@@ -52,6 +53,8 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
             const verified = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
             const clerkUserId = verified.sub;
             const clerkOrgId = (verified as any).org_id; // Check if org context exists
+            // The verified identity, even when the user has no tenant (a platform admin need not).
+            req.auth = verified;
 
             // Lookup tenant by orgId first (if present), then by userId
             const sql = clerkOrgId 
@@ -62,7 +65,11 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
             
             if (result.rows.length > 0) {
                 req.organizationId = result.rows[0].id;
-                req.auth = verified;
+                return next();
+            }
+
+            // Platform admins operate across tenants and may belong to none; /api/admin is theirs only.
+            if (req.path.startsWith('/api/admin') && isPlatformAdmin(clerkUserId)) {
                 return next();
             }
         } catch (e) {

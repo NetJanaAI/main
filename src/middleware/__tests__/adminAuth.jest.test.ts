@@ -67,17 +67,14 @@ describe('adminAuth', () => {
         expect(res.status).not.toHaveBeenCalled();
     });
 
-    it('requires an admin Clerk role when Clerk is configured', async () => {
+    it('denies a Clerk user who is not a listed platform admin, even with an admin role claim', async () => {
         const adminAuth = await loadAdminAuth({
             NODE_ENV: 'production',
             CLERK_SECRET_KEY: 'sk_test_clerk',
         });
         const req = {
             headers: {},
-            auth: {
-                userId: 'user_123',
-                sessionClaims: { publicMetadata: { role: 'member' } },
-            },
+            auth: { sub: 'user_123', public_metadata: { role: 'admin' } },
         } as unknown as Request;
         const res = mockResponse();
         const next: NextFunction = jest.fn();
