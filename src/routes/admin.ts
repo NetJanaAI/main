@@ -14,6 +14,18 @@ const router = Router();
 // Requires Clerk session with admin role, or x-admin-secret header in standalone mode.
 router.use(adminAuth);
 
+// Set by adminAuth: the verified Clerk user id (or 'admin-secret' in standalone mode).
+const adminActor = (req: Request): string => (req as any).adminActorId || 'unknown-admin';
+
+// audit_logs rows belong to a tenant; an action with no tenant can only be logged to the server log.
+async function auditAdmin(req: Request, action: string, organizationId: string | null | undefined, resource: string, metadata: object = {}) {
+    if (!organizationId) {
+        console.warn(`[AdminAudit] ${action} by ${adminActor(req)} on ${resource} ${JSON.stringify(metadata)}`);
+        return;
+    }
+    await AuditTrail.log({ actorId: adminActor(req), organizationId, action, resource, metadata });
+}
+
 /**
  * POST /api/admin/tenants - Create a new tenant organization.
  */
@@ -39,7 +51,7 @@ router.post('/tenants', async (req: Request, res: Response) => {
 
         // Audit Log
         await AuditTrail.log({
-            actorId: (req as any).auth?.userId || 'system',
+            actorId: adminActor(req),
             organizationId: result.rows[0].id,
             action: 'TENANT_CREATE',
             resource: `tenant:${result.rows[0].id}`,
@@ -69,7 +81,7 @@ router.post('/tenants/:id/rotate-key', async (req: Request, res: Response) => {
 
         // Audit Log
         await AuditTrail.log({
-            actorId: (req as any).auth?.userId || 'system',
+            actorId: adminActor(req),
             organizationId,
             action: 'API_KEY_ROTATE',
             resource: `tenant:${organizationId}`,
@@ -108,6 +120,7 @@ router.delete('/tenants/:id/vanish', async (req: Request, res: Response) => {
         const orgRes = await query('SELECT name FROM tenants WHERE id = $1', [organizationId]);
         if (orgRes.rows.length === 0) return res.status(404).json({ error: 'Tenant not found' });
         
+        await auditAdmin(req, 'ADMIN_TENANT_VANISH', organizationId, `tenant:${organizationId}`, { name: orgRes.rows[0].name });
         await VanishProtocol.purge(organizationId);
         
         res.json({ message: `Vanish Protocol executed for ${orgRes.rows[0].name}. All data annihilated.` });
@@ -115,6 +128,11 @@ router.delete('/tenants/:id/vanish', async (req: Request, res: Response) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+async function dlqOrganization(id: string): Promise<string | null> {
+    const found = await query('SELECT organization_id FROM dead_letter_queue WHERE id = $1', [id]);
+    return found.rows[0]?.organization_id ?? null;
+}
 
 /**
  * GET /api/admin/dlq - List failed analysis signals.
@@ -133,6 +151,7 @@ router.get('/dlq', async (req: Request, res: Response) => {
  */
 router.post('/dlq/:id/retry', async (req: Request, res: Response) => {
     try {
+        await auditAdmin(req, 'ADMIN_DLQ_RETRY', await dlqOrganization(req.params.id), `dlq:${req.params.id}`);
         await DeadLetterQueue.retry(req.params.id);
         res.json({ success: true, message: 'Signal re-enqueued for analysis.' });
     } catch (e: any) {
@@ -145,6 +164,7 @@ router.post('/dlq/:id/retry', async (req: Request, res: Response) => {
  */
 router.delete('/dlq/:id', async (req: Request, res: Response) => {
     try {
+        await auditAdmin(req, 'ADMIN_DLQ_DISMISS', await dlqOrganization(req.params.id), `dlq:${req.params.id}`);
         await DeadLetterQueue.delete(req.params.id);
         res.json({ success: true, message: 'Signal dismissed from DLQ.' });
     } catch (e: any) {
@@ -180,7 +200,7 @@ router.post('/security/ips', async (req: Request, res: Response) => {
 
         // Audit Log
         await AuditTrail.log({
-            actorId: (req as any).auth?.userId || 'system',
+            actorId: adminActor(req),
             organizationId: organization_id || '00000000-0000-0000-0000-000000000000', // System-level
             action: 'IP_ALLOWLIST_ADD',
             resource: `ip:${cidr}`,
@@ -205,7 +225,7 @@ router.delete('/security/ips/:id', async (req: Request, res: Response) => {
 
         // Audit Log
         await AuditTrail.log({
-            actorId: (req as any).auth?.userId || 'system',
+            actorId: adminActor(req),
             organizationId: checkRes.rows[0].organization_id || '00000000-0000-0000-0000-000000000000',
             action: 'IP_ALLOWLIST_REMOVE',
             resource: `ip:${checkRes.rows[0].cidr}`,

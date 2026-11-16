@@ -1,56 +1,69 @@
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 
 /**
  * Admin Authentication Middleware
  *
- * Guards /api/admin/* routes against unauthenticated access.
+ * Guards /api/admin/*, which is platform-wide (list every tenant, rotate any key, purge any tenant).
+ * A tenant's own admin must never pass, so nothing a tenant controls (org role, publicMetadata) is trusted.
  *
- * Strategy (in order):
- *  1. If CLERK_SECRET_KEY is configured: requires a valid Clerk session via req.auth
- *     populated by @clerk/express clerkMiddleware. The caller must also have
- *     publicMetadata.role === 'admin' on their Clerk user.
- *  2. If Clerk is NOT configured (local/standalone mode): falls back to checking
- *     the x-admin-secret header against the ADMIN_SECRET env var.
- *  3. If neither is configured in production: fails closed (503).
- *
- * In development (NODE_ENV !== 'production') the middleware warns but allows
- * through when NO admin credentials are configured at all, so local-dev is not
- * blocked during initial setup.
+ * Strategy:
+ *  1. CLERK_SECRET_KEY configured: tenantContext has verified the JWT and stored its payload in req.auth.
+ *     The caller must be a platform admin: their Clerk user id (`sub`) is listed in PLATFORM_ADMIN_USER_IDS
+ *     (comma separated). An empty or unset list admits nobody.
+ *  2. Clerk NOT configured (local/standalone): x-admin-secret must equal ADMIN_SECRET (constant-time compare).
+ *  3. Neither configured in production: fail closed (503). In development it warns and allows through.
  */
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET;
-const CLERK_CONFIGURED = Boolean(process.env.CLERK_SECRET_KEY);
-const IS_PROD = process.env.NODE_ENV === 'production';
+function platformAdminIds(): Set<string> {
+    return new Set((process.env.PLATFORM_ADMIN_USER_IDS ?? '').split(',').map((id) => id.trim()).filter(Boolean));
+}
+
+export function isPlatformAdmin(userId: unknown): boolean {
+    return typeof userId === 'string' && platformAdminIds().has(userId);
+}
+
+// Hashing first makes the buffers equal length, so neither length nor content leaks through timing.
+function secretsMatch(provided: string, expected: string): boolean {
+    const digest = (value: string) => crypto.createHash('sha256').update(value).digest();
+    return crypto.timingSafeEqual(digest(provided), digest(expected));
+}
 
 export async function adminAuth(req: Request, res: Response, next: NextFunction) {
+    const ADMIN_SECRET = process.env.ADMIN_SECRET;
+    const CLERK_CONFIGURED = Boolean(process.env.CLERK_SECRET_KEY);
+    const IS_PROD = process.env.NODE_ENV === 'production';
+
     // ── Path 1: Clerk-based auth ─────────────────────────────────────────────
     if (CLERK_CONFIGURED) {
-        const auth = (req as any).auth;
-        if (!auth || !auth.userId) {
+        const userId = (req as any).auth?.sub;
+        if (typeof userId !== 'string' || !userId) {
             return res.status(401).json({
                 error: 'Unauthorized',
                 message: 'A valid Clerk session is required to access admin endpoints.'
             });
         }
 
-        // Check admin/super_admin role from Clerk publicMetadata
-        const metadata = auth.sessionClaims?.publicMetadata as Record<string, any> | undefined;
-        const role = metadata?.role as string | undefined;
-        if (role !== 'admin' && role !== 'super_admin') {
+        if (platformAdminIds().size === 0) {
+            console.error('[AdminAuth] PLATFORM_ADMIN_USER_IDS is empty; no one can use admin endpoints.');
+        }
+        if (!isPlatformAdmin(userId)) {
+            console.warn(`[AdminAuth] Denied non-platform-admin user ${userId} on ${req.path}`);
             return res.status(403).json({
                 error: 'Forbidden',
-                message: 'Admin or Super Admin role required. Contact your organization administrator.'
+                message: 'Platform administrator access required.'
             });
         }
 
-        (req as any).adminRole = role;
+        (req as any).adminRole = 'super_admin';
+        (req as any).adminActorId = userId;
         return next();
     }
 
     // ── Path 2: x-admin-secret header (standalone / no-Clerk mode) ───────────
     if (ADMIN_SECRET) {
-        const provided = req.headers['x-admin-secret'] as string | undefined;
-        if (!provided || provided !== ADMIN_SECRET) {
+        const provided = req.headers['x-admin-secret'];
+        if (typeof provided !== 'string' || !secretsMatch(provided, ADMIN_SECRET)) {
             console.warn(`[AdminAuth] Invalid or missing x-admin-secret from ${req.ip}`);
             return res.status(401).json({
                 error: 'Unauthorized',
@@ -58,6 +71,7 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
             });
         }
         (req as any).adminRole = 'super_admin'; // Default standalone mode to super_admin privilege
+        (req as any).adminActorId = 'admin-secret';
         return next();
     }
 
@@ -74,5 +88,6 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
     // Dev-only degraded mode: warn loudly but allow through for local setup convenience
     console.warn('[AdminAuth] ⚠️  No admin auth configured (dev mode). Set ADMIN_SECRET to secure admin endpoints.');
     (req as any).adminRole = 'super_admin';
+    (req as any).adminActorId = 'dev-open';
     next();
 }
