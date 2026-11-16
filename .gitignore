@@ -33,3 +33,8 @@ temp/
 frontend-test-render.png
 
 .vercel
+
+# Runtime data (PII vault, screenshots, DLQ log). Keep data/migrations.
+data/vault_*.json
+data/screenshots/
+data/dlq.jsonl
