@@ -6,6 +6,7 @@ import os from 'os';
 import { getSharedRedisClient } from '../lib/redis';
 import { db } from '../lib/database';
 import { cache } from '../lib/cache';
+import { emitToOrg } from '../lib/socketRooms';
 
 const redis = getSharedRedisClient();
 
@@ -15,8 +16,12 @@ export function setupScrapeWorker(io?: Server | null) {
     const queueName = SCRAPE_QUEUE_NAME;
     const pub = getSharedRedisClient();
     pub.on('error', (err) => console.warn('[Worker] Redis event publisher error:', err.message));
-    const publishWorkerEvent = (event: string, data: unknown) => {
-        pub.publish('worker_events', JSON.stringify({ event, data })).catch((err) => {
+    // Delivers an event to the owning tenant's room, locally and over the Redis relay.
+    // Without a tenant there is nowhere safe to send it, so it is dropped.
+    const publishWorkerEvent = (organizationId: string | undefined, event: string, data: unknown) => {
+        if (!organizationId) return;
+        emitToOrg(io, organizationId, event, data);
+        pub.publish('worker_events', JSON.stringify({ event, data, organizationId })).catch((err) => {
             console.warn('[Worker] Failed to publish worker event:', err.message);
         });
     };
@@ -82,21 +87,12 @@ export function setupScrapeWorker(io?: Server | null) {
                     url,
                     2,
                     (message: string, type: string) => {
-                        const payload = {
-                            event: 'log',
-                            data: {
-                                jobId,
-                                message,
-                                type,
-                                timestamp: new Date().toISOString()
-                            }
-                        };
-                        publishWorkerEvent(payload.event, payload.data);
-
-                        // Fallback local emit if running coupled
-                        if (io) {
-                            io.emit('log', payload.data);
-                        }
+                        publishWorkerEvent(organizationId, 'log', {
+                            jobId,
+                            message,
+                            type,
+                            timestamp: new Date().toISOString()
+                        });
                     },
                     forceFailure,
                     useOnlineAI,
@@ -112,12 +108,7 @@ export function setupScrapeWorker(io?: Server | null) {
 
             clearTimeout(jobTimeout!);
 
-            const completePayload = { jobId, status: 'success', result };
-            publishWorkerEvent('complete', completePayload);
-
-            if (io) {
-                io.emit('complete', completePayload);
-            }
+            publishWorkerEvent(organizationId, 'complete', { jobId, status: 'success', result });
 
             return result;
         } catch (err) {
@@ -139,11 +130,7 @@ export function setupScrapeWorker(io?: Server | null) {
         console.error(`[Worker] Job ${job?.id} failed:`, err.message);
         writeHeartbeat('DEGRADED').catch(() => {});
         if (job) {
-            const errorPayload = { jobId: job.data.jobId, error: err.message };
-            publishWorkerEvent('error', errorPayload);
-            if (io) {
-                io.emit('error', errorPayload);
-            }
+            publishWorkerEvent(job.data.organizationId, 'error', { jobId: job.data.jobId, error: err.message });
         }
     });
 

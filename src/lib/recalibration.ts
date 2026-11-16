@@ -1,11 +1,10 @@
 import cron from 'node-cron';
 import Redis from 'ioredis';
 import { connection } from './queue';
-import { Server } from 'socket.io';
 
 const redis = new Redis(connection as any);
 
-export function setupRecalibrationCron(io?: Server) {
+export function setupRecalibrationCron() {
     // Weekly Monday 08:00 IST cron
     cron.schedule('0 8 * * 1', async () => {
         try {
@@ -53,10 +52,6 @@ export function setupRecalibrationCron(io?: Server) {
                 const logEntry = JSON.stringify({ updates, timestamp: new Date().toISOString() });
 
                 await redis.lpush(`weight_history:${dateStr}`, logEntry);
-
-                if (io) {
-                    io.emit('weights_updated', { updates });
-                }
 
                 console.log(`[Recalibration] Updated weights for ${updates.length} sources`);
             }

@@ -63,9 +63,13 @@ router.post('/scrape', enqueueScrape);
 // Job Status Endpoint
 router.get('/status/:jobId', async (req, res) => {
     const { jobId } = req.params;
+    const organizationId = (req as any).organizationId;
+    if (!organizationId) return res.status(401).json({ error: 'Unauthorized' });
+
     const job = await scrapeQueue.getJob(jobId);
 
-    if (!job) {
+    // Another tenant's job (or a legacy one with no stored tenant) is indistinguishable from a missing one.
+    if (!job || job.data?.organizationId !== organizationId) {
         return res.status(404).json({ error: 'Job not found' });
     }
 

@@ -197,7 +197,7 @@ async function startWorkers(ioInstance: Server) {
         const tier3Worker = setupTier3Worker(ioInstance);
         const entityEnrichmentWorker = setupEntityEnrichmentWorker(ioInstance);
         const ragIndexWorker = setupRagIndexWorker();
-        setupRecalibrationCron(ioInstance);
+        setupRecalibrationCron();
 
         console.log('[Startup] Workers initialized successfully.');
 
