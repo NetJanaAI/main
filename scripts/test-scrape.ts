@@ -1,5 +1,5 @@
-import { scrapeB2BSignals } from './src/engines/b2bScraper';
-import { generateCapsule } from './src/lib/dataCapsule';
+import { scrapeB2BSignals } from '../src/engines/b2bScraper';
+import { generateCapsule } from '../src/lib/dataCapsule';
 
 async function runTest() {
     console.log('[Test Started] Simulating direct backend execution for https://getjuniper.com');
