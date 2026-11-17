@@ -1,5 +1,6 @@
 import { UserButton, OrganizationSwitcher } from "../lib/auth";
 import { Link, NavLink, Outlet } from "react-router-dom";
+import BrandMark from '../components/BrandMark';
 import { 
   Shield, 
   Activity, 
@@ -57,7 +58,7 @@ export default function AppLayout() {
           <Link to="/" className="flex items-center gap-3">
             <Shield className="w-8 h-8 text-[#00ffca]" strokeWidth={2.5} />
             <div>
-              <h2 className="text-sm font-black uppercase tracking-widest text-[#00ffca]">NetJana.AI</h2>
+              <div className="flex items-center gap-2"><BrandMark className="w-6 h-6" /><h2 className="text-sm font-black uppercase tracking-widest text-[#00ffca]">NetJana.AI</h2></div>
               <span className="text-[9px] font-black uppercase tracking-[3px] text-white/30 truncate block">Intel Protocol</span>
             </div>
           </Link>
@@ -150,7 +151,7 @@ export default function AppLayout() {
           <div className="flex justify-between items-center mb-12">
              <div className="flex items-center gap-3">
                <Shield className="w-8 h-8 text-[#00ffca]" strokeWidth={2.5} />
-               <h2 className="text-sm font-black uppercase tracking-widest text-[#00ffca]">NetJana.AI</h2>
+               <div className="flex items-center gap-2"><BrandMark className="w-6 h-6" /><h2 className="text-sm font-black uppercase tracking-widest text-[#00ffca]">NetJana.AI</h2></div>
              </div>
              <button onClick={() => setIsMobileMenuOpen(false)} className="text-white/40 hover:text-white"><X className="w-8 h-8" /></button>
           </div>
