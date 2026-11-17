@@ -59,14 +59,6 @@ export async function scrapeB2BSignals(
         throw new Error(`Security/Compliance Veto: ${validation.error || 'Legal Risk'}`);
     }
 
-    // 1.5 Freemium Gate (Standalone Only)
-    if (IS_STANDALONE && organizationId) {
-        const usage = await UsageTracker.getUsage(organizationId, 'scrapes');
-        if (usage >= 5) {
-            throw new Error("FreeLimitReached: You have exhausted your 5 free scrapes for this month. Upgrade for unlimited access.");
-        }
-    }
-
     // Every browser request (redirect hops and sub-resources included) goes through a local proxy that
     // refuses non-public addresses; a regional exit node, if any, is chained behind it.
     const guard = await startGuardProxy({
