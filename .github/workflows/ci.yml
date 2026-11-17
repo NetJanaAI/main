@@ -23,6 +23,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The SSRF guard tests drive a real Chromium.
+      - run: npx playwright install --with-deps chromium
       - run: npx tsc --noEmit
       - run: npm test
       - run: npx tsx scripts/verify-security.ts
