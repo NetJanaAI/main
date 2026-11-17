@@ -11,7 +11,7 @@ export default function Meta({
   title = "NetJana AI - Buyer Signal OS",
   description = "NetJana AI captures buyer-intent signals, scores demand with autonomous agents, and routes verified accounts into outbound systems like CraftMyFunnel.",
   image = "/og-image.png",
-  url = "https://netjana.ai"
+  url = "https://b2b-scraper-drab.vercel.app"
 }: MetaProps) {
   const fullTitle = `${title} | Registry Intelligence Protocol`;
 
