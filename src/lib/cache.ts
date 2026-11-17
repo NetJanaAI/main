@@ -70,15 +70,42 @@ function createLocalRedisCache(): CacheClient {
     };
 }
 
-function createCache(): CacheClient {
+function createUpstash(): UpstashRedis | null {
     const url = process.env.UPSTASH_REDIS_REST_URL;
     const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    return url && token ? new UpstashRedis({ url, token }) : null;
+}
 
-    if (url && token) {
-        return new UpstashRedis({ url, token }) as unknown as CacheClient;
-    }
+const upstash = createUpstash();
 
-    return createLocalRedisCache();
+function createCache(): CacheClient {
+    return upstash ? (upstash as unknown as CacheClient) : createLocalRedisCache();
 }
 
 export const cache = createCache();
+
+/**
+ * Deletes every key matching a glob pattern, using SCAN so it never blocks Redis.
+ * Callers must build the pattern from validated values (e.g. a UUID), never raw input.
+ */
+export async function deleteKeysMatching(pattern: string): Promise<number> {
+    let deleted = 0;
+    let cursor = '0';
+    do {
+        let keys: string[];
+        if (upstash) {
+            const [next, found] = await upstash.scan(cursor, { match: pattern, count: 200 });
+            cursor = String(next);
+            keys = found;
+            if (keys.length) await upstash.del(...keys);
+        } else {
+            const redis = getSharedRedisClient();
+            const [next, found] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 200);
+            cursor = next;
+            keys = found;
+            if (keys.length) await redis.del(...keys);
+        }
+        deleted += keys.length;
+    } while (cursor !== '0');
+    return deleted;
+}

@@ -106,6 +106,7 @@ import analyticsRoutes from './routes/analytics';
 import dlqRoutes from './routes/dlq';
 import entitiesRoutes from './routes/entities';
 import csvIngestRoutes from './routes/csv-ingest';
+import enterpriseRoutes from './routes/enterprise';
 
 import { bootstrapSchedules } from './lib/scheduler';
 import { setupRecalibrationCron } from './lib/recalibration';
@@ -357,6 +358,7 @@ app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/wiki', wikiRoutes);
 app.use('/api/vault', vaultRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/enterprise', enterpriseRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/outreach', outreachRoutes);

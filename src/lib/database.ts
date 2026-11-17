@@ -180,6 +180,28 @@ export async function withOrgTransaction(
 }
 
 /**
+ * Runs `fn` in one transaction with RLS bypassed, for system work that spans tenants
+ * (for example applying a provider webhook). Rolls back if `fn` throws.
+ */
+export async function withSystemTransaction(fn: (client: PoolClient) => Promise<void>): Promise<void> {
+    if (!pool) {
+        throw new Error('Database is not initialized (DATABASE_URL missing).');
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query("SELECT set_config('app.bypass_rls', 'true', true)");
+        await fn(client);
+        await client.query('COMMIT');
+    } catch (e) {
+        await rollbackQuietly(client);
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+/**
  * Perform initial database setup/migration (idempotent).
  */
 export async function initDb() {
@@ -217,7 +239,21 @@ export async function initDb() {
         try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT"); } catch(e) {}
         // Last status Razorpay reported for that subscription (created, authenticated, active, ...).
         try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_subscription_status TEXT"); } catch(e) {}
+        // Set when Clerk reports the user or organisation deleted. Inactive tenants cannot authenticate; their data stays until an admin purges it.
+        try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ"); } catch(e) {}
+        // Set when VanishProtocol.purge has erased the tenant's data; the row stays as an anonymous tombstone for the audit trail.
+        try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS purged_at TIMESTAMPTZ"); } catch(e) {}
         try { await client.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_razorpay_subscription ON tenants (razorpay_subscription_id) WHERE razorpay_subscription_id IS NOT NULL"); } catch(e) {}
+        // Creation time of the newest Razorpay event applied, so a late older event cannot overwrite it.
+        try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_status_at TIMESTAMPTZ"); } catch(e) {}
+        // Razorpay delivers at least once; the event id is recorded in the same transaction as its effect.
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS razorpay_events (
+                event_id TEXT PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `);
 
         // 1.5 Data Source Credentials Table
         await client.query(`
@@ -440,6 +476,8 @@ export async function initDb() {
                 UNIQUE(organization_id, email)
             );
         `);
+        // Razorpay add-on that paid for this seat. A 'billing' seat has been reserved but its charge is unconfirmed.
+        await client.query(`ALTER TABLE organization_seats ADD COLUMN IF NOT EXISTS razorpay_addon_id TEXT;`);
         await client.query(`ALTER TABLE organization_seats ENABLE ROW LEVEL SECURITY;`);
 
         // 10. Audit Logs Table (SOC2 Compliance)

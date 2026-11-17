@@ -17,8 +17,8 @@ export async function socketAuthMiddleware(socket: any, next: (err?: Error) => v
             const clerkOrgId = (verified as any).org_id;
 
             const sql = clerkOrgId 
-                ? 'SELECT id FROM tenants WHERE clerk_org_id = $1'
-                : 'SELECT id FROM tenants WHERE clerk_user_id = $1';
+                ? 'SELECT id FROM tenants WHERE clerk_org_id = $1 AND deactivated_at IS NULL'
+                : 'SELECT id FROM tenants WHERE clerk_user_id = $1 AND deactivated_at IS NULL';
             
             const result = await db.query(sql, [clerkOrgId || clerkUserId]);
             if (result.rows.length > 0) {
@@ -36,7 +36,7 @@ export async function socketAuthMiddleware(socket: any, next: (err?: Error) => v
         const apiKeySecret = getApiKeySecret();
         const apiKeyHash = crypto.createHmac('sha256', apiKeySecret).update(apiKey).digest('hex');
         try {
-            const result = await db.query('SELECT id FROM tenants WHERE api_key_hash = $1', [apiKeyHash]);
+            const result = await db.query('SELECT id FROM tenants WHERE api_key_hash = $1 AND deactivated_at IS NULL', [apiKeyHash]);
             if (result.rows.length > 0) {
                 socket.organizationId = result.rows[0].id;
                 return next();

@@ -21,9 +21,16 @@ class SeatError extends Error {
     }
 }
 
+const CONFIRM_ATTEMPTS = 3;
+
 /**
  * Enterprise Seat Management API
  * POST /api/enterprise/seats/add
+ *
+ * Seats within the free quota are inserted active. A paid seat is reserved as 'billing' inside a short
+ * row-locked transaction, charged outside it, then confirmed active. Razorpay has no idempotency key for
+ * add-ons, so the 'billing' row is the record that a charge may exist: a retry for the same email is
+ * refused rather than charged again, and a seat is deleted only when the charge is known to have failed.
  */
 router.post('/seats/add', async (req: any, res) => {
     // The tenant comes from the authenticated session or API key, never from the body.
@@ -33,8 +40,7 @@ router.post('/seats/add', async (req: any, res) => {
         return res.status(403).json({ error: 'Unauthorized: Cannot manage seats for other organizations.' });
     }
     // Inside a Clerk organization only its admins add seats (a seat can be billed).
-    const orgRole = req.auth?.org_role;
-    if (orgRole && orgRole !== 'org:admin' && orgRole !== 'admin') {
+    if (!isOrgAdmin(req)) {
         return res.status(403).json({ error: 'Forbidden: Organization admin role required to add seats.' });
     }
     const parsed = addSeatSchema.safeParse(req.body);
@@ -42,10 +48,10 @@ router.post('/seats/add', async (req: any, res) => {
     const { userEmail, userName } = parsed.data;
 
     const seatId = `seat_${crypto.randomUUID()}`;
+    let chargeTo: string | null = null;
     try {
-        // One transaction: if billing a paid seat fails, the seat is rolled back instead of
-        // being left active and unbilled. The tenant row lock serialises concurrent adds so two
-        // requests cannot both see "3 seats" and skip billing.
+        // The tenant row lock serialises concurrent adds so two requests cannot both see "3 seats" and
+        // skip billing. It is held only for these local statements, never across the Razorpay call.
         await withOrgTransaction(organizationId, async (client) => {
             const tenant = await client.query(
                 'SELECT razorpay_subscription_id, razorpay_subscription_status FROM tenants WHERE id = $1 FOR UPDATE',
@@ -63,7 +69,16 @@ router.post('/seats/add', async (req: any, res) => {
                  RETURNING id`,
                 [seatId, organizationId, userEmail, userName]
             );
-            if (inserted.rows.length === 0) throw new SeatError(409, 'A seat for this email already exists.');
+            if (inserted.rows.length === 0) {
+                const existing = await client.query(
+                    'SELECT status FROM organization_seats WHERE organization_id = $1 AND email = $2',
+                    [organizationId, userEmail]
+                );
+                if (existing.rows[0]?.status === 'billing') {
+                    throw new SeatError(409, 'A seat for this email is awaiting billing confirmation. Remove it to start over.');
+                }
+                throw new SeatError(409, 'A seat for this email already exists.');
+            }
 
             const countRes = await client.query(
                 'SELECT COUNT(*) FROM organization_seats WHERE organization_id = $1',
@@ -74,18 +89,74 @@ router.post('/seats/add', async (req: any, res) => {
             if (!subscriptionId) {
                 throw new SeatError(402, 'Seats beyond the free quota need an active subscription. Start one at POST /api/enterprise/billing/subscribe.');
             }
-            try {
-                await RazorpayService.billExtraUsage(subscriptionId, EXTRA_SEAT_INR, `Extra Seat: ${userEmail}`);
-            } catch (billingError: any) {
-                console.error(`[Seats] Billing failed for org=${organizationId}: ${billingError.message}`);
-                throw new SeatError(502, 'Billing failed; the seat was not added.');
-            }
+            await client.query(
+                "UPDATE organization_seats SET status = 'billing' WHERE id = $1 AND organization_id = $2",
+                [seatId, organizationId]
+            );
+            chargeTo = subscriptionId;
         });
-        res.json({ message: 'Seat added successfully', seatId });
     } catch (e: any) {
         if (e instanceof SeatError) return res.status(e.status).json({ error: e.message });
         console.error(`[Seats] Add failed for org=${organizationId}: ${e.message}`);
-        res.status(500).json({ error: 'Failed to add seat' });
+        return res.status(500).json({ error: 'Failed to add seat' });
+    }
+
+    if (chargeTo) {
+        let addonId: string | undefined;
+        try {
+            const addon = await RazorpayService.billExtraUsage(chargeTo, EXTRA_SEAT_INR, `Extra Seat: ${userEmail} (${seatId})`);
+            addonId = addon?.id;
+        } catch (billingError: any) {
+            console.error(`[Seats] Billing failed for org=${organizationId} seat=${seatId}: ${billingError.message}`);
+            try {
+                await queryWithOrg('DELETE FROM organization_seats WHERE id = $1 AND organization_id = $2', [seatId, organizationId], organizationId);
+            } catch (cleanupError: any) {
+                console.error(`[Seats] Could not remove unbilled seat ${seatId} for org=${organizationId}: ${cleanupError.message}`);
+            }
+            return res.status(502).json({ error: 'Billing failed; the seat was not added.' });
+        }
+
+        let confirmed = false;
+        for (let attempt = 1; attempt <= CONFIRM_ATTEMPTS && !confirmed; attempt++) {
+            try {
+                await queryWithOrg(
+                    "UPDATE organization_seats SET status = 'active', razorpay_addon_id = $1 WHERE id = $2 AND organization_id = $3",
+                    [addonId ?? null, seatId, organizationId],
+                    organizationId
+                );
+                confirmed = true;
+            } catch (confirmError: any) {
+                console.error(`[Seats] Confirm attempt ${attempt} failed for seat=${seatId} org=${organizationId}: ${confirmError.message}`);
+            }
+        }
+        if (!confirmed) {
+            // The customer has been charged. The seat stays 'billing' (never deleted) so a retry cannot charge again.
+            console.error(`[Seats] CHARGED BUT UNCONFIRMED: org=${organizationId} seat=${seatId} razorpay_addon=${addonId} subscription=${chargeTo}`);
+            return res.status(500).json({ error: `The seat was charged but could not be confirmed. Contact support with seat ${seatId}.` });
+        }
+    }
+    res.json({ message: 'Seat added successfully', seatId });
+});
+
+/**
+ * DELETE /api/enterprise/seats/:id
+ * Removes one of the caller's seats. A seat already charged is not refunded here.
+ */
+router.delete('/seats/:id', async (req: any, res) => {
+    const organizationId = req.organizationId;
+    if (!organizationId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required to remove seats.' });
+    try {
+        const removed = await queryWithOrg(
+            'DELETE FROM organization_seats WHERE id = $1 AND organization_id = $2 RETURNING id',
+            [req.params.id, organizationId],
+            organizationId
+        );
+        if (removed.rows.length === 0) return res.status(404).json({ error: 'Seat not found' });
+        res.json({ message: 'Seat removed', seatId: removed.rows[0].id });
+    } catch (e: any) {
+        console.error(`[Seats] Remove failed for org=${organizationId}: ${e.message}`);
+        res.status(500).json({ error: 'Failed to remove seat' });
     }
 });
 
