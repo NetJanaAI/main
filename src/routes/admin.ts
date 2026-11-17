@@ -317,7 +317,7 @@ router.post('/integrations/craftmyfunnel/test', async (req: Request, res: Respon
 
     try {
         if (!leadId) {
-            const result = await sendSampleCraftMyFunnelSignal();
+            const result = await sendSampleCraftMyFunnelSignal({ org_id: (req as any).organizationId });
             return res.json(result);
         }
 

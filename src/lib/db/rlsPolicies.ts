@@ -11,7 +11,7 @@ const uuidTables = [
     'scrape_results', 'lead_influence_data', 'roi_exports', 'campaigns', 'organization_seats',
     'audit_logs', 'graph_nodes', 'graph_edges', 'outreach_logs', 'approval_queue',
     'dead_letter_queue', 'pii_vault', 'capsule_log', 'scrape_schedules',
-    'data_source_credentials', 'webhook_secrets', 'allowed_ips',
+    'data_source_credentials', 'webhook_secrets', 'allowed_ips', 'craftmyfunnel_connections',
     'archived_scrape_results', 'dead_letter_queue_archive',
 ];
 const textOrgIdTables = [

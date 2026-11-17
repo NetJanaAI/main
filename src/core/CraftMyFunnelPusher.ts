@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 import { query } from '../lib/database';
+import { getCmfConfig, type CmfConfig } from './cmfConnection';
+import { validateTargetUrl } from '../middleware/urlValidator';
 
 export type CraftMyFunnelEvent = 'LEAD_CARD_READY' | 'SIGNAL_INGESTED' | 'INTENT_UPDATED';
 export type CraftMyFunnelBuyingStage = 'AWARENESS' | 'CONSIDERATION' | 'DECISION' | 'UNKNOWN';
@@ -46,12 +48,6 @@ export interface CraftMyFunnelSuccessResponse {
     safeForAutomation?: boolean;
 }
 
-interface CraftMyFunnelConfig {
-    apiBaseUrl: string;
-    apiKey: string;
-    hmacSecret: string;
-}
-
 interface SendOptions {
     event?: CraftMyFunnelEvent;
     campaignId?: string;
@@ -61,18 +57,6 @@ interface SendOptions {
 
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [1000, 3000];
-
-function getConfig(): CraftMyFunnelConfig | null {
-    const apiBaseUrl = process.env.CRAFTMYFUNNEL_API_BASE_URL;
-    const apiKey = process.env.CRAFTMYFUNNEL_API_KEY;
-    const hmacSecret = process.env.CRAFTMYFUNNEL_NETJANA_HMAC_SECRET;
-
-    if (!apiBaseUrl || !apiKey || !hmacSecret) {
-        return null;
-    }
-
-    return { apiBaseUrl, apiKey, hmacSecret };
-}
 
 function normalizeBuyingStage(value: unknown): CraftMyFunnelBuyingStage {
     const stage = String(value || '').toUpperCase();
@@ -239,15 +223,15 @@ export async function sendCraftMyFunnelLeadSignal(
     const leadId = String(signal?.lead_id || '');
     const orgId = String(signal?.org_id || 'default');
     const triggeredBy = options.triggeredBy || 'auto';
-    const config = getConfig();
+    const config: CmfConfig | null = await getCmfConfig(orgId);
     if (!config) {
-        console.info('[CraftMyFunnel] Skipping send because integration env vars are not fully configured.');
+        console.info(`[CraftMyFunnel] Skipping send: tenant ${orgId} has no CraftMyFunnel connection.`);
         if (leadId) {
             await logCraftMyFunnelDelivery(
                 leadId,
                 orgId,
                 'DOWN',
-                'CraftMyFunnel integration env vars are not fully configured.',
+                'No CraftMyFunnel connection is configured for this tenant.',
                 triggeredBy,
                 { requestSent: false, ackReceived: false, attempts: 0, campaignId: options.campaignId }
             );
@@ -261,6 +245,18 @@ export async function sendCraftMyFunnelLeadSignal(
     const timestamp = payload.timestamp;
     const signature = computeCraftMyFunnelSignature(config.hmacSecret, timestamp, nonce, rawBody);
     const endpointUrl = buildEndpointUrl(config.apiBaseUrl);
+
+    // A tenant chose this URL, so it must be a public https address before the server calls it.
+    if (config.source === 'tenant') {
+        const check = await validateTargetUrl(endpointUrl);
+        if (!check.isValid) {
+            const error = `CraftMyFunnel URL refused: ${check.error}`;
+            await logCraftMyFunnelDelivery(payload.lead.lead_id, orgId, 'DOWN', error, triggeredBy, {
+                requestSent: false, ackReceived: false, attempts: 0, campaignId: options.campaignId,
+            });
+            return { ok: false, error };
+        }
+    }
 
     const headers = {
         'Authorization': `Bearer ${config.apiKey}`,
