@@ -76,7 +76,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { tenantRateLimiter, scrapeLimiter, entitySearchLimiter } from './middleware/rateLimit';
+import { tenantRateLimiter, ipRateLimiter, scrapeLimiter, entitySearchLimiter } from './middleware/rateLimit';
 import path from 'path';
 
 import scrapeRoutes from './routes/scrape';
@@ -309,7 +309,8 @@ app.use(express.json({
         req.rawBody = buf;
     }
 }));
-app.use('/api', tenantRateLimiter);
+// Coarse per-IP limit first (cheap, before any auth lookup); the per-tenant limiter follows tenantContext.
+app.use('/api', ipRateLimiter);
 
 // --- Observability Endpoints ---
 // P2-2: Gate /metrics behind METRICS_BEARER_TOKEN in production.
@@ -340,6 +341,7 @@ app.get('/health', async (req, res) => {
 
 // Pass io instance to request object middleware
 app.use(tenantContext);
+app.use('/api', tenantRateLimiter);
 app.use((req, res, next) => {
     (req as any).io = io;
     next();

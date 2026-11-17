@@ -1,5 +1,34 @@
 import rateLimit from 'express-rate-limit';
 import { Request, Response } from 'express';
+import { RedisRateLimitStore } from './rateLimitStore';
+
+// Counters live in Redis so all instances share them. Tests use the in-memory default.
+const sharedStore = (prefix: string) => (process.env.NODE_ENV === 'test' ? undefined : new RedisRateLimitStore(prefix));
+
+/** Requests per 15 minutes for a tenant on this tier. */
+export function tierLimit(req: any): number {
+    if (req.tenantTier === 'enterprise') return 1000;
+    if (req.tenantTier === 'paid') return 500;
+    return 100;
+}
+
+/**
+ * Coarse per-IP limiter for requests that have not been tied to a tenant yet. It runs before
+ * tenantContext so unauthenticated floods are cut off before any auth lookup.
+ */
+export const ipRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV !== 'production' ? 5000 : 1000,
+    keyGenerator: (req: any) => req.ip || 'unknown',
+    validate: false,
+    passOnStoreError: true,
+    store: sharedStore('rl:ip:'),
+    handler: (_req: Request, res: Response) => {
+        res.status(429).json({ error: 'Too many requests', retryAfter: '15m' });
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 /**
  * Tenant-Aware Rate Limiter
@@ -11,15 +40,15 @@ export const tenantRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: (req: any) => {
         if (process.env.NODE_ENV !== 'production') return 5000;
-        // Dynamic limits based on tier
-        if (req.tenantTier === 'enterprise') return 1000;
-        return 100; // Default 100 requests per 15 mins
+        return tierLimit(req);
     },
     keyGenerator: (req: any) => {
         // Primary: Organization ID, Fallback: IP (if not auth'd yet)
         return req.organizationId || req.ip || 'unknown';
     },
     validate: false,
+    passOnStoreError: true,
+    store: sharedStore('rl:tenant:'),
     handler: (req: Request, res: Response) => {
         res.status(429).json({
             error: 'Too many requests',

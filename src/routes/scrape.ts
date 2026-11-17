@@ -11,10 +11,11 @@ interface RequestWithSocket extends Request {
 }
 
 import { scrapeQueue } from '../lib/queue';
+import { enqueueScrape, QuotaExceededError } from '../lib/quota';
 
 const MIN_FREE_MEMORY_MB = 256;
 
-const enqueueScrape = async (req: Request, res: any) => {
+const handleScrape = async (req: Request, res: any) => {
     // 1. Zod Validation
     const validationResult = ScrapeRequestSchema.safeParse(req.body);
     if (!validationResult.success) {
@@ -27,8 +28,10 @@ const enqueueScrape = async (req: Request, res: any) => {
         });
     }
 
-    const { url, forceFailure, useOnlineAI, spiderMode, maxPages, organizationId } = validationResult.data;
-    const effectiveOrganizationId = (req as any).organizationId || organizationId;
+    const { url, forceFailure, useOnlineAI, spiderMode, maxPages } = validationResult.data;
+    // The tenant is the authenticated one, never a body-supplied id.
+    const organizationId = (req as any).organizationId;
+    if (!organizationId) return res.status(401).json({ error: 'Unauthorized' });
 
     // Memory Guard: Check available RAM
     const freeMemoryMB = os.freemem() / (1024 * 1024);
@@ -42,23 +45,35 @@ const enqueueScrape = async (req: Request, res: any) => {
     const jobId = uuidv4();
 
     // Enqueue Job for Persistent Execution
-    await scrapeQueue.add('scrape', {
-        jobId,
-        url,
-        forceFailure,
-        useOnlineAI,
-        spiderMode,
-        maxPages,
-        organizationId: effectiveOrganizationId
-    }, { jobId });
+    try {
+        await enqueueScrape(organizationId, {
+            jobId,
+            url,
+            forceFailure,
+            useOnlineAI,
+            spiderMode,
+            maxPages,
+            organizationId
+        }, { jobId });
+    } catch (e) {
+        if (e instanceof QuotaExceededError) {
+            return res.status(429).json({
+                error: 'Scrape quota exhausted',
+                message: 'Your organization has used its scrapes for this month. Upgrade your plan or wait for the quota to reset.',
+                limit: e.limit,
+                used: e.used
+            });
+        }
+        throw e;
+    }
 
     console.log(`[API] Scrape Enqueued for ${url} (Job ID: ${jobId})`);
 
     res.json({ message: 'Scrape job enqueued', jobId });
 };
 
-router.post('/', enqueueScrape);
-router.post('/scrape', enqueueScrape);
+router.post('/', handleScrape);
+router.post('/scrape', handleScrape);
 
 // Job Status Endpoint
 router.get('/status/:jobId', async (req, res) => {
