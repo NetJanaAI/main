@@ -105,33 +105,12 @@ router.get('/pipeline', async (req: any, res: any) => {
         const scoredRes = await queryWithOrg(`SELECT COUNT(*) FROM lead_cards WHERE org_id = $1 AND intent_score >= 60`, [orgId], orgId);
         const scoredCount = parseInt(scoredRes.rows[0]?.count || '0', 10);
 
-        // Dispatches — UI-03: count SENT + COPY_READY (LinkedIn) so the pipeline funnel
-        // shows all outreach actions, not just email/WABA sends.
-        const dispatchedRes = await queryWithOrg(
-            `SELECT COUNT(*) FROM outreach_logs WHERE organization_id = $1 AND status IN ('SENT', 'COPY_READY')`,
-            [orgId],
-            orgId
-        );
-        const dispatchedCount = parseInt(dispatchedRes.rows[0]?.count || '0', 10);
-
-        // Recent Dispatches List
-        const recentRes = await queryWithOrg(`
-            SELECT o.id, o.channel, o.status, o.sent_at, l.company_name, l.intent_score
-            FROM outreach_logs o
-            JOIN lead_cards l ON o.lead_id = l.lead_id
-            WHERE o.organization_id = $1
-            ORDER BY o.sent_at DESC
-            LIMIT 4
-        `, [orgId], orgId);
-
         res.json({
             pipeline: {
                 ingested: ingestedCount,
                 merged: mergedCount,
-                scored: scoredCount,
-                dispatched: dispatchedCount
-            },
-            recentDispatches: recentRes.rows
+                scored: scoredCount
+            }
         });
     } catch (e: any) {
         console.error('[Analytics] Pipeline error:', e);

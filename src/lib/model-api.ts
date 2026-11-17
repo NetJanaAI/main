@@ -21,7 +21,7 @@ function getSpendRedis() {
     return getSharedRedisClient();
 }
 
-export type ModelRole = 'gate' | 'qualifier' | 'writer' | 'synthesizer' | 'advocate' | 'critic' | 'outreach';
+export type ModelRole = 'gate' | 'qualifier' | 'writer' | 'synthesizer' | 'advocate' | 'critic';
 
 // P2-6: Upgraded to gemini-2.0-flash for improved performance, lower latency, and cost.
 // Each role can be individually overridden via env vars for easy rollback:
@@ -34,7 +34,6 @@ const MODEL_CONFIG: Record<ModelRole, { model: string; maxTokens: number; temper
     synthesizer: { model: process.env.SYNTHESIZER_MODEL || 'gemini-2.0-flash', maxTokens: 768,  temperature: 0.15 },
     advocate:    { model: process.env.ADVOCATE_MODEL    || 'gemini-2.0-flash', maxTokens: 512,  temperature: 0.2  },
     critic:      { model: process.env.CRITIC_MODEL      || 'gemini-2.0-flash', maxTokens: 1024, temperature: 0.1  },
-    outreach:    { model: process.env.OUTREACH_MODEL    || 'gemini-2.0-flash', maxTokens: 512,  temperature: 0.7  },
 };
 
 
@@ -75,18 +74,6 @@ const MOCK_RESPONSES: Record<ModelRole, () => string> = {
         confidence: "HIGH",
         refinedLeads: [],
         critiques: ["[DEMO] Signal validated — no contradictions found across source set."]
-    }),
-    outreach: () => JSON.stringify({
-        coldEmail: {
-            subject: "[DEMO] Re: GEM/2024/B/INV-04821 — CNC Line Procurement",
-            body: "[DEMO] Hi [Name], I noticed Apex Manufacturing posted a GeM tender last week for CNC milling centres. We supply 14 of your sector peers in Pune. Can we get 20 minutes this week to share a comparable case study?"
-        },
-        linkedinNote: "[DEMO] Hi [Name], saw your team's GeM tender for CNC equipment — we work with 14 similar manufacturers in Pune. Happy to share a 2-page case study if useful.",
-        callScript: {
-            opener: "[DEMO] Hi, I'm calling about Apex Manufacturing's GeM tender posted this week for CNC equipment.",
-            frictionHook: "[DEMO] I saw your production team is at 94% utilisation — that's exactly the threshold where our clients typically evaluate an upgrade.",
-            cta: "[DEMO] Can I send over a quick comparison of options before your competitor quote expires?"
-        }
     }),
 };
 

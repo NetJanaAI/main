@@ -2,7 +2,6 @@ import { setupGeminiWorkers } from '../gemini-chain';
 import { callModel } from '../../lib/model-api';
 import { resolveEntitySafe } from '../entity-resolver';
 import { emitLeadCard } from '../lead-emitter';
-import { OutreachService } from '../outreach';
 import { tier3Queue } from '../../lib/queue';
 
 // Mock database to avoid connection issues
@@ -39,12 +38,6 @@ jest.mock('ioredis', () => {
 jest.mock('../knowledge-graph', () => ({
     KnowledgeGraphService: {
         getGraphContext: jest.fn().mockResolvedValue('Graph context sample data'),
-    },
-}));
-
-jest.mock('../outreach', () => ({
-    OutreachService: {
-        enqueueForApproval: jest.fn().mockResolvedValue(true),
     },
 }));
 
@@ -144,7 +137,6 @@ describe('Tier 2 Pipeline Integration Test (DEMO_MODE)', () => {
         expect(callModel).toHaveBeenCalledTimes(3);
         expect(resolveEntitySafe).toHaveBeenCalledWith('Acme Corp', 'Maharashtra', undefined);
         expect(emitLeadCard).toHaveBeenCalledTimes(1);
-        expect(OutreachService.enqueueForApproval).toHaveBeenCalledTimes(1);
     });
 
     it('discards a signal when Gate identifies no buying intent', async () => {

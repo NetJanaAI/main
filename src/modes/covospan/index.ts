@@ -11,10 +11,8 @@ import vaultRoutes from '../../routes/vault';
 import adminRoutes from '../../routes/admin';
 import { Feature } from '../../config/featureFlags';
 import { modeGuard } from '../../middleware/modeGuard';
-import outreachRoutes from '../../routes/outreach';
 import leadRoutes from '../../routes/leads';
 import shareRoutes from '../../routes/share';
-import { startOutreachWorker } from '../../workers/outreach_worker';
 import { startDecayRescoreWorker } from '../../workers/decayRescoreWorker';
 import { startInfluenceWorker } from '../../workers/influenceMapWorker';
 
@@ -32,7 +30,6 @@ async function bootstrap() {
     app.use('/api/knowledge', knowledgeRoutes);
     app.use('/api/vault', modeGuard(Feature.REGIONAL_VAULT), vaultRoutes);
     app.use('/api/admin', adminRoutes); // Admin portal is CovoSpan specific in v2.0
-    app.use('/api/outreach', modeGuard(Feature.OUTREACH_ACTION), outreachRoutes);
     app.use('/api/leads', leadRoutes);
     app.use('/api/share', shareRoutes);
 
@@ -43,7 +40,6 @@ async function bootstrap() {
     httpServer.listen(PORT, () => {
         console.log(`[Covospan] Protocol active on http://localhost:${PORT}`);
         bootstrapSchedules().catch(e => console.warn('[Startup] Scheduler bootstrap failed:', e.message));
-        startOutreachWorker(io).catch(e => console.error('[Startup] Outreach worker failed:', e.message));
         startDecayRescoreWorker(io).catch(e => console.error('[Startup] Decay worker failed:', e.message));
         startInfluenceWorker(io).catch(e => console.error('[Startup] Influence worker failed:', e.message));
     });

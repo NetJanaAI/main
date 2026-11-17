@@ -35,7 +35,6 @@ export const RAW_SIGNALS_QUEUE_NAME = 'raw_signals';
 export const TIER1_QUEUE_NAME = 'tier1_queue';
 export const TIER2_QUEUE_NAME = 'tier2_queue';
 export const TIER3_QUEUE_NAME = 'tier3_queue';
-export const OUTREACH_QUEUE_NAME = 'outreach_queue';
 export const DLQ_QUEUE_NAME = 'dead_letter_queue';
 
 /**
@@ -111,11 +110,6 @@ export const DECAY_QUEUE_NAME = 'decay-rescore';
 export const decayRescoreQueue = createQueue(DECAY_QUEUE_NAME, {
     connection,
     defaultJobOptions: { attempts: 2, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true }
-});
-
-export const outreachQueue = createQueue(OUTREACH_QUEUE_NAME, {
-    connection,
-    defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 10000 }, removeOnComplete: true }
 });
 
 export const dlqQueue = createQueue(DLQ_QUEUE_NAME, {
