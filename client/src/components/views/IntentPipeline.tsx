@@ -1,4 +1,4 @@
-import { LayoutGrid, Filter, Cpu, Target, Send, ChevronRight, Activity } from 'lucide-react';
+import { LayoutGrid, Filter, Cpu, Target, ChevronRight, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
@@ -8,16 +8,7 @@ interface PipelineData {
         ingested: number;
         merged: number;
         scored: number;
-        dispatched: number;
     };
-    recentDispatches: Array<{
-        id: string;
-        channel: string;
-        status: string;
-        sent_at: string;
-        company_name: string;
-        intent_score: number;
-    }>;
 }
 
 export default function IntentPipeline({ market }: { market: 'IN' | 'AE' }) {
@@ -41,10 +32,7 @@ export default function IntentPipeline({ market }: { market: 'IN' | 'AE' }) {
         { id: 1, name: 'Registry Ingestion', icon: Filter, count: data?.pipeline.ingested || 0, color: 'text-blue-400', desc: 'Raw signals acquired' },
         { id: 2, name: 'Entity Resolution', icon: Cpu, count: data?.pipeline.merged || 0, color: 'text-purple-400', desc: 'Deduplicated & merged' },
         { id: 3, name: 'Intent Scoring', icon: Target, count: data?.pipeline.scored || 0, color: 'text-[#00ffca]', desc: 'High-friction signals' },
-        { id: 4, name: 'Lead Dispatched', icon: Send, count: data?.pipeline.dispatched || 0, color: 'text-emerald-400', desc: 'Routed to CRM' },
     ];
-
-    const recentDispatches = data?.recentDispatches || [];
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -94,31 +82,7 @@ export default function IntentPipeline({ market }: { market: 'IN' | 'AE' }) {
                 })}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-12">
-                <div className="glass-panel p-6 border-white/5 bg-black/40">
-                    <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#00ffca] mb-6">Recent Dispatches</h4>
-                    <div className="space-y-4">
-                        {loading && <div className="text-white/40 text-xs text-center py-10">Loading dispatches...</div>}
-                        {!loading && recentDispatches.length === 0 && (
-                            <div className="text-white/40 text-xs text-center py-10">No recent dispatches.</div>
-                        )}
-                        {!loading && recentDispatches.map((dispatch: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
-                                <div>
-                                    <p className="text-sm font-bold text-white mb-1">{dispatch.company_name}</p>
-                                    <p className="text-[10px] uppercase tracking-widest text-white/40">
-                                        Score: {dispatch.intent_score} &bull; Channel: {dispatch.channel}
-                                    </p>
-                                </div>
-                                <div className={`flex items-center gap-2 ${dispatch.status === 'SENT' ? 'text-emerald-400' : 'text-orange-400'}`}>
-                                    <Send className="w-4 h-4" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">{dispatch.status}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
+            <div className="grid grid-cols-1 gap-6 mt-12">
                 <div className="glass-panel p-6 border-white/5 bg-black/40">
                     <h4 className="text-[10px] font-black uppercase tracking-[3px] text-[#00ffca] mb-6">Pipeline Anomalies</h4>
                     <div className="flex flex-col items-center justify-center h-full py-12 opacity-50">

@@ -4,7 +4,6 @@ import { LogicDialogue } from './LogicDialogue';
 import type { RegistrySignalResult } from '../types';
 import InfluenceRadar from './InfluenceRadar';
 import WarmEntryPoints from './WarmEntryPoints';
-import TakeActionPanel from './TakeActionPanel';
 import { api } from '../lib/api';
 
 interface ResultCardProps {
@@ -12,7 +11,7 @@ interface ResultCardProps {
 }
 
 export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
-    const [activeSubTab, setActiveSubTab] = useState<'signals' | 'influence' | 'action'>('signals');
+    const [activeSubTab, setActiveSubTab] = useState<'signals' | 'influence'>('signals');
     const [influenceData, setInfluenceData] = useState<any>(null);
     const [loadingInfluence, setLoadingInfluence] = useState(false);
     
@@ -70,19 +69,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                 >
                     Influence Mapping
                 </button>
-                <button 
-                    onClick={() => setActiveSubTab('action')}
-                    className={`pb-4 px-6 text-[10px] font-black uppercase tracking-[3px] transition-all ${activeSubTab === 'action' ? 'text-primary border-b-2 border-primary' : 'text-white/20 hover:text-white/40'}`}
-                >
-                    Take Action
-                </button>
             </div>
 
-            {activeSubTab === 'action' ? (
-                <div className="lg:col-span-3">
-                    <TakeActionPanel leadId={data.jobId!} organizationId="demo_standalone_org" />
-                </div>
-            ) : activeSubTab === 'signals' ? (
+            {activeSubTab === 'signals' ? (
                 <>
                     <div className="glass-panel p-10 relative overflow-hidden group border-primary/10 bg-gradient-to-br from-primary/10 via-transparent to-transparent">
                         <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-all duration-700">

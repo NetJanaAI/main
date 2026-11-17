@@ -1,6 +1,6 @@
 import express from 'express';
 import { query } from '../lib/database';
-import { rawSignalsQueue, scrapeQueue, outreachQueue } from '../lib/queue';
+import { rawSignalsQueue, scrapeQueue } from '../lib/queue';
 
 const router = express.Router();
 
@@ -71,9 +71,6 @@ router.post('/:id/retry', async (req: any, res: any) => {
                 break;
             case 'scrapeQueue':
                 await scrapeQueue.add('scrape', payload);
-                break;
-            case 'outreachQueue':
-                await outreachQueue.add('outreach', payload);
                 break;
             default:
                 // Fallback to rawSignals

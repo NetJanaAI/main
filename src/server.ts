@@ -95,7 +95,6 @@ import watchProfilesRoutes from './routes/watch-profiles';
 import apiManagerRoutes from './routes/api-manager';
 import websiteSignalsRoutes from './routes/websiteSignals';
 import reportsRoutes from './routes/reports';
-import outreachRoutes from './routes/outreach';
 import shareRoutes from './routes/share';
 import covospanRoutes from './routes/covospan';
 import telemetryRoutes from './routes/telemetry';
@@ -118,7 +117,6 @@ import { register, getSystemHealth } from './lib/telemetry';
 import { connection, decayRescoreQueue } from './lib/queue';
 import { setupScrapeWorker } from './workers/scrapeWorker';
 import { setupDlqWorker } from './workers/dlqWorker';
-import { startOutreachWorker } from './workers/outreach_worker';
 import { startInfluenceWorker } from './workers/influenceMapWorker';
 import { requireSignedScreenshot } from './lib/signedScreenshot';
 import { startDecayRescoreWorker } from './workers/decayRescoreWorker';
@@ -190,7 +188,6 @@ async function startWorkers(ioInstance: Server) {
             console.log('[Startup] Scrape worker disabled for ROLE=api_only.');
         }
         const dlqWorker = setupDlqWorker();
-        const outreachWorker = await startOutreachWorker(ioInstance);
         const influenceWorker = await startInfluenceWorker(ioInstance);
         const decayWorker = await startDecayRescoreWorker(ioInstance);
         const routerWorker = setupRouterWorker();
@@ -207,7 +204,6 @@ async function startWorkers(ioInstance: Server) {
         const allWorkers = [
             scrapeWorker,
             dlqWorker,
-            outreachWorker,
             influenceWorker,
             decayWorker,
             routerWorker,
@@ -362,7 +358,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/reports', reportsRoutes);
-app.use('/api/outreach', outreachRoutes);
 app.use('/api/share', shareRoutes);
 // SEC-07: Apply replayGuard AFTER ingestAuthGuard (already applied in ingestRoutes).
 // This prevents replay attacks: timestamp ±300s window + Redis nonce dedup.
