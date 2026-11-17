@@ -4,6 +4,9 @@ import { encryptCredential, decryptCredential } from '../lib/credentialVault';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { sendSampleCraftMyFunnelSignal } from '../core/CraftMyFunnelPusher';
+import { saveCmfConnection, deleteCmfConnection, getCmfConnectionSummary } from '../core/cmfConnection';
+import { validateTargetUrl } from '../middleware/urlValidator';
+import { isOrgAdmin } from '../lib/orgRole';
 
 const router = express.Router();
 
@@ -53,15 +56,48 @@ router.delete('/integrations/:id', async (req: any, res) => {
     res.json({ success: true });
 });
 
+const CmfConnectionSchema = z.object({
+    api_base_url: z.string().url().max(500),
+    api_key: z.string().min(8).max(500),
+    hmac_secret: z.string().min(8).max(500),
+});
+
+router.get('/craftmyfunnel/connection', async (req: any, res) => {
+    const orgId = req.organizationId;
+    if (!orgId) return res.status(401).json({ error: 'Auth required' });
+    res.json(await getCmfConnectionSummary(orgId));
+});
+
+router.put('/craftmyfunnel/connection', async (req: any, res) => {
+    const orgId = req.organizationId;
+    if (!orgId) return res.status(401).json({ error: 'Auth required' });
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required.' });
+
+    const parsed = CmfConnectionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+    const { api_base_url, api_key, hmac_secret } = parsed.data;
+
+    const check = await validateTargetUrl(api_base_url);
+    if (!check.isValid) return res.status(400).json({ error: `Invalid CraftMyFunnel URL: ${check.error}` });
+
+    await saveCmfConnection(orgId, { apiBaseUrl: api_base_url, apiKey: api_key, hmacSecret: hmac_secret });
+    res.json(await getCmfConnectionSummary(orgId));
+});
+
+router.delete('/craftmyfunnel/connection', async (req: any, res) => {
+    const orgId = req.organizationId;
+    if (!orgId) return res.status(401).json({ error: 'Auth required' });
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required.' });
+
+    await deleteCmfConnection(orgId);
+    res.json({ success: true });
+});
+
 router.get('/craftmyfunnel/telemetry', async (req: any, res) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
 
-    const configured = Boolean(
-        process.env.CRAFTMYFUNNEL_API_BASE_URL &&
-        process.env.CRAFTMYFUNNEL_API_KEY &&
-        process.env.CRAFTMYFUNNEL_NETJANA_HMAC_SECRET
-    );
+    const configured = (await getCmfConnectionSummary(orgId)).configured;
 
     const [summaryRes, recentRes, latestReceivedRes, latestDownRes] = await Promise.all([
         queryWithOrg(`

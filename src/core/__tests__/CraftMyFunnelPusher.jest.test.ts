@@ -1,3 +1,11 @@
+export {};
+const ORG = '11111111-1111-1111-1111-111111111111';
+const OTHER = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+const queryWithOrg = jest.fn().mockResolvedValue({ rows: [] });
+const validateTargetUrl = jest.fn().mockResolvedValue({ isValid: true });
+jest.mock('../../lib/database', () => ({ query: jest.fn().mockResolvedValue({ rows: [] }), queryWithOrg: (...a: any[]) => queryWithOrg(...a) }));
+jest.mock('../../middleware/urlValidator', () => ({ validateTargetUrl: (...a: any[]) => validateTargetUrl(...a) }));
+
 describe('CraftMyFunnelPusher', () => {
     const originalEnv = process.env;
     const originalFetch = global.fetch;
@@ -9,8 +17,12 @@ describe('CraftMyFunnelPusher', () => {
             CRAFTMYFUNNEL_API_BASE_URL: 'https://cmf.example.com',
             CRAFTMYFUNNEL_API_KEY: 'cmf_test_key_1234',
             CRAFTMYFUNNEL_NETJANA_HMAC_SECRET: 'super-secret',
+            CRAFTMYFUNNEL_ENV_FALLBACK_ORGS: ORG,
+            CREDENTIAL_ENCRYPTION_KEY: 'ab'.repeat(32),
         };
         global.fetch = jest.fn();
+        queryWithOrg.mockReset().mockResolvedValue({ rows: [] });
+        validateTargetUrl.mockReset().mockResolvedValue({ isValid: true });
     });
 
     afterEach(() => {
@@ -77,6 +89,7 @@ describe('CraftMyFunnelPusher', () => {
 
         const { sendCraftMyFunnelLeadSignal } = await import('../CraftMyFunnelPusher');
         const result = await sendCraftMyFunnelLeadSignal({
+            org_id: ORG,
             lead_id: '00000000-0000-0000-0000-000000000001',
             company_name: 'Example Corp',
             intent_score: 87,
@@ -118,6 +131,7 @@ describe('CraftMyFunnelPusher', () => {
             });
 
             const result = await sendCraftMyFunnelLeadSignal({
+                org_id: ORG,
                 lead_id: '00000000-0000-0000-0000-000000000001',
                 company_name: 'Example Corp',
                 intent_score: 87,
@@ -151,6 +165,7 @@ describe('CraftMyFunnelPusher', () => {
 
         const { sendCraftMyFunnelLeadSignal } = await import('../CraftMyFunnelPusher');
         const result = await sendCraftMyFunnelLeadSignal({
+            org_id: ORG,
             lead_id: '00000000-0000-0000-0000-000000000001',
             company_name: 'Example Corp',
             intent_score: 87,
@@ -161,5 +176,70 @@ describe('CraftMyFunnelPusher', () => {
 
         expect(result).toEqual(expect.objectContaining({ ok: true, signalId: 'sig_3' }));
         expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    describe('per-tenant credentials', () => {
+        const lead = (org: string) => ({
+            org_id: org,
+            lead_id: '00000000-0000-0000-0000-000000000001',
+            company_name: 'Example Corp',
+            intent_score: 87,
+            buying_stage: 'DECISION',
+            verity_tier: 'TIER_1',
+            created_at: '2026-06-04T12:00:00.000Z',
+        });
+
+        it('pushes to the tenant own workspace with the tenant own key and secret', async () => {
+            const vault = await import('../../lib/credentialVault');
+            queryWithOrg.mockResolvedValue({ rows: [{
+                api_base_url: 'https://tenant.example.com',
+                api_key_enc: vault.encryptCredential('tenant-key-9999'),
+                hmac_secret_enc: vault.encryptCredential('tenant-secret'),
+            }] });
+            const fetchMock = global.fetch as jest.Mock;
+            fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+
+            const { sendCraftMyFunnelLeadSignal, computeCraftMyFunnelSignature } = await import('../CraftMyFunnelPusher');
+            await sendCraftMyFunnelLeadSignal(lead(OTHER));
+
+            const [url, request] = fetchMock.mock.calls[0];
+            expect(url).toBe('https://tenant.example.com/api/webhooks/netjana-intel');
+            expect(request.headers['x-api-key']).toBe('tenant-key-9999');
+            expect(request.headers['x-netjana-signature']).toBe(
+                computeCraftMyFunnelSignature('tenant-secret', request.headers['x-netjana-timestamp'], request.headers['x-netjana-nonce'], request.body)
+            );
+            expect(JSON.stringify(request)).not.toContain('env-key');
+        });
+
+        it('does not send a tenant with no connection to the global workspace', async () => {
+            const fetchMock = global.fetch as jest.Mock;
+            const { sendCraftMyFunnelLeadSignal } = await import('../CraftMyFunnelPusher');
+            const result = await sendCraftMyFunnelLeadSignal(lead(OTHER));
+            expect(result).toEqual({ ok: false, error: 'CraftMyFunnel integration is not configured' });
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('does not send a lead with no tenant id', async () => {
+            const fetchMock = global.fetch as jest.Mock;
+            const { sendCraftMyFunnelLeadSignal } = await import('../CraftMyFunnelPusher');
+            const result = await sendCraftMyFunnelLeadSignal({ ...lead(ORG), org_id: undefined });
+            expect(result).toEqual(expect.objectContaining({ ok: false }));
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('refuses to call a tenant URL that is not a public https address', async () => {
+            const vault = await import('../../lib/credentialVault');
+            queryWithOrg.mockResolvedValue({ rows: [{
+                api_base_url: 'https://internal.example.com',
+                api_key_enc: vault.encryptCredential('k'),
+                hmac_secret_enc: vault.encryptCredential('s'),
+            }] });
+            validateTargetUrl.mockResolvedValue({ isValid: false, error: 'Blocked non-public address: 10.0.0.5' });
+            const fetchMock = global.fetch as jest.Mock;
+            const { sendCraftMyFunnelLeadSignal } = await import('../CraftMyFunnelPusher');
+            const result = await sendCraftMyFunnelLeadSignal(lead(OTHER));
+            expect(result).toEqual(expect.objectContaining({ ok: false, error: expect.stringContaining('Blocked') }));
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
     });
 });

@@ -746,6 +746,19 @@ export async function initDb() {
         await client.query(`CREATE INDEX IF NOT EXISTS idx_cmf_log_lead ON craftmyfunnel_push_log (lead_id);`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_cmf_log_status ON craftmyfunnel_push_log (org_id, status);`);
 
+        // 17B. Per-tenant CraftMyFunnel connection (key and HMAC secret encrypted by credentialVault)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS craftmyfunnel_connections (
+                organization_id UUID PRIMARY KEY,
+                api_base_url    TEXT NOT NULL,
+                api_key_enc     TEXT NOT NULL,
+                hmac_secret_enc TEXT NOT NULL,
+                created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_lead_cards_org_created ON lead_cards (org_id, created_at, lead_id);`);
+
         // 18. LLM Usage Audit (Phase 9)
         await client.query(`
             CREATE TABLE IF NOT EXISTS llm_usage_logs (
