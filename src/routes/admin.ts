@@ -1,4 +1,5 @@
 import { Router, Response, Request } from 'express';
+import { z } from 'zod';
 import { query } from '../lib/database';
 import crypto from 'crypto';
 import { VanishProtocol } from '../core/rag/VanishProtocol';
@@ -9,6 +10,22 @@ import { adminAuth } from '../middleware/adminAuth';
 import { sendCraftMyFunnelLeadSignal, sendSampleCraftMyFunnelSignal } from '../core/CraftMyFunnelPusher';
 
 const router = Router();
+
+const TenantCreateBody = z.object({
+    name: z.string().trim().min(1).max(200),
+    quota_limit: z.number().int().positive().optional(),
+});
+const IdParam = z.string().uuid();
+const IpAddBody = z.object({
+    cidr: z.string().trim().min(1).max(64),
+    label: z.string().max(200).optional(),
+    organization_id: z.string().uuid().nullish(),
+});
+const CmfTestBody = z.object({
+    leadId: z.string().min(1).max(128).optional(),
+    campaignId: z.string().max(128).optional(),
+    event: z.enum(['LEAD_CARD_READY', 'SIGNAL_INGESTED', 'INTENT_UPDATED']).optional(),
+});
 
 // P0-2 Fix: Authenticate all /api/admin/* routes before any handler runs.
 // Requires Clerk session with admin role, or x-admin-secret header in standalone mode.
@@ -30,8 +47,9 @@ async function auditAdmin(req: Request, action: string, organizationId: string |
  * POST /api/admin/tenants - Create a new tenant organization.
  */
 router.post('/tenants', async (req: Request, res: Response) => {
-    const { name, quota_limit } = req.body;
-    if (!name) return res.status(400).json({ error: 'Tenant name is required' });
+    const parsed = TenantCreateBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Tenant name is required' });
+    const { name, quota_limit } = parsed.data;
 
     try {
         // Generate a secure API Key
@@ -66,8 +84,10 @@ router.post('/tenants', async (req: Request, res: Response) => {
  * POST /api/admin/tenants/:id/rotate-key - Rotate a tenant's API key.
  */
 router.post('/tenants/:id/rotate-key', async (req: Request, res: Response) => {
+    const id = IdParam.safeParse(req.params.id);
+    if (!id.success) return res.status(400).json({ error: 'Invalid tenant id' });
     try {
-        const organizationId = req.params.id;
+        const organizationId = id.data;
         const newApiKey = `netjana_sk_${crypto.randomBytes(24).toString('hex')}`;
         const apiKeyHash = crypto.createHmac('sha256', getApiKeySecret()).update(newApiKey).digest('hex');
 
@@ -150,6 +170,7 @@ router.get('/dlq', async (req: Request, res: Response) => {
  * POST /api/admin/dlq/:id/retry - Trigger retry for a specific failed signal.
  */
 router.post('/dlq/:id/retry', async (req: Request, res: Response) => {
+    if (!IdParam.safeParse(req.params.id).success) return res.status(400).json({ error: 'Invalid id' });
     try {
         await auditAdmin(req, 'ADMIN_DLQ_RETRY', await dlqOrganization(req.params.id), `dlq:${req.params.id}`);
         await DeadLetterQueue.retry(req.params.id);
@@ -188,8 +209,9 @@ router.get('/security/ips', async (req: Request, res: Response) => {
  * POST /api/admin/security/ips - Add allowed ingress IP/CIDR.
  */
 router.post('/security/ips', async (req: Request, res: Response) => {
-    const { cidr, label, organization_id } = req.body;
-    if (!cidr) return res.status(400).json({ error: 'CIDR is required' });
+    const parsed = IpAddBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'CIDR is required' });
+    const { cidr, label, organization_id } = parsed.data;
 
     try {
         const result = await query(
@@ -313,7 +335,9 @@ router.get('/security/audit', async (req: Request, res: Response) => {
  * Sends either a synthetic sample signal or an existing lead card to CraftMyFunnel.
  */
 router.post('/integrations/craftmyfunnel/test', async (req: Request, res: Response) => {
-    const { leadId, campaignId, event } = req.body || {};
+    const parsed = CmfTestBody.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+    const { leadId, campaignId, event } = parsed.data;
 
     try {
         if (!leadId) {

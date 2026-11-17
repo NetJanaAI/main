@@ -1,9 +1,18 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { query } from '../lib/database';
 import { addSchedule, removeSchedule, listSchedules } from '../lib/scheduler';
 import { TenantRequest } from '../middleware/tenant';
 
 const router = Router();
+
+const ScheduleBody = z.object({
+    domain: z.string().trim().min(1).max(253),
+    cron_expression: z.string().trim().min(1).max(100),
+    use_online_ai: z.boolean().optional(),
+    spider_mode: z.boolean().optional(),
+    max_pages: z.number().int().min(1).max(100).optional(),
+});
 
 // GET /api/schedules — List all active schedules
 router.get('/', async (req: TenantRequest, res) => {
@@ -24,12 +33,13 @@ router.get('/', async (req: TenantRequest, res) => {
 
 // POST /api/schedules — Add a new schedule
 router.post('/', async (req: TenantRequest, res) => {
-    const { domain, cron_expression, use_online_ai, spider_mode, max_pages } = req.body;
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
-    if (!domain || !cron_expression) {
+    const parsed = ScheduleBody.safeParse(req.body);
+    if (!parsed.success) {
         return res.status(400).json({ error: 'domain and cron_expression are required' });
     }
+    const { domain, cron_expression, use_online_ai, spider_mode, max_pages } = parsed.data;
 
     try {
         const result = await query(`

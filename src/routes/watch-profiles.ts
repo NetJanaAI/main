@@ -2,10 +2,17 @@ import { Router, Request, Response } from 'express';
 import { queryWithOrg } from '../lib/database';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
+import { z } from 'zod';
 // @ts-ignore
 import csvParse from 'csv-parse/sync';
 
 const router = Router();
+
+const ProfileBody = z.object({
+    keywords: z.array(z.string().min(1).max(100)).max(100).optional(),
+    regions: z.array(z.string().min(1).max(100)).max(100).optional(),
+    min_amount: z.number().nonnegative().optional(),
+});
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Get all watch profiles
@@ -30,8 +37,10 @@ router.post('/', async (req: Request, res: Response) => {
     const orgId = (req as any).organizationId;
     if (!orgId) return res.status(400).json({ error: 'Organization ID required' });
 
-    const { keywords, regions, min_amount } = req.body;
-    
+    const parsed = ProfileBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+    const { keywords, regions, min_amount } = parsed.data;
+
     try {
         const result = await queryWithOrg(
             `INSERT INTO watch_profiles (profile_id, org_id, keywords, regions, min_amount) 

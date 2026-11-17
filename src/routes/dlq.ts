@@ -1,8 +1,10 @@
 import express from 'express';
+import { z } from 'zod';
 import { query } from '../lib/database';
 import { rawSignalsQueue, scrapeQueue } from '../lib/queue';
 
 const router = express.Router();
+const DlqParams = z.object({ id: z.string().uuid() });
 
 /**
  * GET /api/dlq
@@ -47,7 +49,9 @@ router.post('/:id/retry', async (req: any, res: any) => {
     try {
         const orgId = req.organizationId;
         if (!orgId) return res.status(401).json({ error: 'Unauthorized' });
-        const dlqId = req.params.id;
+        const parsedId = DlqParams.safeParse(req.params);
+        if (!parsedId.success) return res.status(400).json({ error: 'Invalid id' });
+        const dlqId = parsedId.data.id;
 
         const result = await query(`SELECT * FROM dead_letter_queue WHERE id = $1 AND organization_id = $2`, [dlqId, orgId]);
         if (result.rows.length === 0) {

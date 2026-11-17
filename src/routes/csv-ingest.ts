@@ -1,9 +1,18 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 import { CsvIngestionService, IngestOptions } from '../core/ingest/csv-ingestion-service';
 import { TenantRequest, requireTenant } from '../middleware/tenant';
 
 const router = Router();
+
+// Multipart fields arrive as strings, JSON bodies as typed values.
+const ProcessFields = z.object({
+    csvText: z.string().optional(),
+    type: z.enum(['company', 'employee', 'unified']).optional(),
+    indexVector: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
+});
+const MappingSchema = z.record(z.string(), z.string());
 router.use(requireTenant);
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -45,11 +54,13 @@ router.post('/preview', upload.single('file'), async (req: TenantRequest, res: R
  */
 router.post('/process', upload.single('file'), async (req: TenantRequest, res: Response) => {
     try {
+        const fields = ProcessFields.safeParse(req.body ?? {});
+        if (!fields.success) return res.status(400).json({ error: 'Invalid payload' });
         let csvContent = '';
         if (req.file) {
             csvContent = req.file.buffer.toString('utf-8');
-        } else if (req.body?.csvText) {
-            csvContent = String(req.body.csvText);
+        } else if (fields.data.csvText) {
+            csvContent = fields.data.csvText;
         } else {
             return res.status(400).json({ error: 'No CSV file or csvText provided' });
         }
@@ -57,16 +68,15 @@ router.post('/process', upload.single('file'), async (req: TenantRequest, res: R
         let mapping: Record<string, string> = {};
         if (req.body?.mapping) {
             try {
-                mapping = typeof req.body.mapping === 'string'
-                    ? JSON.parse(req.body.mapping)
-                    : req.body.mapping;
+                const raw = typeof req.body.mapping === 'string' ? JSON.parse(req.body.mapping) : req.body.mapping;
+                mapping = MappingSchema.parse(raw);
             } catch (_) {
                 mapping = {};
             }
         }
 
-        const type = (req.body?.type as any) || 'company';
-        const indexVector = req.body?.indexVector === 'true' || req.body?.indexVector === true;
+        const type = fields.data.type ?? 'company';
+        const indexVector = fields.data.indexVector === 'true' || fields.data.indexVector === true;
         const orgId = req.organizationId as string;
 
         const options: IngestOptions = {

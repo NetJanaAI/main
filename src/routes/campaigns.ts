@@ -1,4 +1,5 @@
 import express from 'express';
+import { z } from 'zod';
 import crypto from 'crypto';
 import { query, queryWithOrg } from '../lib/database';
 import { getHmacSecret } from '../lib/secrets';
@@ -10,6 +11,7 @@ const router = express.Router();
 const redis = getSharedRedisClient();
 
 const CAMPAIGN_STATES = new Set(['DISCOVERED', 'CAPSULE_SENT', 'ACKNOWLEDGED', 'CONVERTED', 'DORMANT']);
+const AdvanceBody = z.object({ state: z.string().refine(s => CAMPAIGN_STATES.has(s)) });
 
 router.get('/', async (req, res) => {
     try {
@@ -45,10 +47,11 @@ router.post('/:domain/advance', async (req, res) => {
     try {
         const organizationId = (req as any).organizationId || (req as any).user?.organizationId;
         const domain = decodeURIComponent(req.params.domain);
-        const state = req.body?.state;
+        const parsed = AdvanceBody.safeParse(req.body);
 
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
-        if (!CAMPAIGN_STATES.has(state)) return res.status(400).json({ error: "Invalid campaign state" });
+        if (!parsed.success) return res.status(400).json({ error: "Invalid campaign state" });
+        const { state } = parsed.data;
 
         const result = await queryWithOrg(`
             INSERT INTO campaigns (domain, state, organization_id, updated_at)
