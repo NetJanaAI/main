@@ -1,4 +1,5 @@
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "../lib/auth";
+import BrandMark from '../components/BrandMark';
 import { Link } from "react-router-dom";
 import {
   Cpu,
@@ -112,7 +113,7 @@ export function TerminalExperience() {
       <nav className="relative z-50 flex items-center justify-between px-8 py-4 border-b border-[#00ffca]/20 backdrop-blur-xl bg-black/50 bg-scanlines">
         <div className="flex items-center gap-3 group px-4 py-2 hover:bg-[#00ffca]/10 rounded-sm transition-all duration-300 cursor-pointer border border-transparent hover:border-[#00ffca]/30">
           <div className="relative">
-            <Terminal className="w-6 h-6 text-[#00ffca] relative z-10" />
+            <BrandMark className="w-7 h-7 relative z-10" />
             <div className="absolute inset-0 bg-[#00ffca] blur-md opacity-20 group-hover:opacity-60 transition-opacity" />
           </div>
           <div className="flex flex-col">
@@ -531,11 +532,8 @@ export default function Landing() {
 
       <nav className="relative z-10 flex items-center justify-between px-6 md:px-10 py-6">
         <Link to="/" className="flex items-center gap-3">
-          <Terminal className="w-7 h-7 text-[#00ffca]" />
-          <div>
-            <div className="text-sm font-black uppercase tracking-[0.25em] text-white">Net Jana AI</div>
-            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-[#00ffca]">Buyer Signal OS</div>
-          </div>
+          <BrandMark variant="wordmark" className="h-10 w-auto" />
+          <div className="text-[9px] font-black uppercase tracking-[0.3em] text-[#00ffca]">Buyer Signal OS</div>
         </Link>
         <div className="flex items-center gap-3">
           <SignedOut>

@@ -797,6 +797,30 @@ export async function initDb() {
         `);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_lead_cards_org_created ON lead_cards (org_id, created_at, lead_id);`);
 
+        // 17C. Website signals: observations read from companies' own public pages
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS signal_observation (
+                id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                organization_id UUID NOT NULL,
+                company_domain  TEXT NOT NULL,
+                signal_key      TEXT NOT NULL,
+                value           JSONB NOT NULL,
+                evidence_url    TEXT,
+                observed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expires_at      TIMESTAMPTZ NOT NULL
+            );
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_signal_obs_latest ON signal_observation (organization_id, company_domain, signal_key, observed_at DESC);`);
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS signal_confirmations (
+                organization_id UUID NOT NULL,
+                signal_key      TEXT NOT NULL,
+                confirmed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (organization_id, signal_key)
+            );
+        `);
+        await client.query(`ALTER TABLE lead_cards ADD COLUMN IF NOT EXISTS company_domain TEXT;`);
+
         // 18. LLM Usage Audit (Phase 9)
         await client.query(`
             CREATE TABLE IF NOT EXISTS llm_usage_logs (

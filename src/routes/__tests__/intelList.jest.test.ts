@@ -16,7 +16,7 @@ const ROWS = [
     row(ORG_A, 3, '2026-06-02T00:00:00.000000Z'), row(ORG_B, 4, '2026-06-01T12:00:00.000000Z'),
 ];
 const COLUMNS = ['lead_id', 'company_name', 'geo_state', 'sector', 'source_id', 'buying_stage', 'procurement_category',
-    'intent_score', 'verity_tier', 'is_triangulated', 'card_why_now', 'card_what_they_need', 'card_do_this', 'created_at'];
+    'intent_score', 'verity_tier', 'is_triangulated', 'card_why_now', 'card_what_they_need', 'card_do_this', 'created_at', 'website_signals'];
 
 const query = jest.fn();
 const queryWithOrg = jest.fn();
@@ -24,6 +24,7 @@ const queryWithOrg = jest.fn();
 jest.mock('../../lib/database', () => ({ query, queryWithOrg }));
 jest.mock('../../lib/secrets', () => ({ getApiKeySecret: () => 'test-secret' }));
 jest.mock('../../middleware/rateLimit', () => ({ pullApiRateLimiter: (_q: any, _s: any, n: any) => n() }));
+jest.mock('../../signals/website/store', () => ({ signalsForDomains: async () => new Map() }));
 
 /** Fake lead_cards: honours the org, the (since, cursor) filter and the limit, like the SQL would. */
 function fakeLeadQuery(sql: string, params: any[], org: string) {

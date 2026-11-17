@@ -9,6 +9,7 @@ import LiveFeed from './components/views/LiveFeed';
 import IntentPipeline from './components/views/IntentPipeline';
 import SourceHealth from './components/views/SourceHealth';
 import Analytics from './components/views/Analytics';
+import BrandMark from './components/BrandMark';
 import IntentMatcher from './components/views/IntentMatcher';
 import SystemHealthWidget from './components/SystemHealthWidget';
 import DeadLetterQueue from './components/views/DeadLetterQueue';
@@ -90,7 +91,7 @@ function App() {
             <Shield className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-black uppercase tracking-widest text-[#00ffca] font-sans">NetJana.AI</h1>
+            <BrandMark variant="wordmark" className="h-10 w-auto" />
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black uppercase tracking-[3px] text-white/40">
                 Sovereign Alpha
