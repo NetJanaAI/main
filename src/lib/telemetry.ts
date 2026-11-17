@@ -166,14 +166,13 @@ export async function getSystemHealth() {
     // 2. Brain Webhook — just mark status, don't block response
     // 1.75. BullMQ queue depth check
     if (redisOk) try {
-        const { rawSignalsQueue, scrapeQueue, tier1Queue, tier2Queue, tier3Queue, outreachQueue, dlqQueue } = await import('./queue');
+        const { rawSignalsQueue, scrapeQueue, tier1Queue, tier2Queue, tier3Queue, dlqQueue } = await import('./queue');
         const queues = [
             ['scrape', scrapeQueue],
             ['rawSignals', rawSignalsQueue],
             ['tier1', tier1Queue],
             ['tier2', tier2Queue],
             ['tier3', tier3Queue],
-            ['outreach', outreachQueue],
             ['dlq', dlqQueue]
         ] as const;
 

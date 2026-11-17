@@ -5,7 +5,6 @@ import { Server } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { emitLeadCard } from './lead-emitter';
 import { KnowledgeGraphService } from './knowledge-graph';
-import { OutreachService } from './outreach';
 import { resolveEntitySafe } from './entity-resolver';
 import { safeQueueIndiaMARTLead } from './collectors/indiamart-dedup';
 import { callModel, parseModelJson } from '../lib/model-api';
@@ -98,10 +97,6 @@ export function setupGeminiWorkers(io: Server) {
         EntityIndexer.enqueueSignalIndex(signal, orgId).catch(err => {
             console.warn(`[GeminiChain:Tier1] Signal auto-index warning:`, err.message);
         });
-
-        if (intentScore >= 90) {
-            await OutreachService.enqueueForApproval(leadCard.lead_id, leadCard.org_id);
-        }
 
         return { status: 'tier1_processed', lead_id: leadCard.lead_id };
     }, { connection, concurrency: 5 });
@@ -268,10 +263,6 @@ OUT: { "company": "Name · Target", "why_now": "Citing multiple sources <2s", "w
         EntityIndexer.enqueueSignalIndex(signal, orgId).catch(err => {
             console.warn(`[GeminiChain:Tier2] Signal auto-index warning:`, err.message);
         });
-
-        if (intentScore >= 70) {
-            await OutreachService.enqueueForApproval(leadCard.lead_id, leadCard.org_id);
-        }
 
         return { status: 'lead_card_generated', lead_id: leadCard.lead_id };
     }, { connection, concurrency: 2 });

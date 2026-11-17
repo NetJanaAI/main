@@ -102,21 +102,6 @@ The platform operates four classes of autonomous agents:
 
 ---
 
-### 1.7 Outreach Generator Agent
-| Property | Value |
-|---|---|
-| **File** | `src/core/outreach/OutreachGenerator.ts` |
-| **Prompt Format** | `[TOON:OUTREACH_GEN_v1]` + `[TOON:OUTREACH_CRITIC_v1]` |
-| **Role** | Generates channel-specific outreach messages (EMAIL, WABA, LINKEDIN) |
-| **Trigger** | Lead card approved for outreach (score ≥ 70 or manual approval) |
-| **Input** | Lead data, tone preference, InfluenceMap warm entry points |
-| **Output** | `{ subject, body, cta }` per channel |
-| **Provider** | ModelAPI (role: `writer`) + Upstash spend guard cache |
-| **Dispatch** | EMAIL → Nodemailer SMTP; WABA/LinkedIn → SDK stub (pending) |
-| **Status** | ✅ Active (EMAIL); ⚠️ Stub (WABA, LinkedIn) |
-
----
-
 ## Class 2: Worker Agents (Event-Driven BullMQ)
 
 ### 2.1 Tier 1 Worker
@@ -157,16 +142,7 @@ The platform operates four classes of autonomous agents:
 | **Behavior** | Orchestrates Playwright-based `b2bScraper.ts` engine; also receives `ingest_registry_signal` jobs from IndiaMART collector |
 | **Status** | ✅ Active |
 
-### 2.5 Outreach Worker
-| Property | Value |
-|---|---|
-| **File** | `src/workers/outreach_worker.ts` |
-| **Queue** | `outreachQueue` |
-| **Trigger** | Lead card pushed for approval |
-| **Behavior** | Calls `OutreachGenerator.generate()`, saves payload, dispatches via channel |
-| **Status** | ✅ Active |
-
----
+> Outreach (email, WhatsApp, LinkedIn) now lives in CraftMyFunnel. NetJana emits signals and lead cards only.
 
 ## Class 3: Cron Agents (Scheduled)
 
@@ -183,7 +159,7 @@ The platform operates four classes of autonomous agents:
 |---|---|
 | **File** | `src/workers/influenceMapWorker.ts` |
 | **Schedule** | Configurable via scheduler |
-| **Behavior** | Builds warm entry point graphs between leads for the same org. Enriches outreach context with influence signals (mutual connections, shared sector events) |
+| **Behavior** | Builds warm entry point graphs between leads for the same org. Adds influence signals (mutual connections, shared sector events) |
 | **Status** | ✅ Active |
 
 ### 3.3 Recalibration Engine
@@ -204,7 +180,7 @@ The platform operates four classes of autonomous agents:
 | **File** | `src/lib/ai/toon.ts` |
 | **Functions** | `jsonToToon(data)` and `toonToJson(toon)` |
 | **Purpose** | Converts raw JSON payloads to compact TOON notation for ~30% token reduction in all LLM prompts |
-| **Status** | ✅ Active — used in Gemini Chain, OutreachGenerator, AdversarialCritic, InfluenceInjector |
+| **Status** | ✅ Active — used in Gemini Chain, AdversarialCritic, InfluenceInjector |
 
 ### 4.2 TurboQuant Compressor
 | Property | Value |
@@ -251,12 +227,8 @@ graph LR
     QUAL -->|"LOW"| CRITIC[Adversarial Critic]
     CRITIC -->|enriched| WRITER
     WRITER --> EMIT[Lead Emitter]
-    EMIT -->|score≥70| OQ[Outreach Queue]
-    OQ --> OGEN[Outreach Generator]
-    OGEN -->|EMAIL| SMTP
     EMIT --> UI[React Dashboard]
     DECAY[Decay Rescorer] -->|recalc| EMIT
-    INFLUENCE[Influence Mapper] --> OGEN
     TOON[TOON Serializer] -.->|wraps| GATE
     TOON -.->|wraps| QUAL
     TOON -.->|wraps| WRITER
@@ -270,8 +242,6 @@ graph LR
 
 | Gap | Priority | Notes |
 |---|---|---|
-| WABA dispatch SDK integration | High | `OutreachGenerator` has channel routing but no WABA SDK wired |
-| LinkedIn outreach channel | Medium | Requires LinkedIn API token + OAuth per org |
 | Webhook HMAC Verification Agent | High | `/api/ingest/*` is unprotected — needs `verifySignature` middleware |
 | IP/CIDR Whitelist Enforcer | High | Middleware needed on ingestion routes |
 | Tenant API Key Agent | High | `x-api-key` → Postgres `api_key_hash` lookup not yet implemented |

@@ -6,7 +6,6 @@ import { Feature } from '../../config/featureFlags';
 import { modeGuard } from '../../middleware/modeGuard';
 import { featureGate } from '../../standalone/middleware/featureGate';
 import shareRoutes from '../../routes/share';
-import outreachRoutes from '../../routes/outreach';
 import leadRoutes from '../../routes/leads';
 import campaignRoutes from '../../routes/campaigns';
 import enterpriseRoutes from '../../routes/enterprise';
@@ -14,7 +13,6 @@ import adminRoutes from '../../routes/admin';
 import ingestRoutes from '../../routes/ingest';
 import usageRoutes from '../../routes/usage';
 import { tenantRateLimiter, scrapeLimiter } from '../../middleware/rateLimit';
-import { startOutreachWorker } from '../../workers/outreach_worker';
 import { startDecayRescoreWorker } from '../../workers/decayRescoreWorker';
 import { startInfluenceWorker } from '../../workers/influenceMapWorker';
 
@@ -47,7 +45,6 @@ async function bootstrap() {
     app.use('/api/ingest', ingestRoutes);
     app.use('/api/usage', usageRoutes);
     app.use('/api/results', resultsRoutes);
-    app.use('/api/outreach', outreachRoutes);
     app.use('/api/campaign', campaignRoutes);
     app.use('/api/leads', leadRoutes);
     app.use('/api/enterprise', enterpriseRoutes);
@@ -60,7 +57,6 @@ async function bootstrap() {
     httpServer.listen(PORT, () => {
         console.log(`[Standalone] SaaS active on http://localhost:${PORT}`);
         bootstrapSchedules().catch(e => console.warn('[Startup] Scheduler bootstrap failed:', e.message));
-        startOutreachWorker(io).catch(e => console.error('[Startup] Outreach worker failed:', e.message));
         startDecayRescoreWorker(io).catch(e => console.error('[Startup] Decay worker failed:', e.message));
         startInfluenceWorker(io).catch(e => console.error('[Startup] Influence worker failed:', e.message));
     });

@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { connection, DLQ_QUEUE_NAME, rawSignalsQueue, scrapeQueue, outreachQueue, tier2Queue } from '../lib/queue';
+import { connection, DLQ_QUEUE_NAME, rawSignalsQueue, scrapeQueue, tier2Queue } from '../lib/queue';
 import axios from 'axios';
 import { FailedAnalysis } from '../lib/DeadLetterQueue';
 
@@ -99,9 +99,6 @@ export function setupDlqWorker() {
                             break;
                         case 'tier2_queue':
                             await tier2Queue.add(jobName, jobData);
-                            break;
-                        case 'outreach_queue':
-                            await outreachQueue.add(jobName, jobData);
                             break;
                         default:
                             console.warn(`[DLQWorker] Unknown/unsupported source queue for auto-retry: ${failure.sourceQueue}`);
