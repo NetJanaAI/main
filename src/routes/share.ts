@@ -1,8 +1,10 @@
 import express from 'express';
+import { z } from 'zod';
 import { ShareService } from '../standalone/services/ShareService';
 import { getSharedRedisClient } from '../lib/redis';
 
 const router = express.Router();
+const ShareParams = z.object({ id: z.string().min(1).max(128) });
 const redis = getSharedRedisClient();
 
 /**
@@ -12,9 +14,10 @@ const redis = getSharedRedisClient();
 router.post('/:id', async (req, res) => {
     try {
         const organizationId = (req as any).organizationId || (req as any).user?.organizationId;
-        const leadId = req.params.id;
-
         if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
+        const parsedId = ShareParams.safeParse(req.params);
+        if (!parsedId.success) return res.status(400).json({ error: "Invalid lead id" });
+        const leadId = parsedId.data.id;
 
         const shareUrl = await ShareService.generateShareUrl(leadId, organizationId);
         res.json({ shareUrl });

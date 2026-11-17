@@ -40,6 +40,7 @@ function scanDirectory(dir: string) {
 
 function scanFile(filePath: string) {
     const content = fs.readFileSync(filePath, 'utf-8');
+    const posixPath = filePath.split(path.sep).join('/');
     const lines = content.split('\n');
 
     lines.forEach((line, index) => {
@@ -95,7 +96,7 @@ function scanFile(filePath: string) {
     });
 
     // 4. Schema Validation (Router Boundaries)
-    if (filePath.includes('src/routes/') && !filePath.includes('reports.ts')) {
+    if (posixPath.includes('src/routes/') && !posixPath.includes('reports.ts')) {
         const hasZod = content.includes('z.object') || content.includes('Schema.parse') || content.includes('Schema.safeParse') || content.includes('Schema.omit') || content.includes('Schema.pick');
         const hasPost = content.includes('router.post') || content.includes('router.put') || content.includes('router.patch');
         

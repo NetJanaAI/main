@@ -1,4 +1,5 @@
 import express from 'express';
+import { z } from 'zod';
 import { Webhook } from 'svix';
 import { query, withSystemTransaction } from '../lib/database';
 import crypto from 'crypto';
@@ -8,6 +9,17 @@ import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
 import { RazorpayService } from '../standalone/services/RazorpayService';
 
 const router = express.Router();
+
+const ClerkEvent = z.object({ type: z.string(), data: z.record(z.string(), z.unknown()) });
+const RazorpayEvent = z.object({
+    event: z.string().optional(),
+    created_at: z.number().optional(),
+    payload: z.object({
+        subscription: z.object({
+            entity: z.object({ id: z.string(), status: z.string() }).partial().optional(),
+        }).optional(),
+    }).optional(),
+});
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET || '';
 const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
@@ -51,7 +63,10 @@ router.post('/clerk', async (req, res) => {
         return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    const { type, data } = evt;
+    const clerkEvent = ClerkEvent.safeParse(evt);
+    if (!clerkEvent.success) return res.status(400).json({ error: 'Invalid payload' });
+    const { type } = clerkEvent.data;
+    const data: any = clerkEvent.data.data;
 
     try {
         if (type === 'user.created') {
@@ -146,7 +161,9 @@ router.post('/razorpay', async (req, res) => {
 
     let evt: any;
     try {
-        evt = JSON.parse(raw.toString());
+        const parsedEvent = RazorpayEvent.safeParse(JSON.parse(raw.toString()));
+        if (!parsedEvent.success) return res.status(400).json({ error: 'Invalid payload' });
+        evt = parsedEvent.data;
     } catch {
         return res.status(400).json({ error: 'Invalid payload' });
     }

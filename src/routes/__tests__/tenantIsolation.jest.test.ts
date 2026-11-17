@@ -67,13 +67,21 @@ describe('DLQ', () => {
 
     it('does not retry or delete another tenant item', async () => {
         const res = mockRes();
-        await handler(router, 'post', '/:id/retry')({ organizationId: ORG_A, params: { id: 'dlq-of-B' } }, res);
+        const dlqOfB = '5b0c7d52-3c1e-4b52-9a63-1f2d3e4a5b6c';
+        await handler(router, 'post', '/:id/retry')({ organizationId: ORG_A, params: { id: dlqOfB } }, res);
         const calls = sqlCalls(query);
         expect(calls).toHaveLength(1);
         expect(calls[0].sql).toMatch(/id = \$1 AND organization_id = \$2/);
-        expect(calls[0].params).toEqual(['dlq-of-B', ORG_A]);
+        expect(calls[0].params).toEqual([dlqOfB, ORG_A]);
         expect(res.status).toHaveBeenCalledWith(404);
         expect(queueAdd).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed id before touching the database', async () => {
+        const res = mockRes();
+        await handler(router, 'post', '/:id/retry')({ organizationId: ORG_A, params: { id: 'not-a-uuid' } }, res);
+        expect(sqlCalls(query)).toHaveLength(0);
+        expect(res.status).toHaveBeenCalledWith(400);
     });
 });
 

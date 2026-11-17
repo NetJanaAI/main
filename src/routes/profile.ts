@@ -1,10 +1,14 @@
 import express from 'express';
+import { z } from 'zod';
 import { query } from '../lib/database';
 import { cache } from '../lib/cache';
 import crypto from 'crypto';
 import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
 
 const router = express.Router();
+
+// Key regeneration takes no input; a body is rejected rather than silently ignored.
+const NoBody = z.object({}).strict();
 
 router.get('/credits', async (req: any, res) => {
     const orgId = req.organizationId;
@@ -37,6 +41,7 @@ router.get('/credits', async (req: any, res) => {
 router.post('/regenerate-key', async (req: any, res) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
+    if (!NoBody.safeParse(req.body ?? {}).success) return res.status(400).json({ error: 'Invalid payload' });
 
     try {
         const rawApiKey = `sk_live_${crypto.randomBytes(24).toString('hex')}`;

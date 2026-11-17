@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { db } from '../lib/database';
 import { cache } from '../lib/cache';
 
@@ -6,6 +7,7 @@ import { requireTenant } from '../middleware/tenant';
 
 const router = Router();
 router.use(requireTenant);
+const ToggleBody = z.object({ sourceId: z.string().min(1).max(64), enabled: z.boolean() });
 const DEFAULT_SOURCES = ['indiamart', 'gem', 'mca', 'zauba', 'webscrape', 'funding', 'naukri', 'rera', 'parivesh'];
 
 /**
@@ -35,11 +37,11 @@ router.get('/', async (req: any, res: Response) => {
  */
 router.post('/toggle', async (req: any, res: Response) => {
     const orgId = req.organizationId as string;
-    const { sourceId, enabled } = req.body;
-
-    if (!sourceId) {
-        return res.status(400).json({ error: 'sourceId is required' });
+    const parsed = ToggleBody.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ error: 'sourceId and enabled are required' });
     }
+    const { sourceId, enabled } = parsed.data;
 
     try {
         await db.queryWithOrg(
