@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { query, queryWithOrg } from '../lib/database';
 import { getApiKeySecret } from '../lib/secrets';
+import { signalsForDomains, type PullSignal } from '../signals/website/store';
 import { pullApiRateLimiter } from '../middleware/rateLimit';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
@@ -28,6 +29,16 @@ async function resolvePullTenant(incoming: string | undefined): Promise<string |
 // everything created since a point in time. Same fields as the single-lead pull,
 // oldest first, keyset paginated on (created_at, lead_id).
 // ---------------------------------------------------------------------------
+
+/** Website signals the tenant confirmed, keyed by domain. Best effort: a failure never fails the pull. */
+async function websiteSignalsFor(orgId: string, domains: (string | null)[]): Promise<Map<string, PullSignal[]>> {
+    try {
+        return await signalsForDomains(orgId, domains.filter((d): d is string => Boolean(d)));
+    } catch (err: any) {
+        console.warn(`[Intel Pull] website signals unavailable: ${err.message}`);
+        return new Map();
+    }
+}
 
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 200;
@@ -105,6 +116,7 @@ router.get('/leads', pullApiRateLimiter, async (req: Request, res: Response) => 
                 card_what_they_need,
                 card_do_this,
                 created_at,
+                company_domain,
                 to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_ts
              FROM lead_cards
              WHERE org_id = $1
@@ -119,6 +131,7 @@ router.get('/leads', pullApiRateLimiter, async (req: Request, res: Response) => 
         const hasMore = result.rows.length > limit;
         const page = hasMore ? result.rows.slice(0, limit) : result.rows;
         const last = page[page.length - 1];
+        const signals = await websiteSignalsFor(orgId, page.map((l: any) => l.company_domain));
 
         return res.json({
             request_id: requestId,
@@ -137,6 +150,7 @@ router.get('/leads', pullApiRateLimiter, async (req: Request, res: Response) => 
                 card_what_they_need: lead.card_what_they_need || null,
                 card_do_this: lead.card_do_this || null,
                 created_at: lead.created_at,
+                website_signals: (lead.company_domain && signals.get(lead.company_domain)) || [],
             })),
             next_cursor: hasMore ? encodeCursor(last.cursor_ts, last.lead_id) : null,
         });
@@ -203,7 +217,8 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
                 card_why_now,
                 card_what_they_need,
                 card_do_this,
-                created_at
+                created_at,
+                company_domain
              FROM lead_cards
              WHERE lead_id = $1 AND org_id = $2
              LIMIT 1`,
@@ -245,6 +260,8 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
             graph = null;
         }
 
+        const signals = await websiteSignalsFor(orgId, [lead.company_domain]);
+
         const latencyMs = Date.now() - start;
         console.info(
             `[Intel Pull] 200 | reqId=${requestId} lead=${lead_id} source=${callerSource} latency=${latencyMs}ms`
@@ -267,6 +284,7 @@ router.get('/leads/:lead_id', pullApiRateLimiter, async (req: Request, res: Resp
                 card_what_they_need: lead.card_what_they_need || null,
                 card_do_this: lead.card_do_this || null,
                 created_at: lead.created_at,
+                website_signals: (lead.company_domain && signals.get(lead.company_domain)) || [],
             },
             graph,
         });

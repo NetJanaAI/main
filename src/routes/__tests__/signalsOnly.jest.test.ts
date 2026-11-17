@@ -9,6 +9,7 @@ jest.mock('../../lib/database', () => ({ query, queryWithOrg, queryAsSystem: jes
 jest.mock('../../middleware/rateLimit', () => ({ pullApiRateLimiter: (_q: any, _s: any, n: any) => n() }));
 jest.mock('@clerk/backend', () => ({ createClerkClient: jest.fn(() => ({})), verifyToken: jest.fn() }));
 jest.mock('../../core/compliance/AuditTrail', () => ({ AuditTrail: { log: jest.fn() } }));
+jest.mock('../../signals/website/store', () => ({ signalsForDomains: async () => new Map() }));
 
 import { getApiKeySecret } from '../../lib/secrets';
 
@@ -103,7 +104,7 @@ describe('signals-only payload', () => {
     const SIGNAL_FIELDS = [
         'lead_id', 'company_name', 'geo_state', 'sector', 'source_id', 'buying_stage', 'procurement_category',
         'intent_score', 'verity_tier', 'is_triangulated', 'card_why_now', 'card_what_they_need', 'card_do_this',
-        'created_at',
+        'created_at', 'website_signals',
     ].sort();
 
     it('returns exactly the signal card fields, even if the row carries more', async () => {
