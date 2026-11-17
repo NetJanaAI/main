@@ -532,11 +532,8 @@ export default function Landing() {
 
       <nav className="relative z-10 flex items-center justify-between px-6 md:px-10 py-6">
         <Link to="/" className="flex items-center gap-3">
-          <BrandMark className="w-8 h-8" />
-          <div>
-            <div className="text-sm font-black uppercase tracking-[0.25em] text-white">Net Jana AI</div>
-            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-[#00ffca]">Buyer Signal OS</div>
-          </div>
+          <BrandMark variant="wordmark" className="h-10 w-auto" />
+          <div className="text-[9px] font-black uppercase tracking-[0.3em] text-[#00ffca]">Buyer Signal OS</div>
         </Link>
         <div className="flex items-center gap-3">
           <SignedOut>

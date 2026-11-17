@@ -91,7 +91,7 @@ function App() {
             <Shield className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-3"><BrandMark className="w-8 h-8" /><h1 className="text-xl font-black uppercase tracking-widest text-[#00ffca] font-sans">NetJana.AI</h1></div>
+            <BrandMark variant="wordmark" className="h-10 w-auto" />
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black uppercase tracking-[3px] text-white/40">
                 Sovereign Alpha
