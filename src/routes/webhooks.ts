@@ -1,6 +1,6 @@
 import express from 'express';
 import { Webhook } from 'svix';
-import { query } from '../lib/database';
+import { query, withSystemTransaction } from '../lib/database';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { createClerkClient } from '@clerk/backend';
@@ -120,8 +120,19 @@ const RAZORPAY_STATUSES = new Set([
     'created', 'authenticated', 'active', 'pending', 'halted', 'cancelled', 'completed', 'expired', 'paused',
 ]);
 
-// Razorpay subscription lifecycle events. The status stored is the one Razorpay reports in the
-// payload, and the tenant is found by the subscription id we stored at signup, never by payload notes.
+// The tenant plan a subscription status implies. Transitional states leave the plan as it was.
+const PLAN_FOR_STATUS: Record<string, 'paid' | 'free' | undefined> = {
+    active: 'paid',
+    halted: 'free',
+    cancelled: 'free',
+    completed: 'free',
+    expired: 'free',
+};
+
+// Razorpay subscription lifecycle events. Delivery is at least once and can be out of order, so the
+// event id is recorded in the same transaction as its effect (a failed update is retried, a repeat is
+// a no-op) and an event older than the one already applied is ignored. The status stored is the one
+// Razorpay reports, and the tenant is found by the subscription id we stored at signup, never by notes.
 router.post('/razorpay', async (req, res) => {
     if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
         console.error('[Razorpay Webhook] Missing RAZORPAY_WEBHOOK_SECRET');
@@ -140,6 +151,11 @@ router.post('/razorpay', async (req, res) => {
         return res.status(400).json({ error: 'Invalid payload' });
     }
 
+    const eventId = req.headers['x-razorpay-event-id'];
+    if (typeof eventId !== 'string' || !eventId) {
+        return res.status(400).json({ error: 'Missing event id' });
+    }
+
     const entity = evt?.payload?.subscription?.entity;
     if (typeof evt?.event !== 'string' || !evt.event.startsWith('subscription.') || !entity?.id) {
         return res.json({ success: true, ignored: true });
@@ -149,13 +165,31 @@ router.post('/razorpay', async (req, res) => {
         return res.json({ success: true, ignored: true });
     }
 
+    const eventAt = Number.isFinite(evt.created_at) ? evt.created_at : Math.floor(Date.now() / 1000);
     try {
-        const result = await query(
-            'UPDATE tenants SET razorpay_subscription_status = $1 WHERE razorpay_subscription_id = $2 RETURNING id',
-            [entity.status, entity.id]
-        );
-        if (result.rows.length === 0) console.warn(`[Razorpay Webhook] No tenant for subscription ${entity.id}`);
-        res.json({ success: true });
+        let duplicate = false;
+        await withSystemTransaction(async (client) => {
+            const recorded = await client.query(
+                'INSERT INTO razorpay_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING RETURNING event_id',
+                [eventId, evt.event]
+            );
+            if (recorded.rows.length === 0) {
+                duplicate = true;
+                return;
+            }
+            const result = await client.query(
+                `UPDATE tenants
+                    SET razorpay_subscription_status = $1,
+                        plan = CASE WHEN $2::text IS NOT NULL AND plan IN ('free', 'paid') THEN $2::text ELSE plan END,
+                        razorpay_status_at = to_timestamp($3)
+                  WHERE razorpay_subscription_id = $4
+                    AND (razorpay_status_at IS NULL OR razorpay_status_at <= to_timestamp($3))
+                RETURNING id`,
+                [entity.status, PLAN_FOR_STATUS[entity.status] ?? null, eventAt, entity.id]
+            );
+            if (result.rows.length === 0) console.warn(`[Razorpay Webhook] No tenant, or a newer event already applied, for subscription ${entity.id}`);
+        });
+        res.json(duplicate ? { success: true, duplicate: true } : { success: true });
     } catch (err) {
         console.error('[Razorpay Webhook] DB Error:', err);
         res.status(500).json({ error: 'Internal database error' });

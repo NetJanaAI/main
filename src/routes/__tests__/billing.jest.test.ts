@@ -1,7 +1,5 @@
 export {};
-// Subscription signup: the tenant starts a subscription, Razorpay confirms it by signed
-// webhook, and only then does the tenant's id/status unlock extra-seat billing.
-import crypto from 'crypto';
+// Subscription signup. The webhook that confirms it is covered in razorpayWebhook.jest.test.ts.
 
 const query = jest.fn();
 const createSubscription = jest.fn();
@@ -14,7 +12,6 @@ jest.mock('../../standalone/services/RazorpayService', () => {
 });
 
 const ORG_A = '11111111-1111-1111-1111-111111111111';
-const SECRET = 'whsec_test';
 
 function route(file: string, method: string, path: string) {
     const router = require(file).default;
@@ -27,85 +24,10 @@ function mockRes() {
     res.json = jest.fn(() => res);
     return res;
 }
-const sign = (raw: Buffer, secret = SECRET) => crypto.createHmac('sha256', secret).update(raw).digest('hex');
-function event(name: string, subId: string, status: string) {
-    return Buffer.from(JSON.stringify({
-        event: name,
-        payload: { subscription: { entity: { id: subId, status, notes: { organizationId: 'org-attacker' } } } },
-    }));
-}
-
 beforeEach(() => {
     query.mockReset().mockResolvedValue({ rows: [] });
     createSubscription.mockReset();
-    process.env.RAZORPAY_WEBHOOK_SECRET = SECRET;
     process.env.RAZORPAY_PLAN_ID = 'plan_x';
-});
-
-describe('POST /api/webhooks/razorpay', () => {
-    const hook = () => route('../webhooks', 'post', '/razorpay');
-
-    it('rejects a missing or wrong signature and writes nothing', async () => {
-        const raw = event('subscription.activated', 'sub_1', 'active');
-        for (const headers of [{}, { 'x-razorpay-signature': sign(raw, 'other') }, { 'x-razorpay-signature': 'zz' }]) {
-            const res = mockRes();
-            await hook()({ headers, rawBody: raw }, res);
-            expect(res.status).toHaveBeenCalledWith(400);
-        }
-        expect(query).not.toHaveBeenCalled();
-    });
-
-    it('refuses everything when no webhook secret is configured (empty-key HMAC must not pass)', async () => {
-        process.env.RAZORPAY_WEBHOOK_SECRET = '';
-        const raw = event('subscription.activated', 'sub_1', 'active');
-        const res = mockRes();
-        await hook()({ headers: { 'x-razorpay-signature': sign(raw, '') }, rawBody: raw }, res);
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(query).not.toHaveBeenCalled();
-    });
-
-    it('updates the tenant that owns the stored subscription id, ignoring notes', async () => {
-        query.mockResolvedValue({ rows: [{ id: ORG_A }] });
-        const raw = event('subscription.activated', 'sub_1', 'active');
-        const res = mockRes();
-        await hook()({ headers: { 'x-razorpay-signature': sign(raw) }, rawBody: raw }, res);
-        const [sql, params] = query.mock.calls[0];
-        expect(sql).toMatch(/UPDATE tenants SET razorpay_subscription_status = \$1 WHERE razorpay_subscription_id = \$2/);
-        expect(params).toEqual(['active', 'sub_1']);
-        expect(JSON.stringify(query.mock.calls)).not.toContain('org-attacker');
-        expect(res.status).not.toHaveBeenCalledWith(400);
-    });
-
-    it.each([
-        ['subscription.authenticated', 'authenticated'],
-        ['subscription.charged', 'active'],
-        ['subscription.halted', 'halted'],
-        ['subscription.cancelled', 'cancelled'],
-        ['subscription.completed', 'completed'],
-        ['subscription.paused', 'paused'],
-        ['subscription.pending', 'pending'],
-    ])('%s stores the status Razorpay reports (%s)', async (name, status) => {
-        query.mockResolvedValue({ rows: [{ id: ORG_A }] });
-        const raw = event(name, 'sub_1', status);
-        await hook()({ headers: { 'x-razorpay-signature': sign(raw) }, rawBody: raw }, mockRes());
-        expect(query.mock.calls[0][1]).toEqual([status, 'sub_1']);
-    });
-
-    it('acknowledges unknown subscriptions and unrelated events without asking for retries', async () => {
-        query.mockResolvedValue({ rows: [] });
-        for (const raw of [event('subscription.activated', 'sub_unknown', 'active'), event('payment.captured', 'sub_1', 'x')]) {
-            const res = mockRes();
-            await hook()({ headers: { 'x-razorpay-signature': sign(raw) }, rawBody: raw }, res);
-            expect(res.status).not.toHaveBeenCalledWith(400);
-            expect(res.status).not.toHaveBeenCalledWith(500);
-        }
-    });
-
-    it('does not store an unexpected status value', async () => {
-        const raw = event('subscription.activated', 'sub_1', 'DROP');
-        await hook()({ headers: { 'x-razorpay-signature': sign(raw) }, rawBody: raw }, mockRes());
-        expect(query).not.toHaveBeenCalled();
-    });
 });
 
 describe('POST /api/enterprise/billing/subscribe', () => {
