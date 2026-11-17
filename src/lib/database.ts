@@ -217,6 +217,10 @@ export async function initDb() {
         try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT"); } catch(e) {}
         // Last status Razorpay reported for that subscription (created, authenticated, active, ...).
         try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_subscription_status TEXT"); } catch(e) {}
+        // Set when Clerk reports the user or organisation deleted. Inactive tenants cannot authenticate; their data stays until an admin purges it.
+        try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ"); } catch(e) {}
+        // Set when VanishProtocol.purge has erased the tenant's data; the row stays as an anonymous tombstone for the audit trail.
+        try { await client.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS purged_at TIMESTAMPTZ"); } catch(e) {}
         try { await client.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_razorpay_subscription ON tenants (razorpay_subscription_id) WHERE razorpay_subscription_id IS NOT NULL"); } catch(e) {}
 
         // 1.5 Data Source Credentials Table

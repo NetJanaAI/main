@@ -58,8 +58,8 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 
             // Lookup tenant by orgId first (if present), then by userId
             const sql = clerkOrgId 
-                ? 'SELECT id FROM tenants WHERE clerk_org_id = $1'
-                : 'SELECT id FROM tenants WHERE clerk_user_id = $1';
+                ? 'SELECT id FROM tenants WHERE clerk_org_id = $1 AND deactivated_at IS NULL'
+                : 'SELECT id FROM tenants WHERE clerk_user_id = $1 AND deactivated_at IS NULL';
             
             const result = await query(sql, [clerkOrgId || clerkUserId]);
             
@@ -84,13 +84,13 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
         const apiKeyHash = crypto.createHmac('sha256', apiKeySecret).update(apiKey).digest('hex');
         
         try {
-            let result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [apiKeyHash]);
+            let result = await query('SELECT id FROM tenants WHERE api_key_hash = $1 AND deactivated_at IS NULL', [apiKeyHash]);
             if (result.rows.length === 0) {
                 // Dynamic hash migration fallback
                 const oldSecret = process.env.OLD_HMAC_SECRET || process.env.HMAC_SECRET;
                 if (oldSecret) {
                     const oldHash = crypto.createHmac('sha256', oldSecret).update(apiKey).digest('hex');
-                    result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [oldHash]);
+                    result = await query('SELECT id FROM tenants WHERE api_key_hash = $1 AND deactivated_at IS NULL', [oldHash]);
                     if (result.rows.length > 0) {
                         const tenantId = result.rows[0].id;
                         console.log(`[TenantContext] Migrating api_key_hash dynamically for tenant ${tenantId} to new API_KEY_SECRET.`);

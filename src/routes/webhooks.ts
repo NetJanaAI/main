@@ -3,11 +3,24 @@ import { Webhook } from 'svix';
 import { query } from '../lib/database';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { createClerkClient } from '@clerk/backend';
 import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
 import { RazorpayService } from '../standalone/services/RazorpayService';
 
 const router = express.Router();
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET || '';
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+
+// Offboarding only switches the tenant off. Erasing data is a deliberate admin action (VanishProtocol.purge).
+// The IS NULL guard keeps the first timestamp when Clerk redelivers an event.
+async function deactivateTenant(column: 'clerk_user_id' | 'clerk_org_id', clerkId: unknown) {
+    if (typeof clerkId !== 'string' || !clerkId) return;
+    const result = await query(
+        `UPDATE tenants SET deactivated_at = NOW() WHERE ${column} = $1 AND deactivated_at IS NULL`,
+        [clerkId]
+    );
+    if (result.rowCount) console.log(`[Clerk Webhook] Tenant deactivated for ${column}=${clerkId}`);
+}
 
 router.post('/clerk', async (req, res) => {
     if (!CLERK_WEBHOOK_SECRET) {
@@ -77,6 +90,23 @@ router.post('/clerk', async (req, res) => {
             );
 
             console.log(`[Clerk Webhook] Tenant created for Organization: ${id}`);
+        }
+
+        if (type === 'user.deleted') {
+            await deactivateTenant('clerk_user_id', data?.id);
+        }
+
+        if (type === 'organization.deleted') {
+            await deactivateTenant('clerk_org_id', data?.id);
+        }
+
+        if (type === 'organizationMembership.deleted') {
+            // One member leaving must not lock the others out: deactivate only when nobody is left.
+            const organizationId = data?.organization?.id;
+            if (typeof organizationId === 'string' && organizationId) {
+                const members = await clerkClient.organizations.getOrganizationMembershipList({ organizationId, limit: 1 });
+                if (members.totalCount === 0) await deactivateTenant('clerk_org_id', organizationId);
+            }
         }
 
         res.json({ success: true });
