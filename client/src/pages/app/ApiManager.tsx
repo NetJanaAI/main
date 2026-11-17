@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Globe, Info, Trash2, Plus, ShieldCheck, Zap, Activity, Send, CheckCircle2, AlertTriangle, ArrowDownCircle, RefreshCw } from 'lucide-react';
 import { api } from '../../lib/api';
+import CmfConnectionForm from '../../components/CmfConnectionForm';
 
 export default function ApiManager() {
   const [activeTab, setActiveTab] = useState<'sources' | 'webhooks' | 'docs'>('sources');
@@ -232,6 +233,8 @@ export default function ApiManager() {
                         </button>
                       </div>
                     </div>
+
+                    <CmfConnectionForm onChange={fetchCraftTelemetry} />
 
                     {craftTestResult && (
                       <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${craftTestResult.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>

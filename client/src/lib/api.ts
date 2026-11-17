@@ -89,6 +89,7 @@ export const api = {
         method: 'POST',
         body
     }),
+    put: (url: string, body: unknown) => apiFetch(url, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (url: string) => apiFetch(url, { method: 'DELETE' }),
     patch: (url: string, body: unknown) => apiFetch(url, { method: 'PATCH', body: JSON.stringify(body) }),
 };
