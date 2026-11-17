@@ -14,6 +14,7 @@ import {
   Target,
 } from "lucide-react";
 import { api } from "../lib/api";
+import ConnectionNotes from "../components/ConnectionNotes";
 
 const ONBOARDING_COMPLETE_KEY = "netjana_onboarding_complete";
 const ONBOARDING_PROFILE_KEY = "netjana_onboarding_profile";
@@ -422,6 +423,12 @@ export default function SetupWizard() {
                         <div className="mt-1 text-sm text-white/80 leading-relaxed">{value}</div>
                       </div>
                     ))}
+                  </div>
+                  <div className="md:col-span-2">
+                    <div className="text-[9px] font-black uppercase tracking-[0.22em] text-white/35 mb-2">Good to know</div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.035] overflow-hidden">
+                      <ConnectionNotes cmf="not_connected" />
+                    </div>
                   </div>
                 </div>
               )}

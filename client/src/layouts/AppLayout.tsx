@@ -21,6 +21,7 @@ import {
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
 import TenderNotifications from "../components/TenderNotifications";
+import ConnectionsNotice from "../components/ConnectionsNotice";
 import SocketBridge from "../components/SocketBridge";
 
 const NAV_ITEMS = [
@@ -123,6 +124,7 @@ export default function AppLayout() {
           </div>
 
           <div className="flex items-center gap-4">
+             <ConnectionsNotice />
              <TenderNotifications />
              <UserButton 
                appearance={{
