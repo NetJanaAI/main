@@ -10,6 +10,7 @@ const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY 
 
 export interface TenantRequest extends Request {
     organizationId?: string;
+    tenantTier?: string;
     auth?: any;
 }
 
@@ -58,13 +59,14 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 
             // Lookup tenant by orgId first (if present), then by userId
             const sql = clerkOrgId 
-                ? 'SELECT id FROM tenants WHERE clerk_org_id = $1'
-                : 'SELECT id FROM tenants WHERE clerk_user_id = $1';
+                ? 'SELECT id, plan FROM tenants WHERE clerk_org_id = $1'
+                : 'SELECT id, plan FROM tenants WHERE clerk_user_id = $1';
             
             const result = await query(sql, [clerkOrgId || clerkUserId]);
             
             if (result.rows.length > 0) {
                 req.organizationId = result.rows[0].id;
+                req.tenantTier = result.rows[0].plan || 'free';
                 return next();
             }
 
@@ -84,13 +86,13 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
         const apiKeyHash = crypto.createHmac('sha256', apiKeySecret).update(apiKey).digest('hex');
         
         try {
-            let result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [apiKeyHash]);
+            let result = await query('SELECT id, plan FROM tenants WHERE api_key_hash = $1', [apiKeyHash]);
             if (result.rows.length === 0) {
                 // Dynamic hash migration fallback
                 const oldSecret = process.env.OLD_HMAC_SECRET || process.env.HMAC_SECRET;
                 if (oldSecret) {
                     const oldHash = crypto.createHmac('sha256', oldSecret).update(apiKey).digest('hex');
-                    result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [oldHash]);
+                    result = await query('SELECT id, plan FROM tenants WHERE api_key_hash = $1', [oldHash]);
                     if (result.rows.length > 0) {
                         const tenantId = result.rows[0].id;
                         console.log(`[TenantContext] Migrating api_key_hash dynamically for tenant ${tenantId} to new API_KEY_SECRET.`);
@@ -109,6 +111,7 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 
             if (result.rows.length > 0) {
                 req.organizationId = result.rows[0].id;
+                req.tenantTier = result.rows[0].plan || 'free';
                 return next();
             }
         } catch (e) {
@@ -126,9 +129,10 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
     // only when ALLOW_DEV_AUTH=true is set, so a deploy that forgets NODE_ENV stays closed.
     if (!req.organizationId && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH === 'true') {
         try {
-            const result = await query("SELECT id FROM tenants WHERE name = 'Default Organization' LIMIT 1");
+            const result = await query("SELECT id, plan FROM tenants WHERE name = 'Default Organization' LIMIT 1");
             if (result.rows.length > 0) {
                 req.organizationId = result.rows[0].id;
+                req.tenantTier = result.rows[0].plan || 'free';
                 return next();
             }
         } catch (e) {

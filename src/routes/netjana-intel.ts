@@ -19,7 +19,7 @@ const router = express.Router();
 async function resolvePullTenant(incoming: string | undefined): Promise<string | null> {
     if (!incoming) return null;
     const hash = crypto.createHmac('sha256', getApiKeySecret()).update(incoming).digest('hex');
-    const result = await query('SELECT id FROM tenants WHERE api_key_hash = $1', [hash]);
+    const result = await query('SELECT id FROM tenants WHERE api_key_hash = $1 AND deactivated_at IS NULL', [hash]);
     return result.rows[0]?.id ?? null;
 }
 

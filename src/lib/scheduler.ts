@@ -1,5 +1,6 @@
 import * as cron from 'node-cron';
-import { connection, scrapeQueue } from './queue';
+import { connection } from './queue';
+import { enqueueScrape } from './quota';
 import { query } from './database';
 import { Queue } from 'bullmq';
 
@@ -34,8 +35,12 @@ export function addSchedule(entry: ScheduleEntry) {
         console.log(`[Scheduler] Auto-triggering scrape for ${entry.domain} (cron: ${entry.cron_expression})`);
         try {
             const { v4: uuidv4 } = await import('uuid');
+            if (!entry.organization_id) {
+                console.warn(`[Scheduler] Skipping ${entry.domain}: schedule has no organization.`);
+                return;
+            }
             const jobId = uuidv4();
-            await scrapeQueue.add('scrape', {
+            await enqueueScrape(entry.organization_id, {
                 jobId,
                 url: `https://${entry.domain}`,
                 useOnlineAI: entry.use_online_ai,
