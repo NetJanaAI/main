@@ -69,8 +69,8 @@ export async function sendResults(data: any, organizationId?: string): Promise<v
                 INSERT INTO scrape_results (
                     job_id, domain, friction_score, signals, geo_country,
                     estimated_roi, compliance_verified, critic_analysis,
-                    screenshot_path, spider_stats, organization_id, timestamp
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    screenshot_path, spider_stats, organization_id, timestamp, base_score
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             `, [
                 data.jobId || crypto.randomUUID(),
                 data.domain,
@@ -83,7 +83,8 @@ export async function sendResults(data: any, organizationId?: string): Promise<v
                 data.screenshotPath || null,
                 data.spiderStats ? JSON.stringify(data.spiderStats) : null,
                 organizationId || null,
-                data.timestamp || new Date().toISOString()
+                data.timestamp || new Date().toISOString(),
+                Math.min(Math.max(finiteInteger(data.frictionScore, 0), 0), 100)
             ]);
             console.log(`[Dispatcher] Persisted result to Postgres PII Vault.`);
         } catch (dbError: any) {

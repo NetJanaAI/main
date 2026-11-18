@@ -214,4 +214,43 @@ describe('Tier 2 Pipeline Integration Test (DEMO_MODE)', () => {
         }));
         expect(emitLeadCard).not.toHaveBeenCalled();
     });
+
+    it('does not send an already-enriched signal back to Tier 3 when the Qualifier is still LOW', async () => {
+        (callModel as jest.Mock)
+            .mockResolvedValueOnce(JSON.stringify({ is_buyer: true, confidence: 0.7, valid: true, reason: 'Potential buyer' }))
+            .mockResolvedValueOnce(JSON.stringify({
+                procurement_category: 'Consulting',
+                procurement_timeline: 'PIPELINE',
+                buying_stage: 'AWARENESS',
+                pain_point: 'Unclear strategy',
+                confidence: 'LOW'
+            }))
+            .mockResolvedValueOnce(JSON.stringify({
+                company: 'Uncertain LLC',
+                why_now: 'Critic confirmed the signal.',
+                what_they_need: 'Advice',
+                do_this: 'Reach out'
+            }));
+
+        const signal = {
+            signal_id: 'sig_enriched',
+            company_name_raw: 'Uncertain LLC',
+            company_name_clean: 'Uncertain LLC',
+            geo_state: 'Karnataka',
+            geo_market: 'IN',
+            sector_inferred: 'Services',
+            source_id: 'indiamart',
+            source_tier: 'TIER_2',
+            signal_strength_I0: 0.8,
+            lambda: 0.05,
+            collected_at: new Date().toISOString(),
+            raw_payload: { requirement: 'Need advice' },
+        };
+
+        const result = await tier2Processor({ data: { signal, is_triangulated: false, enriched: true } } as any);
+
+        expect(result).toEqual({ status: 'lead_card_generated', lead_id: expect.any(String) });
+        expect(tier3Queue.add).not.toHaveBeenCalled();
+        expect(emitLeadCard).toHaveBeenCalledTimes(1);
+    });
 });
