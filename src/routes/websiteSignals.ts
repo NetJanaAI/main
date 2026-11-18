@@ -5,6 +5,7 @@ import { isOrgAdmin } from '../lib/orgRole';
 import { CATALOG, SIGNAL_KEYS } from '../signals/website/catalog';
 import { collectMany, normalizeDomain } from '../signals/website/collector';
 import { cohort, getConfirmed, observedCounts, saveObservations, setConfirmed } from '../signals/website/store';
+import { domainLimitFor, trackedDomains } from '../signals/website/refresh';
 
 const router = express.Router();
 
@@ -67,6 +68,13 @@ router.post('/collect', async (req: any, res) => {
         const domain = normalizeDomain(t.domain);
         if (domain) targets.push({ domain, leadId: t.lead_id });
         else rejected.push({ input: t.domain, reason: 'Not a valid domain name' });
+    }
+
+    const tracked = new Set(await trackedDomains(orgId));
+    const limit = domainLimitFor(req.tenantTier);
+    const added = new Set(targets.map((t) => t.domain).filter((d) => !tracked.has(d)));
+    if (tracked.size + added.size > limit) {
+        return res.status(409).json({ error: `Your plan tracks up to ${limit} companies; ${tracked.size} are tracked already.` });
     }
 
     const results = await collectMany(targets.map((t) => t.domain), {

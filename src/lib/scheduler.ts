@@ -102,6 +102,13 @@ export async function bootstrapSchedules() {
             await HACanary.runHeartbeat();
         });
 
+        // Refresh website signals for every tenant's tracked companies (daily, 03:30 IST)
+        cron.schedule('30 3 * * *', async () => {
+            console.log('[Scheduler] Refreshing website signals...');
+            const { refreshAllTenants } = await import('../signals/website/refresh');
+            await refreshAllTenants();
+        }, { timezone: 'Asia/Kolkata' });
+
         // Schedule Signal Drought Monitor (Every hour)
         cron.schedule('0 * * * *', async () => {
             console.log('[Scheduler] Triggering Signal Drought Monitor...');
