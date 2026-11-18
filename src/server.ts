@@ -1,4 +1,5 @@
 import 'dotenv/config'; // Load .env file immediately
+import { devFallbacksAllowed } from './lib/secrets';
 import { SecureLogger } from './utils/logger';
 import { initDb } from './lib/database';
 
@@ -14,7 +15,8 @@ const DEV_HMAC_PLACEHOLDERS = new Set([
 
 function validateEnv() {
     const missing: string[] = [];
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Strict unless NODE_ENV is development or test, so an unset NODE_ENV cannot run on dev fallbacks.
+    const isProduction = !devFallbacksAllowed();
 
     if (!process.env.GOOGLE_API_KEY && !process.env.OLLAMA_HOST) missing.push('GOOGLE_API_KEY or OLLAMA_HOST');
     if (!process.env.DATABASE_URL) missing.push('DATABASE_URL');

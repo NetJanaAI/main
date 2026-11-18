@@ -1,9 +1,9 @@
 import crypto from 'crypto';
-import { getEncryptionKey, isProduction } from '../lib/secrets';
+import { getEncryptionKey, devFallbacksAllowed } from '../lib/secrets';
 
 const HMAC_SECRET = process.env.HMAC_SECRET;
 
-if (isProduction() && !HMAC_SECRET) {
+if (!devFallbacksAllowed() && !HMAC_SECRET) {
     console.error('[Crypto] FATAL: HMAC_SECRET is missing or using dev-placeholder in production.');
     process.exit(1);
 }
