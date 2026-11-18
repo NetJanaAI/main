@@ -263,9 +263,6 @@ export default function IntelligenceModal({ leadId, onClose }: IntelligenceModal
              <button onClick={onClose} className="px-6 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5 transition-all">
                Close Analysis
              </button>
-             <button className="px-8 py-2 rounded-full bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-               Deploy Outreach
-             </button>
           </div>
         </div>
       </div>

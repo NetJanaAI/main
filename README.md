@@ -41,7 +41,7 @@ Zero scraping of private websites. 100% legally sourced. Compliance-first by arc
 - **TurboQuant RAG**: 8x vector memory compression in the Tenant RAG Store using 8-bit scalar quantization
 - **TOON Prompt Optimization**: Token-Oriented Object Notation reduces LLM API spend by ~30% per inference chain
 - **Adversarial AI Critic**: Two-agent Advocate/Critic reflection loop for signal quality assurance
-- **Outreach Automation**: BullMQ-backed generation pipeline with real Nodemailer SMTP dispatch
+- **CraftMyFunnel Handoff**: lead cards and signals are pushed to CraftMyFunnel, which owns outreach (email, WhatsApp, LinkedIn)
 - **ROI Intelligence Engine**: HMAC-signed PDF performance reports with verifiable pipeline value
 - **Razorpay Billing**: Seat management, metered billing, and GST-compliant invoicing
 
@@ -68,7 +68,7 @@ graph TD
         T2[Tier 2 Worker — Gate + Qualify + Write]
         T3[Tier 3 Worker — Enrichment Pool]
         CRITIC[Adversarial Critic — Advocate/Critic Loop]
-        OUTREACH[Outreach Generator — TOON + Influence Map]
+        EMITTER[Lead Emitter — Lead Cards + CraftMyFunnel Push]
     end
 
     subgraph "Intelligence Infrastructure"
@@ -104,7 +104,7 @@ graph TD
     MODEL --> Gemini[Gemini 1.5 Pro/Flash]
     T2 --> PG
     PG <--> UPSTASH
-    T1 --> OUTREACH
+    T1 --> EMITTER
     T2 --> FIREWALL --> AUDIT
 ```
 
@@ -128,13 +128,6 @@ ENABLE_TURBOQUANT=true                  # Vector compression (default: on)
 DATABASE_URL=postgresql://user:pass@host/db
 UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=AXxx...
-
-# Email Dispatch (Outreach)
-SMTP_HOST=smtp.yourprovider.com
-SMTP_PORT=587
-SMTP_USER=your@email.com
-SMTP_PASS=yourpassword
-SMTP_FROM="ConvoSpan Sentinel <noreply@convospan.com>"
 
 # Optional: Proxy
 BRIGHT_DATA_URL=http://user:pass@brd.superproxy.io:22225

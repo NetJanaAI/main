@@ -64,15 +64,10 @@ graph TB
         ER --> PG[("Postgres\norg_registry table\nDurable merge history")]
     end
 
-    subgraph "Outreach Pipeline"
+    subgraph "Lead Delivery"
         WRITER --> EMIT["lead-emitter.ts → Socket.IO"]
         EMIT --> UI["React Dashboard\nLive Registry Signals"]
-        EMIT --> OQ["outreachQueue (BullMQ)"]
-        OQ --> OWORKER["Outreach Worker"]
-        OWORKER --> OGEN["OutreachGenerator\nTOON + InfluenceInjector"]
-        OGEN --> MODEL
-        OGEN --> SMTP["Nodemailer SMTP\n(EMAIL channel)"]
-        OGEN --> WABA["WABA SDK (pending)"]
+        EMIT --> CMF["CraftMyFunnel push\n(owns outreach)"]
     end
 
     subgraph "Caching & Spend Guards"

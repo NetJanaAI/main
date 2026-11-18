@@ -139,9 +139,6 @@ export default function IntentMatcher() {
                    <button className="text-xs font-bold text-white/50 hover:text-white uppercase flex items-center gap-1 transition-colors">
                      View Full Intel Graph <ArrowRight className="w-3 h-3" />
                    </button>
-                   <button className="bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded text-xs font-bold uppercase transition-colors">
-                     Draft Outreach
-                   </button>
                 </div>
               </div>
             ))}

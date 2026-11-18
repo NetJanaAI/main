@@ -63,7 +63,7 @@ export default function DeadLetterQueue() {
                             <h1 className="text-2xl font-black uppercase tracking-widest text-orange-500">Dead Letter Queue</h1>
                         </div>
                         <p className="text-xs uppercase tracking-widest text-white/40">
-                            Orchestrate retries for failed telemetry, ingestion, and outreach payloads.
+                            Orchestrate retries for failed telemetry and ingestion payloads.
                         </p>
                     </div>
                     <button 
