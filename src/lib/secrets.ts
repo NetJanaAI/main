@@ -13,10 +13,16 @@ export function isProduction(): boolean {
     return process.env.NODE_ENV === 'production';
 }
 
+// The dev fallbacks below are public in the repo, so they are only for development and test.
+// Any other NODE_ENV (including unset) must configure real secrets.
+export function devFallbacksAllowed(): boolean {
+    return process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+}
+
 export function getHmacSecret(purpose: string = 'HMAC signing'): string {
     const secret = process.env.HMAC_SECRET;
 
-    if (isProduction() && (!secret || LEGACY_DEV_SECRETS.has(secret))) {
+    if (!devFallbacksAllowed() && (!secret || LEGACY_DEV_SECRETS.has(secret))) {
         throw new Error(`[Secrets] HMAC_SECRET must be set to a strong non-development value for ${purpose}.`);
     }
 
@@ -33,14 +39,14 @@ export function getHmacSecret(purpose: string = 'HMAC signing'): string {
 export function getEncryptionKey(): Buffer {
     const keyHex = process.env.CREDENTIAL_ENCRYPTION_KEY;
 
-    if (isProduction() && !keyHex) {
+    if (!devFallbacksAllowed() && !keyHex) {
         throw new Error(
-            '[Secrets] CREDENTIAL_ENCRYPTION_KEY must be set in production. ' +
+            '[Secrets] CREDENTIAL_ENCRYPTION_KEY must be set outside development and test. ' +
             'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
         );
     }
 
-    const DEV_FALLBACK = 'dev0000000000000000000000000000000000000000000000000000000000000000';
+    const DEV_FALLBACK = 'dead'.repeat(16);
     const hex = keyHex || DEV_FALLBACK;
 
     if (hex.length !== 64) {
@@ -53,8 +59,8 @@ export function getEncryptionKey(): Buffer {
 export function getApiKeySecret(): string {
     const secret = process.env.API_KEY_SECRET;
 
-    if (isProduction() && (!secret || LEGACY_DEV_SECRETS.has(secret))) {
-        throw new Error(`[Secrets] API_KEY_SECRET must be set to a strong non-development value in production.`);
+    if (!devFallbacksAllowed() && (!secret || LEGACY_DEV_SECRETS.has(secret))) {
+        throw new Error(`[Secrets] API_KEY_SECRET must be set to a strong non-development value outside development and test.`);
     }
 
     return secret || 'dev-safety-fallback-api-key-secret-do-not-use-in-prod';

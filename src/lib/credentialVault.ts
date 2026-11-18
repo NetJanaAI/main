@@ -7,53 +7,26 @@
  * Storage format: `iv:authTag:ciphertext` (all hex-encoded, colon-separated).
  *
  * Key: 32-byte buffer derived from CREDENTIAL_ENCRYPTION_KEY env var (64 hex chars).
- * In development without the key, uses a deterministic dev fallback with a loud warning.
+ * Only development and test fall back to a fixed dev key; every other environment must set it.
  *
  * IMPORTANT: Rotating the key requires re-encrypting all stored credentials.
  * Run `scripts/migrate-credentials.ts` after any key rotation.
  */
 
 import crypto from 'crypto';
+import { getEncryptionKey } from './secrets';
 
-const DEV_FALLBACK_KEY = 'dev0000000000000000000000000000000000000000000000000000000000000000';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;  // 96-bit IV — GCM recommended size
 const TAG_LENGTH = 16; // 128-bit auth tag
 
-function getKeyBuffer(): Buffer {
-    const keyHex = process.env.CREDENTIAL_ENCRYPTION_KEY;
-    const isProd = process.env.NODE_ENV === 'production';
-
-    if (!keyHex) {
-        if (isProd) {
-            throw new Error(
-                '[CredentialVault] CREDENTIAL_ENCRYPTION_KEY must be set in production. ' +
-                'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
-            );
-        }
-        // Dev only — warn once per process
-        if (!_devWarnShown) {
-            console.warn('[CredentialVault] ⚠️  CREDENTIAL_ENCRYPTION_KEY not set. Using dev fallback — NOT for production.');
-            _devWarnShown = true;
-        }
-        return Buffer.from(DEV_FALLBACK_KEY, 'hex');
-    }
-
-    if (keyHex.length !== 64) {
-        throw new Error('[CredentialVault] CREDENTIAL_ENCRYPTION_KEY must be 32 bytes (64 hex chars).');
-    }
-
-    return Buffer.from(keyHex, 'hex');
-}
-
-let _devWarnShown = false;
 
 /**
  * Encrypts a plaintext credential string.
  * Returns a storage-safe string in the format: `iv:authTag:ciphertext` (hex).
  */
 export function encryptCredential(plaintext: string): string {
-    const key = getKeyBuffer();
+    const key = getEncryptionKey();
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
 
@@ -84,7 +57,7 @@ export function decryptCredential(stored: string): string {
     const [ivHex, authTagHex, encryptedHex] = parts;
 
     try {
-        const key = getKeyBuffer();
+        const key = getEncryptionKey();
         const iv = Buffer.from(ivHex, 'hex');
         const authTag = Buffer.from(authTagHex, 'hex');
         const encrypted = Buffer.from(encryptedHex, 'hex');
