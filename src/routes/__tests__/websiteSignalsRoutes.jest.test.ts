@@ -4,10 +4,12 @@ const store = {
 };
 const collectMany = jest.fn();
 const queryWithOrg = jest.fn();
+const trackedDomains = jest.fn();
 
 jest.mock('../../signals/website/store', () => store);
 jest.mock('../../signals/website/collector', () => ({ ...jest.requireActual('../../signals/website/collector'), collectMany }));
 jest.mock('../../lib/database', () => ({ queryWithOrg }));
+jest.mock('../../signals/website/refresh', () => ({ ...jest.requireActual('../../signals/website/refresh'), trackedDomains }));
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const LEAD = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
@@ -28,6 +30,7 @@ beforeEach(() => {
     store.cohort.mockResolvedValue({ count: 2, domains: ['a.example', 'b.example'] });
     collectMany.mockReset().mockResolvedValue([]);
     queryWithOrg.mockReset().mockResolvedValue({ rows: [] });
+    trackedDomains.mockReset().mockResolvedValue([]);
 });
 
 describe('every route needs a tenant', () => {
@@ -47,6 +50,12 @@ describe('GET /catalog', () => {
         expect(ads).toEqual(expect.objectContaining({ cost: 'free', confirmed: true, companies_observed: 4 }));
         expect(signals.find((s: any) => s.key === 'tech_stack')).toEqual(expect.objectContaining({ confirmed: false, companies_observed: 0 }));
         expect(store.getConfirmed).toHaveBeenCalledWith(ORG);
+    });
+    it('reports the plan limit and how many companies are tracked', async () => {
+        trackedDomains.mockResolvedValue(['a.example', 'b.example']);
+        const r = res();
+        await handler('get', '/catalog')({ ...admin, tenantTier: 'paid' }, r);
+        expect(r.json.mock.calls[0][0]).toEqual(expect.objectContaining({ limit: 500, tracked: 2 }));
     });
 });
 
@@ -100,6 +109,26 @@ describe('POST /collect', () => {
         await handler('post', '/collect')({ ...admin, body: { targets: [{ domain: 'a.example' }] } }, r);
         expect(store.saveObservations).not.toHaveBeenCalled();
         expect(r.json.mock.calls[0][0].results[0]).toEqual({ domain: 'a.example', ok: false, reason: 'Blocked by robots.txt' });
+    });
+
+    it('refuses new companies beyond the plan limit but lets tracked ones refresh', async () => {
+        trackedDomains.mockResolvedValue(Array.from({ length: 25 }, (_, i) => `t${i}.example`));
+        const over = res();
+        await handler('post', '/collect')({ ...admin, tenantTier: 'free', body: { targets: [{ domain: 'new.example' }] } }, over);
+        expect(over.status).toHaveBeenCalledWith(409);
+        expect(collectMany).not.toHaveBeenCalled();
+
+        const again = res();
+        await handler('post', '/collect')({ ...admin, tenantTier: 'free', body: { targets: [{ domain: 't3.example' }] } }, again);
+        expect(again.status).not.toHaveBeenCalled();
+        expect(collectMany).toHaveBeenCalled();
+    });
+
+    it('allows more companies on a paid plan', async () => {
+        trackedDomains.mockResolvedValue(Array.from({ length: 25 }, (_, i) => `t${i}.example`));
+        const r = res();
+        await handler('post', '/collect')({ ...admin, tenantTier: 'paid', body: { targets: [{ domain: 'new.example' }] } }, r);
+        expect(r.status).not.toHaveBeenCalled();
     });
 
     it('limits a request to 10 domains', async () => {
