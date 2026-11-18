@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { query } from '../lib/database';
 import { getCmfConfig, type CmfConfig } from './cmfConnection';
 import { validateTargetUrl } from '../middleware/urlValidator';
+import { pinnedPost } from '../lib/pinnedPost';
 
 export type CraftMyFunnelEvent = 'LEAD_CARD_READY' | 'SIGNAL_INGESTED' | 'INTENT_UPDATED';
 export type CraftMyFunnelBuyingStage = 'AWARENESS' | 'CONSIDERATION' | 'DECISION' | 'UNKNOWN';
@@ -208,7 +209,7 @@ async function logCraftMyFunnelDelivery(
     }
 }
 
-async function readResponseText(response: Response): Promise<string> {
+async function readResponseText(response: { text(): Promise<string> }): Promise<string> {
     try {
         return await response.text();
     } catch {
@@ -246,7 +247,9 @@ export async function sendCraftMyFunnelLeadSignal(
     const signature = computeCraftMyFunnelSignature(config.hmacSecret, timestamp, nonce, rawBody);
     const endpointUrl = buildEndpointUrl(config.apiBaseUrl);
 
-    // A tenant chose this URL, so it must be a public https address before the server calls it.
+    // A tenant chose this URL, so it must be a public https address, and the connection is pinned to
+    // the address that was checked so DNS cannot change between the check and the request.
+    let pinnedAddress: string | undefined;
     if (config.source === 'tenant') {
         const check = await validateTargetUrl(endpointUrl);
         if (!check.isValid) {
@@ -256,6 +259,7 @@ export async function sendCraftMyFunnelLeadSignal(
             });
             return { ok: false, error };
         }
+        pinnedAddress = check.resolvedIp;
     }
 
     const headers = {
@@ -286,15 +290,15 @@ export async function sendCraftMyFunnelLeadSignal(
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1]));
             }
 
-            const response = await fetch(endpointUrl, {
-                method: 'POST',
-                headers: {
-                    ...headers,
-                    'x-netjana-signature': signatureForAttempt,
-                },
-                body: bodyForAttempt,
-                signal: AbortSignal.timeout(10_000),
-            });
+            const requestHeaders = { ...headers, 'x-netjana-signature': signatureForAttempt };
+            const response = pinnedAddress
+                ? await pinnedPost(endpointUrl, { address: pinnedAddress, headers: requestHeaders, body: bodyForAttempt, timeoutMs: 10_000 })
+                : await fetch(endpointUrl, {
+                    method: 'POST',
+                    headers: requestHeaders,
+                    body: bodyForAttempt,
+                    signal: AbortSignal.timeout(10_000),
+                });
 
             if (response.ok) {
                 const responseJson = await response.json() as CraftMyFunnelSuccessResponse;
