@@ -24,7 +24,7 @@ const activeTasks = new Map<string, cron.ScheduledTask>();
  */
 export function addSchedule(entry: ScheduleEntry) {
     // Cancel any existing schedule for this domain before re-registering
-    removeSchedule(entry.domain);
+    removeSchedule(entry.id);
 
     if (!cron.validate(entry.cron_expression)) {
         console.warn(`[Scheduler] Invalid cron expression for ${entry.domain}: "${entry.cron_expression}"`);
@@ -50,26 +50,26 @@ export function addSchedule(entry: ScheduleEntry) {
             }, { jobId });
 
             // Update last_run timestamp
-            await query(`UPDATE scrape_schedules SET last_run = NOW() WHERE domain = $1`, [entry.domain]);
+            await query(`UPDATE scrape_schedules SET last_run = NOW() WHERE id = $1`, [entry.id]);
             console.log(`[Scheduler] Enqueued scheduled scrape for ${entry.domain} (Job: ${jobId})`);
         } catch (err: any) {
             console.error(`[Scheduler] Failed to enqueue scheduled scrape for ${entry.domain}:`, err.message);
         }
     }, { timezone: 'Asia/Kolkata' }); // IST by default, configurable
 
-    activeTasks.set(entry.domain, task);
+    activeTasks.set(entry.id, task);
     console.log(`[Scheduler] Registered schedule for ${entry.domain} (${entry.cron_expression})`);
 }
 
 /**
- * Remove a domain's schedule.
+ * Remove a schedule by its id. Two tenants can schedule the same domain, so the domain is not a key.
  */
-export function removeSchedule(domain: string) {
-    const existing = activeTasks.get(domain);
+export function removeSchedule(id: string) {
+    const existing = activeTasks.get(id);
     if (existing) {
         existing.stop();
-        activeTasks.delete(domain);
-        console.log(`[Scheduler] Removed schedule for ${domain}`);
+        activeTasks.delete(id);
+        console.log(`[Scheduler] Removed schedule ${id}`);
     }
 }
 

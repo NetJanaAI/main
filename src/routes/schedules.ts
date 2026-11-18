@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import * as cron from 'node-cron';
 import { query } from '../lib/database';
 import { addSchedule, removeSchedule, listSchedules } from '../lib/scheduler';
 import { TenantRequest } from '../middleware/tenant';
@@ -40,6 +41,7 @@ router.post('/', async (req: TenantRequest, res) => {
         return res.status(400).json({ error: 'domain and cron_expression are required' });
     }
     const { domain, cron_expression, use_online_ai, spider_mode, max_pages } = parsed.data;
+    if (!cron.validate(cron_expression)) return res.status(400).json({ error: 'Invalid cron expression' });
 
     try {
         const result = await query(`
@@ -70,7 +72,7 @@ router.delete('/:id', async (req: TenantRequest, res) => {
             RETURNING domain
         `, [id, orgId]);
         if (!result.rows.length) return res.status(404).json({ error: 'Schedule not found' });
-        removeSchedule(result.rows[0].domain);
+        removeSchedule(id);
         res.json({ message: `Schedule for ${result.rows[0].domain} removed.` });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
