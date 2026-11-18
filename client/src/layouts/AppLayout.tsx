@@ -2,6 +2,7 @@ import { UserButton, OrganizationSwitcher } from "../lib/auth";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import BrandMark from '../components/BrandMark';
 import { 
+  Globe,
   Shield, 
   Activity, 
   HeartPulse, 
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { id: 'ingest', label: 'CSV Ingest', icon: UploadCloud, path: '/app/csv-ingest' },
   { id: 'knowledge', label: 'Knowledge & Wiki', icon: BookOpen, path: '/app/knowledge' },
   { id: 'watch', label: 'Tender Watch', icon: Eye, path: '/app/watch' },
+  { id: 'website-signals', label: 'Website Signals', icon: Globe, path: '/app/website-signals' },
   { id: 'reports', label: 'Alpha Reports', icon: PieChart, path: '/app/reports' },
   { id: 'api', label: 'Registry Keys', icon: Settings, path: '/app/api' },
   { id: 'sync', label: 'Sync Node', icon: Send, path: '/app/sync' },

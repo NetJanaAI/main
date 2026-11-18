@@ -17,6 +17,7 @@ import ApiManager from "./pages/app/ApiManager";
 import Profile from "./pages/app/Profile";
 import ConvospanSync from "./pages/app/ConvospanSync";
 import TenderWatch from "./pages/app/TenderWatch";
+import WebsiteSignals from "./pages/app/WebsiteSignals";
 import EntityIntelligence from "./pages/app/EntityIntelligence";
 import KnowledgeBase from "./pages/app/KnowledgeBase";
 import CompanyDossier from "./pages/app/CompanyDossier";
@@ -54,6 +55,7 @@ export default function AppRoutes() {
           <Route path="sync" element={<ConvospanSync />} />
           <Route path="profile" element={<Profile />} />
           <Route path="watch" element={<TenderWatch />} />
+          <Route path="website-signals" element={<WebsiteSignals />} />
         </Route>
 
 
