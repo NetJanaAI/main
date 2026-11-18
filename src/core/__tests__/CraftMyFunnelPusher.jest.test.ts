@@ -5,6 +5,8 @@ const queryWithOrg = jest.fn().mockResolvedValue({ rows: [] });
 const validateTargetUrl = jest.fn().mockResolvedValue({ isValid: true });
 jest.mock('../../lib/database', () => ({ query: jest.fn().mockResolvedValue({ rows: [] }), queryWithOrg: (...a: any[]) => queryWithOrg(...a) }));
 jest.mock('../../middleware/urlValidator', () => ({ validateTargetUrl: (...a: any[]) => validateTargetUrl(...a) }));
+const pinnedPost = jest.fn();
+jest.mock('../../lib/pinnedPost', () => ({ pinnedPost: (...a: any[]) => pinnedPost(...a) }));
 
 describe('CraftMyFunnelPusher', () => {
     const originalEnv = process.env;
@@ -22,7 +24,8 @@ describe('CraftMyFunnelPusher', () => {
         };
         global.fetch = jest.fn();
         queryWithOrg.mockReset().mockResolvedValue({ rows: [] });
-        validateTargetUrl.mockReset().mockResolvedValue({ isValid: true });
+        validateTargetUrl.mockReset().mockResolvedValue({ isValid: true, resolvedIp: '203.0.113.7' });
+        pinnedPost.mockReset();
     });
 
     afterEach(() => {
@@ -197,18 +200,20 @@ describe('CraftMyFunnelPusher', () => {
                 hmac_secret_enc: vault.encryptCredential('tenant-secret'),
             }] });
             const fetchMock = global.fetch as jest.Mock;
-            fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+            pinnedPost.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
 
             const { sendCraftMyFunnelLeadSignal, computeCraftMyFunnelSignature } = await import('../CraftMyFunnelPusher');
             await sendCraftMyFunnelLeadSignal(lead(OTHER));
 
-            const [url, request] = fetchMock.mock.calls[0];
+            const [url, request] = pinnedPost.mock.calls[0];
             expect(url).toBe('https://tenant.example.com/api/webhooks/netjana-intel');
+            expect(request.address).toBe('203.0.113.7');
             expect(request.headers['x-api-key']).toBe('tenant-key-9999');
             expect(request.headers['x-netjana-signature']).toBe(
                 computeCraftMyFunnelSignature('tenant-secret', request.headers['x-netjana-timestamp'], request.headers['x-netjana-nonce'], request.body)
             );
             expect(JSON.stringify(request)).not.toContain('env-key');
+            expect(fetchMock).not.toHaveBeenCalled();
         });
 
         it('does not send a tenant with no connection to the global workspace', async () => {
