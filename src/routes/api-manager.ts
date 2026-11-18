@@ -31,6 +31,7 @@ router.get('/integrations', async (req: any, res) => {
 router.post('/integrations', async (req: any, res) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required.' });
 
     const validation = CredentialSchema.safeParse(req.body);
     if (!validation.success) return res.status(400).json({ error: 'Invalid payload' });
@@ -51,6 +52,7 @@ router.post('/integrations', async (req: any, res) => {
 router.delete('/integrations/:id', async (req: any, res) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required.' });
 
     await queryWithOrg('DELETE FROM data_source_credentials WHERE id = $1 AND organization_id = $2', [req.params.id, orgId], orgId);
     res.json({ success: true });

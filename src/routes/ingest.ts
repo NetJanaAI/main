@@ -16,9 +16,9 @@ router.use(ingestAuthGuard);
  * Returns true if this payload was already processed (duplicate).
  * Uses Redis SETNX with 1-hour TTL to prevent replay within the dedup window.
  */
-async function isDuplicatePayload(source: string, payload: any): Promise<boolean> {
+async function isDuplicatePayload(source: string, payload: any, organizationId: string | undefined): Promise<boolean> {
     const hash = createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 24);
-    const dedupKey = `ingest_dedup:${source}:${hash}`;
+    const dedupKey = `ingest_dedup:${organizationId ?? 'none'}:${source}:${hash}`;
     try {
         const wasSet = await cache.set(dedupKey, '1', { ex: 3600, nx: true });
         return wasSet === null; // null means key already existed = duplicate
@@ -30,7 +30,7 @@ async function isDuplicatePayload(source: string, payload: any): Promise<boolean
 router.post('/gem', async (req: Request, res: Response) => {
     try {
         const payload = GeMCollectorPayloadSchema.parse(req.body);
-        if (await isDuplicatePayload('gem', payload)) {
+        if (await isDuplicatePayload('gem', payload, (req as any).organizationId)) {
             return res.status(409).json({ status: 'duplicate', message: 'Payload already processed' });
         }
         const signal = await adaptGeM(payload);
@@ -55,7 +55,7 @@ router.post('/gem', async (req: Request, res: Response) => {
 router.post('/indiamart', async (req: Request, res: Response) => {
     try {
         const payload = IndiaMARTCollectorPayloadSchema.parse(req.body);
-        if (await isDuplicatePayload('indiamart', payload)) {
+        if (await isDuplicatePayload('indiamart', payload, (req as any).organizationId)) {
             return res.status(409).json({ status: 'duplicate', message: 'Payload already processed' });
         }
         const signal = await adaptIndiaMART(payload);
@@ -76,7 +76,7 @@ router.post('/indiamart', async (req: Request, res: Response) => {
 router.post('/funding', async (req: Request, res: Response) => {
     try {
         const payload = FundingCollectorPayloadSchema.parse(req.body);
-        if (await isDuplicatePayload('funding', payload)) {
+        if (await isDuplicatePayload('funding', payload, (req as any).organizationId)) {
             return res.status(409).json({ status: 'duplicate', message: 'Payload already processed' });
         }
         const signal = await adaptFunding(payload);
@@ -97,7 +97,7 @@ router.post('/funding', async (req: Request, res: Response) => {
 router.post('/naukri', async (req: Request, res: Response) => {
     try {
         const payload = NaukriCollectorPayloadSchema.parse(req.body);
-        if (await isDuplicatePayload('naukri', payload)) {
+        if (await isDuplicatePayload('naukri', payload, (req as any).organizationId)) {
             return res.status(409).json({ status: 'duplicate', message: 'Payload already processed' });
         }
         const signal = await adaptNaukri(payload);
@@ -118,7 +118,7 @@ router.post('/naukri', async (req: Request, res: Response) => {
 router.post('/zauba', async (req: Request, res: Response) => {
     try {
         const payload = ZaubaCollectorPayloadSchema.parse(req.body);
-        if (await isDuplicatePayload('zauba', payload)) {
+        if (await isDuplicatePayload('zauba', payload, (req as any).organizationId)) {
             return res.status(409).json({ status: 'duplicate', message: 'Payload already processed' });
         }
         const signal = await adaptZauba(payload);
@@ -139,7 +139,7 @@ router.post('/zauba', async (req: Request, res: Response) => {
 router.post('/mca', async (req: Request, res: Response) => {
     try {
         const payload = McaCollectorPayloadSchema.parse(req.body);
-        if (await isDuplicatePayload('mca', payload)) {
+        if (await isDuplicatePayload('mca', payload, (req as any).organizationId)) {
             return res.status(409).json({ status: 'duplicate', message: 'Payload already processed' });
         }
         const signal = await adaptMca(payload);
@@ -160,7 +160,7 @@ router.post('/mca', async (req: Request, res: Response) => {
 router.post('/parivesh', async (req: Request, res: Response) => {
     try {
         const payload = PariveshCollectorPayloadSchema.parse(req.body);
-        if (await isDuplicatePayload('parivesh', payload)) {
+        if (await isDuplicatePayload('parivesh', payload, (req as any).organizationId)) {
             return res.status(409).json({ status: 'duplicate', message: 'Payload already processed' });
         }
         const signal = await adaptParivesh(payload);
@@ -175,7 +175,7 @@ router.post('/parivesh', async (req: Request, res: Response) => {
 router.post('/rera', async (req: Request, res: Response) => {
     try {
         const payload = ReraCollectorPayloadSchema.parse(req.body);
-        if (await isDuplicatePayload('rera', payload)) {
+        if (await isDuplicatePayload('rera', payload, (req as any).organizationId)) {
             return res.status(409).json({ status: 'duplicate', message: 'Payload already processed' });
         }
         const signal = await adaptRera(payload);

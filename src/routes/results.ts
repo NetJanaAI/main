@@ -10,8 +10,8 @@ const router = Router();
 // GET /api/results - list scrape results (paginated)
 router.get('/', async (req: TenantRequest, res) => {
     try {
-        const page = parseInt(req.query.page as string) || 1;
-        const limit = parseInt(req.query.limit as string) || 50;
+        const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 200);
         const offset = (page - 1) * limit;
         const orgId = req.organizationId;
 
