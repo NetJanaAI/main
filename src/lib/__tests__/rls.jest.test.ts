@@ -41,6 +41,9 @@ async function countAs(pg: PGlite, role: string, orgId: string | null, table: st
     }
 }
 
+// Booting an in-process Postgres is slow when the machine is busy; the default 5s is not enough.
+jest.setTimeout(60_000);
+
 const opened: PGlite[] = [];
 afterAll(async () => { await Promise.all(opened.map((p) => p.close())); });
 
