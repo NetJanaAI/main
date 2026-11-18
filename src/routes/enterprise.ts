@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { query, queryWithOrg, withOrgTransaction } from '../lib/database';
 import { RazorpayService } from '../standalone/services/RazorpayService';
+import { isOrgAdmin } from '../lib/orgRole';
 
 const router = Router();
 
@@ -178,11 +179,6 @@ router.get('/seats', async (req: any, res) => {
         res.status(500).json({ error: 'Failed to list seats' });
     }
 });
-
-function isOrgAdmin(req: any): boolean {
-    const orgRole = req.auth?.org_role;
-    return !orgRole || orgRole === 'org:admin' || orgRole === 'admin';
-}
 
 /**
  * POST /api/enterprise/billing/subscribe
