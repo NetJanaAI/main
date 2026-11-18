@@ -4,6 +4,8 @@ import { CovospanPusher } from '../core/CovospanPusher';
 import crypto from 'crypto';
 import { z } from 'zod';
 import { encryptCredential } from '../lib/credentialVault';
+import { isOrgAdmin } from '../lib/orgRole';
+import { validateTargetUrl } from '../middleware/urlValidator';
 
 import { requireTenant } from '../middleware/tenant';
 
@@ -41,12 +43,16 @@ router.get('/config', async (req: any, res: Response) => {
 // Upsert ConvoSpan endpoint config
 router.post('/config', async (req: any, res: Response) => {
     const orgId = req.organizationId as string;
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required.' });
     const validation = ConfigSchema.safeParse(req.body);
     if (!validation.success) {
         return res.status(400).json({ error: 'Validation failed', details: validation.error.flatten() });
     }
 
     const { endpoint_url, api_key, hmac_secret, campaign_id } = validation.data;
+
+    const target = await validateTargetUrl(endpoint_url);
+    if (!target.isValid) return res.status(400).json({ error: `Endpoint refused: ${target.error}` });
 
     try {
         // SEC-05: Encrypt credentials at rest using AES-256-GCM before writing to DB.
@@ -77,6 +83,7 @@ router.post('/config', async (req: any, res: Response) => {
 // Deactivate (soft-disable) ConvoSpan push for this org
 router.delete('/config', async (req: any, res: Response) => {
     const orgId = req.organizationId as string;
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required.' });
     try {
         await db.queryWithOrg(
             `UPDATE covospan_configs SET is_active = FALSE, updated_at = NOW() WHERE org_id = $1`,
@@ -234,6 +241,7 @@ router.post('/push/:leadId', async (req: any, res: Response) => {
 // Send a synthetic test signal to verify ConvoSpan endpoint connectivity
 router.post('/test', async (req: any, res: Response) => {
     const orgId = req.organizationId as string;
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required.' });
     const mockLead = {
         lead_id: crypto.randomUUID(),
         org_id: orgId,

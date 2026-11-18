@@ -4,6 +4,7 @@ import { query } from '../lib/database';
 import { cache } from '../lib/cache';
 import crypto from 'crypto';
 import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { isOrgAdmin } from '../lib/orgRole';
 
 const router = express.Router();
 
@@ -41,6 +42,7 @@ router.get('/credits', async (req: any, res) => {
 router.post('/regenerate-key', async (req: any, res) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
+    if (!isOrgAdmin(req)) return res.status(403).json({ error: 'Forbidden: Organization admin role required.' });
     if (!NoBody.safeParse(req.body ?? {}).success) return res.status(400).json({ error: 'Invalid payload' });
 
     try {
