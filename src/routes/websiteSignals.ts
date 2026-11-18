@@ -29,8 +29,10 @@ router.get('/catalog', async (req: any, res) => {
     const orgId = req.organizationId;
     if (!orgId) return res.status(401).json({ error: 'Auth required' });
 
-    const [confirmed, counts] = await Promise.all([getConfirmed(orgId), observedCounts(orgId)]);
+    const [confirmed, counts, tracked] = await Promise.all([getConfirmed(orgId), observedCounts(orgId), trackedDomains(orgId)]);
     res.json({
+        limit: domainLimitFor(req.tenantTier),
+        tracked: tracked.length,
         signals: CATALOG.map((s) => ({ ...s, confirmed: confirmed.includes(s.key), companies_observed: counts[s.key] ?? 0 })),
     });
 });

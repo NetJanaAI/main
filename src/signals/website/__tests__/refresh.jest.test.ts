@@ -3,11 +3,13 @@ const queryAsSystem = jest.fn();
 const collectMany = jest.fn();
 const getConfirmed = jest.fn();
 const saveObservations = jest.fn();
+const redisSet = jest.fn();
 
 jest.mock('../../../lib/database', () => ({
     queryWithOrg: (...a: any[]) => queryWithOrg(...a),
     queryAsSystem: (...a: any[]) => queryAsSystem(...a),
 }));
+jest.mock('../../../lib/redis', () => ({ getSharedRedisClient: () => ({ set: (...a: any[]) => redisSet(...a) }) }));
 jest.mock('../collector', () => ({ collectMany: (...a: any[]) => collectMany(...a) }));
 jest.mock('../store', () => ({
     getConfirmed: (...a: any[]) => getConfirmed(...a),
@@ -20,6 +22,7 @@ const ORG = '11111111-1111-1111-1111-111111111111';
 
 beforeEach(() => {
     jest.resetAllMocks();
+    redisSet.mockResolvedValue('OK');
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
 });
@@ -66,6 +69,13 @@ describe('refreshTenant', () => {
 });
 
 describe('refreshAllTenants', () => {
+    it('does nothing when another instance already holds the daily lock', async () => {
+        redisSet.mockResolvedValue(null);
+        await refreshAllTenants();
+        expect(redisSet).toHaveBeenCalledWith('lock:website-signals-refresh', '1', 'EX', 82800, 'NX');
+        expect(queryAsSystem).not.toHaveBeenCalled();
+    });
+
     it('selects only active tenants with confirmations and keeps going when one fails', async () => {
         queryAsSystem.mockResolvedValue({ rows: [{ id: 'a', plan: 'free' }, { id: 'b', plan: 'paid' }] });
         getConfirmed.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([]);

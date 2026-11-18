@@ -1,4 +1,5 @@
 import { queryAsSystem, queryWithOrg } from '../../lib/database';
+import { getSharedRedisClient } from '../../lib/redis';
 import { collectMany } from './collector';
 import { getConfirmed, saveObservations } from './store';
 
@@ -53,8 +54,17 @@ export async function refreshTenant(organizationId: string, plan: string | undef
     return { refreshed, failed };
 }
 
-/** Daily job: refreshes every active tenant that has confirmed at least one signal. */
+const RUN_LOCK_KEY = 'lock:website-signals-refresh';
+const RUN_LOCK_SECONDS = 23 * 60 * 60;
+
+/**
+ * Daily job: refreshes every active tenant that has confirmed at least one signal. Every instance
+ * schedules it, so the first to take the lock runs it and the rest return.
+ */
 export async function refreshAllTenants(): Promise<void> {
+    const locked = await getSharedRedisClient().set(RUN_LOCK_KEY, '1', 'EX', RUN_LOCK_SECONDS, 'NX');
+    if (locked !== 'OK') return;
+
     const tenants = await queryAsSystem(
         `SELECT DISTINCT t.id, t.plan FROM tenants t
          JOIN signal_confirmations c ON c.organization_id = t.id

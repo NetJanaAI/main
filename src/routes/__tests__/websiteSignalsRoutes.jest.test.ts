@@ -51,6 +51,12 @@ describe('GET /catalog', () => {
         expect(signals.find((s: any) => s.key === 'tech_stack')).toEqual(expect.objectContaining({ confirmed: false, companies_observed: 0 }));
         expect(store.getConfirmed).toHaveBeenCalledWith(ORG);
     });
+    it('reports the plan limit and how many companies are tracked', async () => {
+        trackedDomains.mockResolvedValue(['a.example', 'b.example']);
+        const r = res();
+        await handler('get', '/catalog')({ ...admin, tenantTier: 'paid' }, r);
+        expect(r.json.mock.calls[0][0]).toEqual(expect.objectContaining({ limit: 500, tracked: 2 }));
+    });
 });
 
 describe('PUT /confirmed', () => {
