@@ -242,8 +242,7 @@ graph LR
 
 | Gap | Priority | Notes |
 |---|---|---|
-| Webhook HMAC Verification Agent | High | `/api/ingest/*` is unprotected — needs `verifySignature` middleware |
-| IP/CIDR Whitelist Enforcer | High | Middleware needed on ingestion routes |
-| Tenant API Key Agent | High | `x-api-key` → Postgres `api_key_hash` lookup not yet implemented |
-| Canary Signal Monitor | Low | `src/lib/canary.ts` exists but not wired to alerts pipeline |
-| Dead Letter Queue processor | Medium | `src/lib/DeadLetterQueue.ts` logs failures; no retry orchestration UI |
+| Canary alert coverage | Low | `src/lib/canary.ts` runs from the scheduler and alerts through Slack and PagerDuty when configured; no alert fires if neither is set |
+| DLQ retry orchestration | Medium | The DLQ screen can retry one entry at a time (`/api/dlq/:id/retry`); there is no bulk retry or automatic backoff |
+
+`/api/ingest/*` is protected by `src/middleware/ingestAuth.ts`: IP/CIDR allowlist, HMAC signature (required once `HMAC_SECRET` is set) and a tenant API key looked up by `api_key_hash`.
