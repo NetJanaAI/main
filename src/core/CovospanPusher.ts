@@ -2,12 +2,15 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../lib/database';
 import { decryptCredential } from '../lib/credentialVault';
+import { validateTargetUrl } from '../middleware/urlValidator';
+import { pinnedPost } from '../lib/pinnedPost';
 
 export interface CovospanConfig {
     endpoint_url: string;   // ConvoSpan webhook URL
     api_key: string;        // ConvoSpan API key for x-api-key header
     hmac_secret?: string;   // Signs outbound payload for ConvoSpan to verify
     campaign_id?: string;   // Optional — route signals to a specific campaign
+    trusted?: boolean;      // Operator-configured endpoint (env vars); tenant-set URLs are never trusted
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +64,24 @@ export class CovospanPusher {
     private static RETRY_DELAY_MS = [1000, 3000, 8000]; // Exponential backoff
 
     /**
+     * Posts to the configured endpoint. A tenant chose that URL, so it must be a public https address
+     * and the connection is pinned to the address that was checked, so DNS cannot change in between.
+     */
+    private static async post(
+        config: CovospanConfig,
+        headers: Record<string, string>,
+        body: string,
+        timeoutMs: number
+    ): Promise<{ ok: boolean; status: number; text(): Promise<string> }> {
+        if (config.trusted) {
+            return fetch(config.endpoint_url, { method: 'POST', headers, body, signal: AbortSignal.timeout(timeoutMs) });
+        }
+        const check = await validateTargetUrl(config.endpoint_url);
+        if (!check.isValid || !check.resolvedIp) throw new Error(`Endpoint refused: ${check.error ?? 'no address'}`);
+        return pinnedPost(config.endpoint_url, { address: check.resolvedIp, headers, body, timeoutMs });
+    }
+
+    /**
      * Load ConvoSpan config for this org from DB.
      * Falls back to global env vars if not configured per-org.
      */
@@ -94,6 +115,7 @@ export class CovospanPusher {
                 api_key: envKey,
                 hmac_secret: process.env.NETJANA_HMAC_SECRET,
                 campaign_id: undefined,
+                trusted: true,
             };
         }
 
@@ -172,12 +194,7 @@ export class CovospanPusher {
                     await new Promise(r => setTimeout(r, CovospanPusher.RETRY_DELAY_MS[attempt - 1]));
                 }
 
-                const res = await fetch(config.endpoint_url, {
-                    method: 'POST',
-                    headers,
-                    body: bodyStr,
-                    signal: AbortSignal.timeout(10_000),
-                });
+                const res = await CovospanPusher.post(config, headers, bodyStr, 10_000);
 
                 if (res.ok) {
                     const responseText = await res.text().catch(() => '');
@@ -241,12 +258,7 @@ export class CovospanPusher {
         }
 
         try {
-            const res = await fetch(config.endpoint_url, {
-                method: 'POST',
-                headers,
-                body: bodyStr,
-                signal: AbortSignal.timeout(5000),
-            });
+            const res = await CovospanPusher.post(config, headers, bodyStr, 5000);
             const latency = Date.now() - start;
             if (res.ok) {
                 await CovospanPusher.log(leadData.lead_id, orgId, 'SUCCESS', 'Test Push Successful', 'manual', 1, config.campaign_id);
