@@ -60,8 +60,7 @@ export async function emitLeadCard(io: Server, leadData: any) {
         await db.query(query, values);
 
         // FLOW-01: Index lead card into TenantRAGStore immediately after Postgres write.
-        // OutreachGenerator calls store.query() — if the lead is not indexed here,
-        // every outreach job fails with "Lead data not found in RAG store".
+        // Keeps the lead searchable in the tenant RAG store right after the Postgres write.
         try {
             const store = new TenantRAGStore(org_id || 'default');
             const pageContent = JSON.stringify({
@@ -76,7 +75,7 @@ export async function emitLeadCard(io: Server, leadData: any) {
                 { lead_id, org_id: org_id || 'default', type: 'lead_card' }
             );
         } catch (ragErr: any) {
-            // Non-fatal: outreach will fall back to Postgres data if RAG index fails.
+            // Non-fatal: the lead is already persisted in Postgres.
             console.warn('[LeadEmitter] RAG index failed (non-fatal):', ragErr.message);
         }
     } catch (e: any) {

@@ -8,9 +8,6 @@ import {
   Terminal,
   Bot,
   BarChart3,
-  Mail,
-  MessageSquare,
-  Linkedin,
   Radio,
   ShieldCheck,
   ArrowRight,
@@ -347,13 +344,13 @@ function ProductDashboardPreview() {
       icon: Bot,
       label: "AI Agent Activity",
       value: "14 active",
-      detail: "Qualifier -> Writer -> Outreach",
+      detail: "Qualifier -> Writer -> Lead Card",
       delay: 0.15,
     },
     {
       className: "top-20 -right-4 md:-right-10",
       icon: BarChart3,
-      label: "Response Rate",
+      label: "High-Intent Share",
       value: "31.8%",
       detail: "+8.4% this week",
       delay: 0.3,
@@ -361,9 +358,9 @@ function ProductDashboardPreview() {
     {
       className: "bottom-24 -left-4 md:-left-14",
       icon: Send,
-      label: "Outreach Performance",
-      value: "2.4k sent",
-      detail: "Email, LinkedIn, WABA",
+      label: "Signals Delivered",
+      value: "2.4k pushed",
+      detail: "To CraftMyFunnel",
       delay: 0.45,
     },
     {
@@ -393,7 +390,7 @@ function ProductDashboardPreview() {
             </div>
             <div>
               <div className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">Net Jana AI Command</div>
-              <div className="text-sm font-black uppercase tracking-[0.16em] text-white">Outreach Orchestration</div>
+              <div className="text-sm font-black uppercase tracking-[0.16em] text-white">Signal Orchestration</div>
             </div>
           </div>
           <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5">
@@ -438,7 +435,7 @@ function ProductDashboardPreview() {
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <div className="text-[9px] font-black uppercase tracking-[0.24em] text-[#00ffca]">Agent Workflow</div>
-                    <div className="mt-1 text-sm font-bold text-white/85">Procurement signal to booked meeting</div>
+                    <div className="mt-1 text-sm font-bold text-white/85">Procurement signal to lead card</div>
                   </div>
                   <Bot className="h-5 w-5 text-[#00ffca]" />
                 </div>
@@ -447,7 +444,7 @@ function ProductDashboardPreview() {
                     ["Gate Agent", "Classified 217 buyer signals", "complete"],
                     ["Qualifier", "Scoring buying stage and pain", "active"],
                     ["Lead Writer", "Drafting account-specific hooks", "active"],
-                    ["Outreach Dispatcher", "Queuing multi-channel sequence", "queued"],
+                    ["Lead Emitter", "Pushing lead cards to CraftMyFunnel", "queued"],
                   ].map(([name, detail, state]) => (
                     <div key={name} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] p-3">
                       <div className={`h-2.5 w-2.5 rounded-full ${state === "complete" ? "bg-emerald-400" : state === "active" ? "bg-[#00ffca] animate-pulse" : "bg-white/25"}`} />
@@ -463,14 +460,14 @@ function ProductDashboardPreview() {
 
               <section className="md:col-span-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                 <div className="flex items-center justify-between mb-5">
-                  <div className="text-[9px] font-black uppercase tracking-[0.22em] text-white/40">Channel Distribution</div>
+                  <div className="text-[9px] font-black uppercase tracking-[0.22em] text-white/40">Source Mix</div>
                   <ShieldCheck className="h-4 w-4 text-[#00ffca]" />
                 </div>
                 <div className="space-y-4">
                   {[
-                    ["Email", "48%", Mail],
-                    ["LinkedIn", "31%", Linkedin],
-                    ["WABA", "21%", MessageSquare],
+                    ["Registries", "48%", ShieldCheck],
+                    ["Job boards", "31%", BarChart3],
+                    ["Websites", "21%", Radio],
                   ].map(([channel, value, Icon]) => (
                     <div key={channel as string}>
                       <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.16em] text-white/60">
@@ -485,7 +482,7 @@ function ProductDashboardPreview() {
                 </div>
                 <div className="mt-6 rounded-xl border border-[#00ffca]/20 bg-[#00ffca]/10 p-3">
                   <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#00ffca]">Next best action</div>
-                  <div className="mt-2 text-xs text-white/75 leading-relaxed">Prioritize LinkedIn follow-up for 9 high-verity accounts.</div>
+                  <div className="mt-2 text-xs text-white/75 leading-relaxed">Push 9 high-verity accounts to CraftMyFunnel.</div>
                 </div>
               </section>
             </div>

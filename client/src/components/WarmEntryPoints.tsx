@@ -162,7 +162,7 @@ const WarmEntryPoints: React.FC<{ leadId: string; data: InfluenceMap; onReEnrich
             <div className="p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
                 <p className="text-[10px] text-indigo-400 font-medium leading-relaxed">
                     <Zap className="inline-block w-3 h-3 mr-1 mb-0.5" />
-                    Selected hooks will be injected into the <span className="text-white font-bold">Take Action</span> prompt to maximize cold outreach verity. 
+                    Warm entry points raise the odds of a first reply when you reach out through <span className="text-white font-bold">CraftMyFunnel</span>. 
                     NetJana's proprietary India/UAE source network provides a {Math.round(selectedhooks.length * 15.4)}% boost in estimated conversion verity.
                 </p>
             </div>
