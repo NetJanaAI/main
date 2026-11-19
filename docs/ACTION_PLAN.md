@@ -90,7 +90,7 @@ Merge order: #28, #29, #30, then #27 (the page reads fields that #30 adds; it sh
 | 4.4 | **API client** reads the token from `window.Clerk`, silently sends no header if Clerk has not loaded, and has no central 401 handling. | `lib/api.ts` | Reported | Token provider via `useAuth`; central 401 handling |
 | 4.5 | **Sentry** samples 100% of traces and replays on error without masking text or media in a lead tool. | `main.tsx:23` | Reported | About 0.1 sampling; `maskAllText`, `blockAllMedia` |
 | 4.6 | **Hard-coded URLs and third parties**: `Meta.tsx` canonical is the Vercel hostname, `ApiManager` shows `api.netjana.ai`, Login hotlinks an Unsplash image, Google Fonts imported at runtime. | `Meta.tsx:14`, `ApiManager.tsx:366`, `Login.tsx:12`, `index.css:2` | Reported | Env-driven URLs (decision 4); self-host font and image |
-| 4.7 | **Bundle**: all 13 pages imported eagerly, no `manualChunks`. | `routes.tsx`, `vite.config.ts` | Reported | `React.lazy` per route |
+| 4.7 | **Bundle**: all 13 pages imported eagerly, no `manualChunks`. | `routes.tsx`, `vite.config.ts` | Reported | Done for routes (`React.lazy` per page); `manualChunks` not added |
 | 4.8 | **Accessibility and polish**: few labels on icon buttons, very small text, `window.confirm` auth prompts, leftover template files (`react.svg`, `App.css`), "mock signed-in user" copy. | various | Reported | axe audit; clean up |
 | 4.9 | **No client tests.** | `client/` | Reported | Start with auth gating and the API client |
 
