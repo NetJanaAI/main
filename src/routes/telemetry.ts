@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { TokenTracker } from '../lib/ai/token-tracker';
-import { db } from '../lib/database';
+import { db, queryWithOrg } from '../lib/database';
 import { getDedupStats } from '../core/collectors/indiamart-dedup';
 
 import { requireTenant } from '../middleware/tenant';
@@ -24,7 +24,7 @@ router.get('/tokens', async (req: any, res: Response) => {
         });
 
         // 2. Get aggregate historical stats from Postgres
-        const postgresStats = await db.query(`
+        const postgresStats = await queryWithOrg(`
             SELECT 
                 DATE(timestamp) as date,
                 SUM(input_tokens) as input,
@@ -35,10 +35,10 @@ router.get('/tokens', async (req: any, res: Response) => {
             WHERE org_id = $1 AND timestamp >= NOW() - INTERVAL '30 days'
             GROUP BY DATE(timestamp)
             ORDER BY DATE(timestamp) DESC
-        `, [orgId]);
+        `, [orgId], orgId);
 
         // 3. Get Role Distribution (Who is spending most)
-        const roleStats = await db.query(`
+        const roleStats = await queryWithOrg(`
             SELECT 
                 role,
                 SUM(input_tokens + output_tokens) as total_tokens
@@ -46,7 +46,7 @@ router.get('/tokens', async (req: any, res: Response) => {
             WHERE org_id = $1 AND timestamp >= NOW() - INTERVAL '7 days'
             GROUP BY role
             ORDER BY total_tokens DESC
-        `, [orgId]);
+        `, [orgId], orgId);
 
         res.json({
             realtime: redisStats,
@@ -68,16 +68,16 @@ router.get('/health', async (req: any, res: Response) => {
         const orgId = req.organizationId as string;
         
         // 1. Get Blocked IP Count (Last 24h)
-        const blocks = await db.query(`
-            SELECT COUNT(*) FROM audit_logs 
-            WHERE action = 'IP_BLOCKED' AND timestamp >= NOW() - INTERVAL '24 hours'
-        `);
+        const blocks = await queryWithOrg(`
+            SELECT COUNT(*) FROM audit_logs
+            WHERE organization_id = $1 AND action = 'IP_BLOCKED' AND timestamp >= NOW() - INTERVAL '24 hours'
+        `, [orgId], orgId);
 
         // 2. Get Audit Activity (Last 1h)
-        const audits = await db.query(`
-            SELECT COUNT(*) FROM audit_logs 
-            WHERE timestamp >= NOW() - INTERVAL '1 hour'
-        `);
+        const audits = await queryWithOrg(`
+            SELECT COUNT(*) FROM audit_logs
+            WHERE organization_id = $1 AND timestamp >= NOW() - INTERVAL '1 hour'
+        `, [orgId], orgId);
 
         // 3. Canary Heartbeat (Check if scraping workers are alive)
         const workers = await db.query(`
@@ -104,7 +104,7 @@ router.get('/health', async (req: any, res: Response) => {
  */
 router.get('/sources', async (req: any, res: Response) => {
     try {
-        const stats = await getDedupStats(7);
+        const stats = await getDedupStats(req.organizationId as string, 7);
         const canaries = await db.query(`
             SELECT type, last_heartbeat, status FROM system_canaries
         `);

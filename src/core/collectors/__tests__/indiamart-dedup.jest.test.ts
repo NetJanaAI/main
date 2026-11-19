@@ -24,10 +24,10 @@ describe('IndiaMART Ingestion Deduplication Collector', () => {
     describe('isIndiaMArtDuplicate', () => {
         it('should use query_id layer 1 deduplication and return false for new query_id', async () => {
             (cache.set as jest.Mock).mockResolvedValue('OK'); // NX set succeeded
-            const result = await isIndiaMArtDuplicate({ query_id: 'Q-100200' });
+            const result = await isIndiaMArtDuplicate({ query_id: 'Q-100200' }, 'org-1');
             expect(result).toBe(false);
             expect(cache.set).toHaveBeenCalledWith(
-                'seen:indiamart:qid:Q-100200',
+                'seen:indiamart:org-1:qid:Q-100200',
                 '1',
                 { ex: 2592000, nx: true }
             );
@@ -35,7 +35,7 @@ describe('IndiaMART Ingestion Deduplication Collector', () => {
 
         it('should return true when query_id is already seen (cache.set returns null)', async () => {
             (cache.set as jest.Mock).mockResolvedValue(null); // NX set failed (already exists)
-            const result = await isIndiaMArtDuplicate({ QUERY_ID: 'Q-100200' });
+            const result = await isIndiaMArtDuplicate({ QUERY_ID: 'Q-100200' }, 'org-1');
             expect(result).toBe(true);
         });
 
@@ -46,10 +46,10 @@ describe('IndiaMART Ingestion Deduplication Collector', () => {
                 query_message: 'Urgent requirement for copper cables',
                 query_product_name: 'Electrical Cables'
             };
-            const result = await isIndiaMArtDuplicate(lead);
+            const result = await isIndiaMArtDuplicate(lead, 'org-1');
             expect(result).toBe(false);
             expect(cache.set).toHaveBeenCalledWith(
-                expect.stringMatching(/^seen:indiamart:fp:[a-f0-9]{16}$/),
+                expect.stringMatching(/^seen:indiamart:org-1:fp:[a-f0-9]{16}$/),
                 '1',
                 { ex: 2592000, nx: true }
             );
@@ -63,7 +63,7 @@ describe('IndiaMART Ingestion Deduplication Collector', () => {
 
             expect(scrapeQueue.add).not.toHaveBeenCalled();
             expect(cache.incr).toHaveBeenCalledWith(
-                expect.stringMatching(/^stats:dedup:indiamart:\d{4}-\d{2}-\d{2}$/)
+                expect.stringMatching(/^stats:dedup:indiamart:org-1:\d{4}-\d{2}-\d{2}$/)
             );
         });
 
@@ -85,9 +85,17 @@ describe('IndiaMART Ingestion Deduplication Collector', () => {
             );
 
             expect(cache.incr).toHaveBeenCalledWith(
-                expect.stringMatching(/^stats:queued:indiamart:\d{4}-\d{2}-\d{2}$/)
+                expect.stringMatching(/^stats:queued:indiamart:org-1:\d{4}-\d{2}-\d{2}$/)
             );
         });
+    });
+
+    it('does not treat a lead from another organization as a duplicate', async () => {
+        (cache.set as jest.Mock).mockResolvedValue('OK');
+        await isIndiaMArtDuplicate({ query_id: 'Q-1' }, 'org-a');
+        await isIndiaMArtDuplicate({ query_id: 'Q-1' }, 'org-b');
+        const keys = (cache.set as jest.Mock).mock.calls.map((c) => c[0]);
+        expect(new Set(keys).size).toBe(2);
     });
 
     describe('getDedupStats', () => {
@@ -96,7 +104,7 @@ describe('IndiaMART Ingestion Deduplication Collector', () => {
                 .mockResolvedValueOnce('80') // queued
                 .mockResolvedValueOnce('20'); // duped
 
-            const stats = await getDedupStats(1);
+            const stats = await getDedupStats('org-1', 1);
 
             expect(stats).toHaveLength(1);
             expect(stats[0]).toEqual({
