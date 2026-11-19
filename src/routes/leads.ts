@@ -236,11 +236,20 @@ router.patch('/:id/feedback', async (req, res) => {
         await redis.hincrby(`source_perf:${source_id}`, 'total', 1);
 
         const perfData = await redis.hgetall(`source_perf:${source_id}`);
-        const contacted = parseInt(perfData.contacted || '0', 10);
-        const converted = parseInt(perfData.converted || '0', 10);
+        const globalContacted = parseInt(perfData.contacted || '0', 10);
+        const globalConverted = parseInt(perfData.converted || '0', 10);
+        await redis.hset(`source_perf:${source_id}`, 'conversion_rate', (globalContacted > 0 ? globalConverted / globalContacted : 0).toString());
 
-        const conversion_rate = contacted > 0 ? converted / contacted : 0;
-        await redis.hset(`source_perf:${source_id}`, 'conversion_rate', conversion_rate.toString());
+        // The counters above are shared across tenants for weight calibration; the caller only sees its own results.
+        const own = await query(
+            `SELECT COUNT(*) FILTER (WHERE feedback_status = 'contacted') AS contacted,
+                    COUNT(*) FILTER (WHERE feedback_status = 'converted') AS converted
+             FROM lead_cards WHERE org_id = $1 AND source_id = $2`,
+            [orgId, source_id]
+        );
+        const contacted = Number(own.rows[0]?.contacted) || 0;
+        const converted = Number(own.rows[0]?.converted) || 0;
+        const conversion_rate = contacted + converted > 0 ? converted / (contacted + converted) : 0;
 
         res.json({ message: 'Feedback recorded', source_id, conversion_rate });
 
@@ -267,8 +276,8 @@ router.get('/:id/intelligence', async (req: any, res: any) => {
                 s.citations,
                 i.influence_map
             FROM lead_cards l
-            LEFT JOIN scrape_results s ON l.lead_id = s.job_id
-            LEFT JOIN lead_influence_data i ON l.lead_id = i.lead_id
+            LEFT JOIN scrape_results s ON l.lead_id = s.job_id AND s.organization_id = l.org_id
+            LEFT JOIN lead_influence_data i ON l.lead_id = i.lead_id AND i.organization_id = l.org_id
             WHERE l.lead_id = $1 AND l.org_id = $2
         `, [lead_id, orgId], orgId);
 
