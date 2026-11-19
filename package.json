@@ -41,7 +41,7 @@
     "axios-retry": "^3.9.1",
     "bullmq": "^5.71.0",
     "cors": "^2.8.6",
-    "csv-parse": "^6.2.1",
+    "csv-parse": "^7.0.3",
     "dotenv": "^17.2.3",
     "double-metaphone": "^2.0.1",
     "express": "^4.22.1",
