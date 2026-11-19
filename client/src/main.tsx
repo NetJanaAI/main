@@ -18,9 +18,10 @@ if (sentryDsn && !sentryDsn.includes('placeholder')) {
     dsn: sentryDsn,
     integrations: [
       Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration(),
+      // Replays can capture lead names and contact details, so text and media are masked.
+      Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
     ],
-    tracesSampleRate: 1.0,
+    tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
   });
