@@ -1,16 +1,34 @@
+import { isFallbackAuthActive } from './auth';
+
 declare global {
     interface Window {
         Clerk?: {
+            loaded?: boolean;
             session?: {
-                getToken: () => Promise<string | null>;
-            };
+                getToken: (options?: { skipCache?: boolean }) => Promise<string | null>;
+            } | null;
+            signOut?: () => Promise<void>;
         };
     }
 }
 
-async function getClerkToken() {
+export const UNAUTHORIZED_EVENT = 'netjana:unauthorized';
+
+const CLERK_WAIT_MS = 3000;
+
+// Pages can fire requests before Clerk has loaded; without waiting they would go out with no token.
+async function waitForClerk() {
+    const deadline = Date.now() + CLERK_WAIT_MS;
+    while (!window.Clerk?.loaded && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+}
+
+async function getClerkToken(options?: { skipCache?: boolean }) {
+    if (isFallbackAuthActive) return null;
     try {
-        return await window.Clerk?.session?.getToken();
+        await waitForClerk();
+        return (await window.Clerk?.session?.getToken(options)) ?? null;
     } catch {
         return null;
     }
@@ -51,15 +69,26 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
         headers.set('Content-Type', 'application/json');
     }
 
-    if (token && !headers.has('Authorization')) {
+    const callerSetAuth = headers.has('Authorization');
+    if (token && !callerSetAuth) {
         headers.set('Authorization', `Bearer ${token}`);
     }
 
     try {
-        const response = await fetch(fullUrl, {
+        let response = await fetch(fullUrl, {
             ...options,
             headers
         });
+
+        // A cached token can expire between requests: try once more with a fresh one before giving up.
+        if (response.status === 401 && token && !callerSetAuth) {
+            const fresh = await getClerkToken({ skipCache: true });
+            if (fresh) {
+                headers.set('Authorization', `Bearer ${fresh}`);
+                response = await fetch(fullUrl, { ...options, headers });
+            }
+            if (response.status === 401) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+        }
 
         if (!response.ok) {
             let errorMsg = 'API request failed';
