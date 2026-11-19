@@ -3,6 +3,7 @@ import { connection } from './queue';
 import { enqueueScrape } from './quota';
 import { query } from './database';
 import { Queue } from 'bullmq';
+import { runOnce } from './cronLock';
 
 const decayQueue = new Queue('decay-rescore', { connection });
 
@@ -31,7 +32,7 @@ export function addSchedule(entry: ScheduleEntry) {
         return;
     }
 
-    const task = cron.schedule(entry.cron_expression, async () => {
+    const task = cron.schedule(entry.cron_expression, () => runOnce(`scrape:${entry.id}`, 30, async () => {
         console.log(`[Scheduler] Auto-triggering scrape for ${entry.domain} (cron: ${entry.cron_expression})`);
         try {
             const { v4: uuidv4 } = await import('uuid');
@@ -55,7 +56,7 @@ export function addSchedule(entry: ScheduleEntry) {
         } catch (err: any) {
             console.error(`[Scheduler] Failed to enqueue scheduled scrape for ${entry.domain}:`, err.message);
         }
-    }, { timezone: 'Asia/Kolkata' }); // IST by default, configurable
+    }), { timezone: 'Asia/Kolkata' }); // IST by default, configurable
 
     activeTasks.set(entry.id, task);
     console.log(`[Scheduler] Registered schedule for ${entry.domain} (${entry.cron_expression})`);
@@ -90,17 +91,17 @@ export async function bootstrapSchedules() {
         console.log(`[Scheduler] Bootstrapped ${result.rows.length} scheduled scrapes from DB.`);
 
         // Schedule Daily Intent Decay Rescore (02:00 IST)
-        cron.schedule('0 2 * * *', async () => {
+        cron.schedule('0 2 * * *', () => runOnce('decay-rescore', 60, async () => {
             console.log('[Scheduler] Triggering daily intent decay rescore...');
             await decayQueue.add('rescore', {});
-        }, { timezone: 'Asia/Kolkata' });
+        }), { timezone: 'Asia/Kolkata' });
 
         // Schedule Canary Heartbeat (Every 5 minutes)
-        cron.schedule('*/5 * * * *', async () => {
+        cron.schedule('*/5 * * * *', () => runOnce('canary-heartbeat', 60, async () => {
             console.log('[Scheduler] Triggering HACanary heartbeat...');
             const { HACanary } = await import('./canary');
             await HACanary.runHeartbeat();
-        });
+        }));
 
         // Refresh website signals for every tenant's tracked companies (daily, 03:30 IST)
         cron.schedule('30 3 * * *', async () => {
@@ -110,14 +111,14 @@ export async function bootstrapSchedules() {
         }, { timezone: 'Asia/Kolkata' });
 
         // Schedule Signal Drought Monitor (Every hour)
-        cron.schedule('0 * * * *', async () => {
+        cron.schedule('0 * * * *', () => runOnce('signal-drought', 60, async () => {
             console.log('[Scheduler] Triggering Signal Drought Monitor...');
             const { SignalDroughtMonitor } = await import('./canary');
             await SignalDroughtMonitor.checkDrought();
-        });
+        }));
 
         // Schedule Tender Watch Engine (Every 30 minutes)
-        cron.schedule('*/30 * * * *', async () => {
+        cron.schedule('*/30 * * * *', () => runOnce('tender-watch', 60, async () => {
             console.log('[Scheduler] Triggering Tender Watch Engine...');
             const { fetchGeMXMLFeed } = await import('../core/collectors/gem-xml');
             const { WatchProfileMatcher } = await import('../core/tender-watch/matcher');
@@ -131,7 +132,7 @@ export async function bootstrapSchedules() {
             for (const payload of payloads) {
                 await WatchProfileMatcher.processGeMSignal(payload, profiles);
             }
-        });
+        }));
 
     } catch (e: any) {
         console.warn(`[Scheduler] Could not bootstrap schedules (DB unavailable):`, e.message);
