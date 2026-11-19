@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import * as ipLib from 'ip';
+import net from 'net';
 import { query } from '../lib/database';
 import { DEV_HMAC_SECRET, getHmacSecret, getApiKeySecret } from '../lib/secrets';
 import { AuditTrail } from '../core/compliance/AuditTrail';
@@ -19,7 +19,12 @@ const LOCALHOST_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 export function cidrContains(cidrOrIp: string, clientIp: string): boolean {
     try {
         if (cidrOrIp.includes('/')) {
-            return ipLib.cidrSubnet(cidrOrIp).contains(clientIp);
+            const [address, prefix] = cidrOrIp.split('/');
+            const clientFamily = net.isIP(clientIp);
+            if (clientFamily === 0 || !/^\d{1,3}$/.test(prefix)) return false;
+            const list = new net.BlockList();
+            list.addSubnet(address, Number(prefix), net.isIPv6(address) ? 'ipv6' : 'ipv4');
+            return list.check(clientIp, clientFamily === 6 ? 'ipv6' : 'ipv4');
         }
         return cidrOrIp === clientIp;
     } catch {

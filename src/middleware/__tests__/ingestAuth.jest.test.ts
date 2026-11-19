@@ -36,6 +36,26 @@ describe('cidrContains', () => {
     it('fails closed for malformed allowlist entries', () => {
         expect(cidrContains('not-a-cidr', '203.0.113.45')).toBe(false);
     });
+
+    it('fails closed for out-of-range prefixes and non-IP clients', () => {
+        expect(cidrContains('203.0.113.0/33', '203.0.113.45')).toBe(false);
+        expect(cidrContains('203.0.113.0/abc', '203.0.113.45')).toBe(false);
+        expect(cidrContains('203.0.113.0/24', 'unknown')).toBe(false);
+        expect(cidrContains('203.0.113.0/24', '')).toBe(false);
+    });
+
+    it('matches IPv6 blocks and does not cross address families', () => {
+        expect(cidrContains('2001:db8::/32', '2001:db8:1::5')).toBe(true);
+        expect(cidrContains('2001:db8::/32', '2001:db9::5')).toBe(false);
+        expect(cidrContains('2001:db8::/32', '203.0.113.45')).toBe(false);
+        expect(cidrContains('203.0.113.0/24', '2001:db8::1')).toBe(false);
+    });
+
+    it('treats /0 as every address of its family and /32 as a single host', () => {
+        expect(cidrContains('0.0.0.0/0', '198.51.100.7')).toBe(true);
+        expect(cidrContains('198.51.100.7/32', '198.51.100.7')).toBe(true);
+        expect(cidrContains('198.51.100.7/32', '198.51.100.8')).toBe(false);
+    });
 });
 
 describe('ingestAuthGuard', () => {
