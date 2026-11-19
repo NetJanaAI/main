@@ -99,8 +99,8 @@ Merge order: #28, #29, #30, then #27 (the page reads fields that #30 adds; it sh
 | # | Item | Conf. | Fix |
 |---|---|---|---|
 | 5.1 | **`ip` package has a high-severity advisory with no fix** and guards the ingest allowlist (`middleware/ingestAuth.ts`). `npm audit` also lists 4 moderate. | Reported | Replace with `net.BlockList` or `ipaddr.js`; review the moderates |
-| 5.2 | **go-pusher healthcheck can never pass**: compose checks `localhost:8080/health`, the Go code serves no HTTP. | Verified | Add a tiny health listener or change the check |
-| 5.3 | **Committed binaries**: `go-pusher/push`, `go-pusher/push.exe` (15 MB each), plus `build-output.txt` and `test_out.txt`. | Verified (binaries tracked) | `git rm`, add to `.gitignore` and `.dockerignore` |
+| 5.2 | **go-pusher healthcheck can never pass**: compose checks `localhost:8080/health`, the Go code serves no HTTP. | Done | Check changed to a process check (`pgrep -x push`); no Go code touched |
+| 5.3 | **Committed binaries**: `go-pusher/push`, `go-pusher/push.exe` (15 MB each), plus `build-output.txt` and `test_out.txt`. | Partly done | `go-pusher/.dockerignore` keeps them out of the image build; `git rm` of the binaries and text files waits for the owner |
 | 5.4 | **Dockerfile**: `npm install --legacy-peer-deps` instead of `npm ci`, Node 20 base vs Node 22 in CI, Playwright image 1.58.0 vs `^1.58.1` in `package.json`, `chmod 777 /app/data`, no `HEALTHCHECK`. | Reported | `npm ci`, align versions, `chmod 750`, add healthchecks |
 | 5.5 | **Compose**: dev credentials `netjana:netjana`, Postgres and Redis published on all interfaces, Redis without a password, `pgbouncer/userlist.txt` tracked with plain auth, prod publishes 6432 and 4000, images on `:latest` or `main-latest`, obsolete `version:`. | Reported | Bind to `127.0.0.1`, template the userlist, scram auth, pin images. Treat any real credential in `userlist.txt` as exposed and rotate it |
 | 5.6 | **CI gaps**: no `npm audit`, no backend ESLint, no Docker build or image scan, actions tag-pinned. | Mostly done | `npm audit` (high), a `docker build` job and SHA-pinned actions; backend lint remains (no ESLint config) |
