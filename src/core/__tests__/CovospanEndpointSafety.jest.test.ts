@@ -20,6 +20,7 @@ describe('CovospanPusher endpoint safety', () => {
         jest.resetModules();
         process.env = { ...originalEnv };
         delete process.env.CONVOSPAN_WEBHOOK_URL;
+        delete process.env.CONVOSPAN_ENV_FALLBACK_ORGS;
         delete process.env.CONVOSPAN_API_KEY;
         global.fetch = jest.fn();
         queryWithOrg.mockReset();
@@ -65,6 +66,7 @@ describe('CovospanPusher endpoint safety', () => {
     it('still uses fetch for the operator endpoint set in the environment', async () => {
         process.env.CONVOSPAN_WEBHOOK_URL = 'https://operator.example.com/in';
         process.env.CONVOSPAN_API_KEY = 'operator-key';
+        process.env.CONVOSPAN_ENV_FALLBACK_ORGS = `other-org, ${ORG}`;
         queryWithOrg.mockResolvedValue({ rows: [] });
         (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
 
@@ -74,5 +76,20 @@ describe('CovospanPusher endpoint safety', () => {
         expect(global.fetch).toHaveBeenCalledTimes(1);
         expect(validateTargetUrl).not.toHaveBeenCalled();
         expect(pinnedPost).not.toHaveBeenCalled();
+    });
+
+    it('does not send an organization to the operator endpoint unless it is listed', async () => {
+        process.env.CONVOSPAN_WEBHOOK_URL = 'https://operator.example.com/in';
+        process.env.CONVOSPAN_API_KEY = 'operator-key';
+        queryWithOrg.mockResolvedValue({ rows: [] });
+
+        const { CovospanPusher } = await import('../CovospanPusher');
+        expect(await CovospanPusher.getConfig(ORG)).toBeNull();
+
+        process.env.CONVOSPAN_ENV_FALLBACK_ORGS = 'someone-else';
+        expect(await CovospanPusher.getConfig(ORG)).toBeNull();
+
+        await CovospanPusher.push(lead);
+        expect(global.fetch).not.toHaveBeenCalled();
     });
 });

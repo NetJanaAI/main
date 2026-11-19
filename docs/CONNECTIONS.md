@@ -25,7 +25,7 @@ x-api-key: <your key>
 - Rate limited to 60 requests per minute per key.
 - One lead: `GET /v1/intel/leads/{lead_id}`.
 
-**Operators:** the global `CRAFTMYFUNNEL_*` env vars apply only to tenant ids listed in `CRAFTMYFUNNEL_ENV_FALLBACK_ORGS`, and every use is logged.
+**Operators:** the global `CRAFTMYFUNNEL_*` env vars apply only to tenant ids listed in `CRAFTMYFUNNEL_ENV_FALLBACK_ORGS`, and every use is logged. The global `CONVOSPAN_WEBHOOK_URL` and `CONVOSPAN_API_KEY` work the same way: they apply only to tenant ids listed in `CONVOSPAN_ENV_FALLBACK_ORGS`.
 
 ## 3. Other websites feeding signals
 

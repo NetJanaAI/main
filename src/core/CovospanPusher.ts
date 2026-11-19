@@ -83,7 +83,7 @@ export class CovospanPusher {
 
     /**
      * Load ConvoSpan config for this org from DB.
-     * Falls back to global env vars if not configured per-org.
+     * Falls back to the global env vars only for orgs listed in CONVOSPAN_ENV_FALLBACK_ORGS.
      */
     static async getConfig(orgId: string): Promise<CovospanConfig | null> {
         // 1. Try per-org DB config first
@@ -106,7 +106,14 @@ export class CovospanPusher {
             // DB unavailable — fall through to env var config
         }
 
-        // 2. Fallback to global env vars (suitable for single-tenant / standalone mode)
+        // 2. Fallback to global env vars. Only for organizations the operator names, because the
+        // endpoint and key are shared: without the list every tenant's leads would go to one endpoint.
+        const allowed = (process.env.CONVOSPAN_ENV_FALLBACK_ORGS || '')
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
+        if (!allowed.includes(orgId)) return null;
+
         const envUrl = process.env.CONVOSPAN_WEBHOOK_URL;
         const envKey = process.env.CONVOSPAN_API_KEY;
         if (envUrl && envKey) {
