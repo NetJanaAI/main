@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 
 const authState = { isLoaded: true, isSignedIn: false };
 let fallback = false;
@@ -13,6 +13,7 @@ vi.mock('../../lib/auth', () => ({
 }));
 
 import RequireAuth from '../RequireAuth';
+import { UNAUTHORIZED_EVENT } from '../../lib/api';
 
 afterEach(() => {
   cleanup();
@@ -45,5 +46,13 @@ describe('RequireAuth', () => {
     authState.isSignedIn = true;
     render(<RequireAuth><p>secret</p></RequireAuth>);
     expect(screen.getByText('secret')).toBeTruthy();
+  });
+
+  it('asks a signed-in user to sign in again after the API rejects their session', () => {
+    authState.isSignedIn = true;
+    render(<RequireAuth><p>secret</p></RequireAuth>);
+    act(() => { window.dispatchEvent(new Event(UNAUTHORIZED_EVENT)); });
+    expect(screen.queryByText('secret')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign In Again' })).toBeTruthy();
   });
 });
