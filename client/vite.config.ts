@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
@@ -24,6 +24,11 @@ export default defineConfig({
     alias: isDummyClerkKey
       ? { '@clerk/clerk-react': path.resolve(__dirname, 'src/lib/clerk-stub.ts') }
       : {},
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    environmentOptions: { jsdom: { url: 'http://localhost/' } },
   },
   server: {
     proxy: {
