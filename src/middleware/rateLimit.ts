@@ -31,6 +31,24 @@ export const ipRateLimiter = rateLimit({
 });
 
 /**
+ * Per-IP limit for the external pull API. It runs before the API key is looked up, so a caller
+ * cannot get a fresh bucket (and a fresh key lookup) by inventing key values.
+ */
+export const intelIpRateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    keyGenerator: (req: any) => req.ip || 'unknown',
+    validate: false,
+    passOnStoreError: true,
+    store: sharedStore('rl:intel-ip:'),
+    handler: (_req: Request, res: Response) => {
+        res.status(429).json({ error: 'TooManyRequests', retryAfter: '60s' });
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+/**
  * Tenant-Aware Rate Limiter
  * 
  * Instead of limiting by IP (which is easily bypassed or affects shared office IPs),

@@ -6,6 +6,12 @@ import { getSharedRedisClient } from '../../lib/redis';
 
 const redis = getSharedRedisClient();
 
+// Only these columns are exposed on a public link; storage paths, spider stats and tenant ids stay private.
+const SHARED_COLUMNS = [
+    'job_id', 'domain', 'friction_score', 'signals', 'geo_country', 'estimated_roi',
+    'critic_analysis', 'grounding_score', 'citations', 'decay_status', 'freshness_score', 'timestamp',
+].join(', ');
+
 export class ShareService {
     /**
      * Generates a signed share URL for a lead signal.
@@ -28,6 +34,18 @@ export class ShareService {
     }
 
     /**
+     * Revokes a share link. Only the organization that created it can; returns false when
+     * the link does not exist or belongs to another organization.
+     */
+    static async revoke(shareToken: string, organizationId: string): Promise<boolean> {
+        const cached = await redis.get(`share:${shareToken}`);
+        if (!cached) return false;
+        if (JSON.parse(cached).organizationId !== organizationId) return false;
+        await redis.del(`share:${shareToken}`);
+        return true;
+    }
+
+    /**
      * Validates and retrieves lead content for public sharing.
      * Enforces Sovereign Firewall masking.
      */
@@ -40,7 +58,7 @@ export class ShareService {
         if (Date.now() > expiresAt) return null;
 
         // Fetch lead from DB
-        const res = await query("SELECT * FROM scrape_results WHERE job_id = $1 AND organization_id = $2", [leadId, organizationId]);
+        const res = await query(`SELECT ${SHARED_COLUMNS} FROM scrape_results WHERE job_id = $1 AND organization_id = $2`, [leadId, organizationId]);
         if (res.rows.length === 0) return null;
 
         const leadData = res.rows[0];

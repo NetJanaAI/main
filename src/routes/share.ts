@@ -27,6 +27,22 @@ router.post('/:id', async (req, res) => {
 });
 
 /**
+ * Revokes a share link created by the caller's organization.
+ * Requires Authentication; the router is also mounted publicly, where there is no organization.
+ */
+router.delete('/:token', async (req, res) => {
+    try {
+        const organizationId = (req as any).organizationId;
+        if (!organizationId) return res.status(401).json({ error: "Unauthorized" });
+        const revoked = await ShareService.revoke(req.params.token, organizationId);
+        if (!revoked) return res.status(404).json({ error: "ShareLinkNotFound" });
+        res.json({ revoked: true });
+    } catch (error) {
+        res.status(500).json({ error: "InternalError" });
+    }
+});
+
+/**
  * Public ROI Report Share Resolver
  */
 router.get('/roi/:token', async (req, res) => {
