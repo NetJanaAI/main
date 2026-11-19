@@ -28,7 +28,8 @@ router.get('/', async (req: Request, res: Response) => {
         );
         res.json({ profiles: result.rows });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[watch-profiles] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -50,7 +51,8 @@ router.post('/', async (req: Request, res: Response) => {
         );
         res.status(201).json({ profile: result.rows[0] });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[watch-profiles] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -88,7 +90,8 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
         res.json({ success: true, count: successCount, message: `Created ${successCount} profiles from CSV.` });
     } catch (e: any) {
-        res.status(500).json({ error: `CSV Processing Error: ${e.message}` });
+        console.error('[WatchProfiles] CSV processing failed:', e);
+        res.status(500).json({ error: 'CSV processing failed' });
     }
 });
 

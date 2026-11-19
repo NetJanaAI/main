@@ -85,7 +85,8 @@ router.get('/match', async (req, res) => {
 
     } catch (error: any) {
         console.error('[Leads Match Error]', error);
-        res.status(500).json({ error: "InternalError", message: error.message });
+        console.error('[Route] InternalError:', error);
+        res.status(500).json({ error: 'InternalError' });
     }
 });
 
@@ -126,7 +127,8 @@ router.get('/re-engage-queue', async (req, res) => {
         res.json(results.rows);
 
     } catch (error: any) {
-        res.status(500).json({ error: "InternalError", message: error.message });
+        console.error('[Route] InternalError:', error);
+        res.status(500).json({ error: 'InternalError' });
     }
 });
 
@@ -156,7 +158,8 @@ router.post('/:id/enrich-influence', async (req, res) => {
         res.json({ status: "Enqued", leadId, region });
 
     } catch (error: any) {
-        res.status(500).json({ error: "InternalError", message: error.message });
+        console.error('[Route] InternalError:', error);
+        res.status(500).json({ error: 'InternalError' });
     }
 });
 
@@ -196,7 +199,8 @@ router.get('/:id/influence', async (req, res) => {
             alphaScore: map.alphaScore || map.influenceScore || 0
         });
     } catch (error: any) {
-        res.status(500).json({ error: "InternalError", message: error.message });
+        console.error('[Route] InternalError:', error);
+        res.status(500).json({ error: 'InternalError' });
     }
 });
 
@@ -279,7 +283,7 @@ router.get('/:id/intelligence', async (req: any, res: any) => {
         res.json(result.rows[0]);
     } catch (e: any) {
         console.error('[Leads Intelligence] Error:', e);
-        res.status(500).json({ error: 'Internal server error', message: e.message });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

@@ -27,7 +27,8 @@ router.get('/', async (req: any, res: Response) => {
         }
         res.json(results.rows);
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[sources] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -58,7 +59,8 @@ router.post('/toggle', async (req: any, res: Response) => {
 
         res.json({ success: true, sourceId, enabled });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[sources] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

@@ -76,7 +76,8 @@ router.post('/tenants', async (req: Request, res: Response) => {
             metadata: { name, quota_limit }
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -108,7 +109,8 @@ router.post('/tenants/:id/rotate-key', async (req: Request, res: Response) => {
             metadata: { reason: 'manual_rotation' }
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -125,7 +127,8 @@ router.get('/tenants', async (req: Request, res: Response) => {
         `);
         res.json(result.rows);
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -145,7 +148,8 @@ router.delete('/tenants/:id/vanish', async (req: Request, res: Response) => {
         
         res.json({ message: `Vanish Protocol executed for ${orgRes.rows[0].name}. All data annihilated.` });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -162,7 +166,8 @@ router.get('/dlq', async (req: Request, res: Response) => {
         const failures = await DeadLetterQueue.getAll();
         res.json(failures);
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -176,7 +181,8 @@ router.post('/dlq/:id/retry', async (req: Request, res: Response) => {
         await DeadLetterQueue.retry(req.params.id);
         res.json({ success: true, message: 'Signal re-enqueued for analysis.' });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -189,7 +195,8 @@ router.delete('/dlq/:id', async (req: Request, res: Response) => {
         await DeadLetterQueue.delete(req.params.id);
         res.json({ success: true, message: 'Signal dismissed from DLQ.' });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -201,7 +208,8 @@ router.get('/security/ips', async (req: Request, res: Response) => {
         const result = await query('SELECT * FROM allowed_ips ORDER BY created_at DESC');
         res.json(result.rows);
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -229,7 +237,8 @@ router.post('/security/ips', async (req: Request, res: Response) => {
             metadata: { label }
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -254,7 +263,8 @@ router.delete('/security/ips/:id', async (req: Request, res: Response) => {
             metadata: { id }
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -326,7 +336,8 @@ router.get('/security/audit', async (req: Request, res: Response) => {
             offset
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[admin] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

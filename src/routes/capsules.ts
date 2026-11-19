@@ -36,7 +36,8 @@ router.get('/:id', async (req: TenantRequest, res) => {
         if (!result.rows.length) return res.status(404).json({ error: 'Capsule not found' });
         res.json(result.rows[0]);
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[capsules] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

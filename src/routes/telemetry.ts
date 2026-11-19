@@ -54,7 +54,8 @@ router.get('/tokens', async (req: any, res: Response) => {
             roles: roleStats.rows
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[telemetry] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -92,7 +93,8 @@ router.get('/health', async (req: any, res: Response) => {
             observability: 'ACTIVE'
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[telemetry] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -117,7 +119,8 @@ router.get('/sources', async (req: any, res: Response) => {
             }
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[telemetry] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

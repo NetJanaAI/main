@@ -39,7 +39,8 @@ router.get('/', async (req, res) => {
 
         res.json(result.rows);
     } catch (error: any) {
-        res.status(500).json({ error: "InternalError", message: error.message });
+        console.error('[Route] InternalError:', error);
+        res.status(500).json({ error: 'InternalError' });
     }
 });
 
@@ -63,7 +64,8 @@ router.post('/:domain/advance', async (req, res) => {
 
         res.json(result.rows[0]);
     } catch (error: any) {
-        res.status(500).json({ error: "InternalError", message: error.message });
+        console.error('[Route] InternalError:', error);
+        res.status(500).json({ error: 'InternalError' });
     }
 });
 
@@ -116,7 +118,8 @@ router.get('/:id/export/roi-report', async (req, res) => {
 
     } catch (error: any) {
         console.error(`[ROIExport] Error:`, error.message);
-        res.status(500).json({ error: "ExportFailed", message: error.message });
+        console.error('[Route] ExportFailed:', error);
+        res.status(500).json({ error: 'ExportFailed' });
     }
 });
 

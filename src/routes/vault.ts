@@ -54,7 +54,8 @@ router.get('/export', async (req: TenantRequest, res: Response) => {
         
     } catch (e: any) {
         console.error('[Vault API] Export failed:', e.message);
-        res.status(500).json({ error: 'Vault export failed', details: e.message });
+        console.error('[vault] ' + 'Vault export failed' + ':', e);
+        res.status(500).json({ error: 'Vault export failed' });
     }
 });
 
