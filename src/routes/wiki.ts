@@ -45,7 +45,6 @@ router.get('/', async (req: TenantRequest, res: Response) => {
         });
     } catch (err: any) {
         console.error('[Wiki API] Failed to fetch wiki pages:', err.message);
-        console.error('[wiki] ' + 'Failed to fetch wiki pages' + ':', err);
         res.status(500).json({ error: 'Failed to fetch wiki pages' });
     }
 });
@@ -94,7 +93,6 @@ router.get('/:entityId', async (req: TenantRequest, res: Response) => {
         return res.status(404).json({ error: 'Entity or Wiki page not found', entityId });
     } catch (err: any) {
         console.error('[Wiki API] Failed to fetch wiki page:', err.message);
-        console.error('[wiki] ' + 'Failed to fetch wiki page' + ':', err);
         res.status(500).json({ error: 'Failed to fetch wiki page' });
     }
 });
@@ -117,8 +115,8 @@ router.put('/:entityId', async (req: TenantRequest, res: Response) => {
         }
 
         const { title, bodyMd, changeSummary } = parseResult.data;
-        const authorId = (req as any).auth?.userId || 'system_user';
-        const authorName = (req as any).auth?.sessionClaims?.name || (req as any).auth?.userId || 'Knowledge Contributor';
+        const authorId = (req as any).auth?.userId || (req as any).auth?.sub || 'system_user';
+        const authorName = (req as any).auth?.sessionClaims?.name || (req as any).auth?.userId || (req as any).auth?.sub || 'Knowledge Contributor';
         const slug = slugify(title);
 
         // Check existing page
@@ -188,7 +186,6 @@ router.put('/:entityId', async (req: TenantRequest, res: Response) => {
         });
     } catch (err: any) {
         console.error('[Wiki API] Failed to save wiki page:', err.message);
-        console.error('[wiki] ' + 'Failed to save wiki page' + ':', err);
         res.status(500).json({ error: 'Failed to save wiki page' });
     }
 });
@@ -214,7 +211,6 @@ router.get('/:entityId/history', async (req: TenantRequest, res: Response) => {
         res.json({ revisions: result.rows });
     } catch (err: any) {
         console.error('[Wiki API] Failed to fetch wiki history:', err.message);
-        console.error('[wiki] ' + 'Failed to fetch wiki history' + ':', err);
         res.status(500).json({ error: 'Failed to fetch wiki history' });
     }
 });
@@ -242,7 +238,6 @@ router.get('/:entityId/revisions/:version', async (req: TenantRequest, res: Resp
         res.json({ revision: result.rows[0] });
     } catch (err: any) {
         console.error('[Wiki API] Failed to fetch revision:', err.message);
-        console.error('[wiki] ' + 'Failed to fetch revision' + ':', err);
         res.status(500).json({ error: 'Failed to fetch revision' });
     }
 });
@@ -270,7 +265,6 @@ router.delete('/:entityId', async (req: TenantRequest, res: Response) => {
         res.json({ message: 'Wiki page unpublished and removed from RAG knowledge store.' });
     } catch (err: any) {
         console.error('[Wiki API] Failed to delete wiki page:', err.message);
-        console.error('[wiki] ' + 'Failed to delete wiki page' + ':', err);
         res.status(500).json({ error: 'Failed to delete wiki page' });
     }
 });
