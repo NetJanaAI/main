@@ -63,7 +63,29 @@ export const replayGuard = async (req: Request, res: Response, next: NextFunctio
         });
     }
 
-    // --- 3. Nonce deduplication (replay prevention) ---
+    // --- 3. HMAC signature verification, before any Redis write so unsigned requests cannot fill the nonce store ---
+    // Signing input: "${timestamp}.${nonce}.${rawBody}"
+    const rawBody = (req as any).rawBody;
+    if (!rawBody) {
+        console.error('[ReplayGuard] rawBody not available — ensure express.json() verify callback is active.');
+        return res.status(500).json({ error: 'Internal Server Error: rawBody missing.' });
+    }
+
+    const signingInput = `${timestamp}.${nonce}.${rawBody}`;
+    const computedSig = crypto.createHmac('sha256', hmacSecret).update(signingInput, 'utf8').digest('hex');
+
+    try {
+        const expectedBuf = Buffer.from(computedSig, 'hex');
+        const receivedBuf = Buffer.from(signature, 'hex');
+        if (expectedBuf.length !== receivedBuf.length || !crypto.timingSafeEqual(expectedBuf, receivedBuf)) {
+            console.warn('[ReplayGuard] HMAC signature mismatch.');
+            return res.status(401).json({ error: 'Unauthorized', message: 'Invalid HMAC signature.' });
+        }
+    } catch {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Malformed signature value.' });
+    }
+
+    // --- 4. Nonce deduplication (replay prevention), only after the signature is valid ---
     const nonceKey = `${NONCE_KEY_PREFIX}${nonce}`;
     try {
         const redis = getRedis();
@@ -84,28 +106,6 @@ export const replayGuard = async (req: Request, res: Response, next: NextFunctio
             return res.status(503).json({ error: 'Service temporarily unavailable — replay guard offline.' });
         }
         console.warn('[ReplayGuard] Continuing without nonce dedup (dev mode, Redis unavailable).');
-    }
-
-    // --- 4. HMAC signature verification ---
-    // Signing input: "${timestamp}.${nonce}.${rawBody}"
-    const rawBody = (req as any).rawBody;
-    if (!rawBody) {
-        console.error('[ReplayGuard] rawBody not available — ensure express.json() verify callback is active.');
-        return res.status(500).json({ error: 'Internal Server Error: rawBody missing.' });
-    }
-
-    const signingInput = `${timestamp}.${nonce}.${rawBody}`;
-    const computedSig = crypto.createHmac('sha256', hmacSecret).update(signingInput, 'utf8').digest('hex');
-
-    try {
-        const expectedBuf = Buffer.from(computedSig, 'hex');
-        const receivedBuf = Buffer.from(signature, 'hex');
-        if (expectedBuf.length !== receivedBuf.length || !crypto.timingSafeEqual(expectedBuf, receivedBuf)) {
-            console.warn('[ReplayGuard] HMAC signature mismatch.');
-            return res.status(401).json({ error: 'Unauthorized', message: 'Invalid HMAC signature.' });
-        }
-    } catch {
-        return res.status(401).json({ error: 'Unauthorized', message: 'Malformed signature value.' });
     }
 
     next();

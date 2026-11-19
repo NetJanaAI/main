@@ -115,7 +115,7 @@ import { setupRecalibrationCron } from './lib/recalibration';
 import { tenantContext } from './middleware/tenant';
 import { HACanary } from './lib/canary';
 import { errorHandler } from './middleware/error-handler';
-import { register, getSystemHealth } from './lib/telemetry';
+import { register, getCachedSystemHealth, healthView } from './lib/telemetry';
 import { connection, decayRescoreQueue } from './lib/queue';
 import { setupScrapeWorker } from './workers/scrapeWorker';
 import { setupDlqWorker } from './workers/dlqWorker';
@@ -336,8 +336,8 @@ app.get('/metrics', async (req, res) => {
 
 
 app.get('/health', async (req, res) => {
-    const health = await getSystemHealth();
-    res.status(health.status === 'UP' ? 200 : 503).json(health);
+    const health = await getCachedSystemHealth();
+    res.status(health.status === 'UP' ? 200 : 503).json(healthView(health, req.headers.authorization));
 });
 
 // Pass io instance to request object middleware

@@ -82,7 +82,7 @@ export async function checkLegalSafety(url: string): Promise<boolean> {
 
         const robotsUrl = `${targetUrl.protocol}//${domain}/robots.txt`;
         try {
-            const robotsTxtResponse = await axios.get(robotsUrl, { timeout: 5000 });
+            const robotsTxtResponse = await axios.get(robotsUrl, { timeout: 5000, maxRedirects: 0, validateStatus: (status) => status === 200 });
             robots.setRobotsTxt(robotsTxtResponse.data);
 
             const canFetch = robots.isAllowed(url, 'B2BFrictionBot/1.0');
