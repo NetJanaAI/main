@@ -14,6 +14,7 @@ import Redis from 'ioredis';
 import { connection } from './lib/queue';
 import { requireSignedScreenshot } from './lib/signedScreenshot';
 import { relayWorkerEvent } from './lib/socketRooms';
+import { parseTrustProxy } from './lib/trustProxy';
 
 function corsOrigin(): string | string[] | boolean {
     const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
@@ -29,6 +30,7 @@ export async function createSharedApp() {
     await initDb();
 
     const app = express();
+    app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
     const httpServer = createServer(app);
     const io = new Server(httpServer, {
         cors: { origin: corsOrigin(), methods: ["GET", "POST"] }
