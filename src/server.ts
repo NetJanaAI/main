@@ -129,8 +129,10 @@ import { setupEntityEnrichmentWorker } from './workers/entityEnrichmentWorker';
 import { setupRagIndexWorker } from './workers/ragIndexWorker';
 import { replayGuard } from './middleware/replayGuard';
 import { socketAuthMiddleware } from './middleware/socketAuth';
+import { parseTrustProxy } from './lib/trustProxy';
 
 const app = express();
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 const httpServer = createServer(app);
 
 // Sentry Initialization

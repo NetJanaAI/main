@@ -64,7 +64,8 @@ export const ingestAuthGuard = async (req: any, res: Response, next: NextFunctio
         }
     }
 
-    if (!isLocalhost && !isAllowed && (process.env.NODE_ENV === 'production' || process.env.ENFORCE_INGEST_AUTH === 'true')) {
+    // Loopback is exempt only outside production: behind a proxy that is not trusted every client looks like loopback.
+    if (!(isLocalhost && isDev) && !isAllowed && (process.env.NODE_ENV === 'production' || process.env.ENFORCE_INGEST_AUTH === 'true')) {
         console.warn(`[IngestGuard] Blocked unauthorized IP: ${clientIp}`);
         return res.status(403).json({ error: 'Forbidden: IP not in allowlist' });
     }

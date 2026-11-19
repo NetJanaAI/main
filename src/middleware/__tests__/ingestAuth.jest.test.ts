@@ -119,6 +119,18 @@ describe('ingestAuthGuard', () => {
         expect(mockNext).not.toHaveBeenCalled();
     });
 
+    it('does not exempt loopback from the allowlist in production', async () => {
+        process.env.NODE_ENV = 'production';
+        process.env.ALLOWED_INGEST_IPS = '192.168.1.10';
+        mockReq.ip = '127.0.0.1';
+        (query as jest.Mock).mockResolvedValue({ rows: [] });
+
+        await ingestAuthGuard(mockReq, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(mockNext).not.toHaveBeenCalled();
+    });
+
     it('allows allowed IP from DB allowlist with proper HMAC and API Key', async () => {
         process.env.NODE_ENV = 'production';
         mockReq.ip = '192.168.1.50';
