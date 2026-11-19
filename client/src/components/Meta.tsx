@@ -33,7 +33,7 @@ export default function Meta({
       <meta property="twitter:description" content={description} />
       <meta property="twitter:image" content={image} />
 
-      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       <meta name="theme-color" content="#020813" />
     </Helmet>
   );

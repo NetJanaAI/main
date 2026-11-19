@@ -33,7 +33,9 @@ export default function TenderNotifications() {
   return (
     <div className="relative">
       <button 
+        type="button"
         onClick={toggleDropdown}
+        aria-label={unreadCount > 0 ? `Tender notifications, ${unreadCount} unread` : 'Tender notifications'}
         className="relative w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
       >
         <Bell className="w-4 h-4 text-white/60" />

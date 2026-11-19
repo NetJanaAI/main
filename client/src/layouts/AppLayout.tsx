@@ -106,7 +106,7 @@ export default function AppLayout() {
         {/* Top Header */}
         <header className="h-16 border-b border-white/5 bg-black/40 backdrop-blur-md flex items-center justify-between px-6 z-40">
           <div className="flex items-center gap-6">
-            <button className="lg:hidden text-white/40 hover:text-white" onClick={() => setIsMobileMenuOpen(true)}>
+            <button type="button" aria-label="Open menu" className="lg:hidden text-white/40 hover:text-white" onClick={() => setIsMobileMenuOpen(true)}>
               <Menu className="w-6 h-6" />
             </button>
             <div className="hidden lg:block">
@@ -155,7 +155,7 @@ export default function AppLayout() {
                <Shield className="w-8 h-8 text-[#00ffca]" strokeWidth={2.5} />
                <BrandMark variant="wordmark" className="h-9 w-auto" />
              </div>
-             <button onClick={() => setIsMobileMenuOpen(false)} className="text-white/40 hover:text-white"><X className="w-8 h-8" /></button>
+             <button type="button" aria-label="Close menu" onClick={() => setIsMobileMenuOpen(false)} className="text-white/40 hover:text-white"><X className="w-8 h-8" /></button>
           </div>
 
           <nav className="flex-1 space-y-6">
