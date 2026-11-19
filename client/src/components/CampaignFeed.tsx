@@ -109,7 +109,7 @@ export const CampaignFeed: React.FC = () => {
                 <Send className="w-4 h-4 text-primary" />
                 <h2 className="text-[10px] font-black text-primary uppercase tracking-[4px]">NetJana.AI Intelligence Feed</h2>
                 <div className="h-px flex-1 bg-primary/10 ml-4" />
-                <button onClick={fetchCapsules} className="p-3 glass-panel border-white/5 hover:border-primary/20 transition-all rounded-xl">
+                <button onClick={fetchCapsules} aria-label="Refresh" className="p-3 glass-panel border-white/5 hover:border-primary/20 transition-all rounded-xl">
                     <RefreshCw className={`w-3.5 h-3.5 text-white/40 group-hover:text-primary ${loading ? 'animate-spin text-primary' : ''}`} />
                 </button>
             </div>

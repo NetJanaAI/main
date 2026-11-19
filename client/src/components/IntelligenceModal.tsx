@@ -76,7 +76,7 @@ export default function IntelligenceModal({ leadId, onClose }: IntelligenceModal
             </div>
             <p className="text-white/40 font-medium text-sm font-data">{data.geo_state} · {data.sector || 'General Industry'} · {data.procurement_category}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/20 hover:text-white">
+          <button onClick={onClose} aria-label="Close" className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/20 hover:text-white">
             <X className="w-6 h-6" />
           </button>
         </div>

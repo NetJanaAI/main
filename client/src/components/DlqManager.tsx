@@ -108,6 +108,7 @@ const DlqManager: React.FC = () => {
                         </div>
                         <button 
                             onClick={fetchDlq}
+                            aria-label="Refresh"
                             className="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/40 hover:text-white"
                         >
                             <RefreshCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />

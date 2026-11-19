@@ -52,7 +52,7 @@ export default function Login() {
         </div>
 
         <div className="mt-6 border-t border-white/10 pt-5 text-[10px] uppercase tracking-[0.2em] text-white/30 leading-relaxed">
-          Local dev mode uses a mock signed-in user until real Clerk keys are provided.
+          Local development uses a placeholder user until Clerk keys are configured.
         </div>
       </main>
     </div>

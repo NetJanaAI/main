@@ -184,6 +184,7 @@ const SecurityDashboard: React.FC = () => {
                         </div>
                         <button 
                             onClick={fetchSecurityData}
+                            aria-label="Refresh"
                             className="p-2 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"
                         >
                             <RefreshCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />

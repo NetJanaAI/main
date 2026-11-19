@@ -93,7 +93,7 @@ export const CampaignTracker: React.FC = () => {
                     >
                         {showROI ? 'Close ROI Engine' : 'Campaign ROI Engine'}
                     </button>
-                    <button onClick={fetchCampaigns} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
+                    <button onClick={fetchCampaigns} aria-label="Refresh" className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
                         <RefreshCw className={`w-4 h-4 text-white/60 ${loading ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
