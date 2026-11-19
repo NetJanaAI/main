@@ -8,7 +8,6 @@ const client = {
 jest.mock('pg', () => ({ Pool: jest.fn(() => ({ connect: async () => client, on: jest.fn(), query: jest.fn() })) }));
 
 process.env.DATABASE_URL = 'postgres://u:p@localhost:5432/db';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const database = require('../database');
 
 beforeEach(() => { calls.length = 0; client.query.mockClear(); client.release.mockClear(); });
