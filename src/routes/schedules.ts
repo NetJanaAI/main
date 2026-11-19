@@ -28,7 +28,8 @@ router.get('/', async (req: TenantRequest, res) => {
         `, [orgId]);
         res.json(result.rows);
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[schedules] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -56,7 +57,8 @@ router.post('/', async (req: TenantRequest, res) => {
         addSchedule(schedule); // Register in the in-memory scheduler
         res.json(schedule);
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[schedules] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -75,7 +77,8 @@ router.delete('/:id', async (req: TenantRequest, res) => {
         removeSchedule(id);
         res.json({ message: `Schedule for ${result.rows[0].domain} removed.` });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[schedules] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

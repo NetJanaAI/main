@@ -31,7 +31,8 @@ router.get('/', async (req: TenantRequest, res) => {
             limit
         });
     } catch (e: any) {
-        res.status(500).json({ error: 'Database query failed', details: e.message });
+        console.error('[results] ' + 'Database query failed' + ':', e);
+        res.status(500).json({ error: 'Database query failed' });
     }
 });
 
@@ -75,7 +76,8 @@ router.get('/report/:jobId', async (req: TenantRequest, res) => {
     } catch (e: any) {
         console.error('PDF Generation failed:', e);
         if (!res.headersSent) {
-            res.status(500).json({ error: 'PDF Generation failed', details: e.message });
+            console.error('[results] ' + 'PDF Generation failed' + ':', e);
+            res.status(500).json({ error: 'PDF Generation failed' });
         }
     }
 });
@@ -119,7 +121,8 @@ router.get('/capsule/:jobId', async (req: TenantRequest, res) => {
     } catch (e: any) {
         console.error('Capsule Generation failed:', e);
         if (!res.headersSent) {
-            res.status(500).json({ error: 'Capsule Generation failed', details: e.message });
+            console.error('[results] ' + 'Capsule Generation failed' + ':', e);
+            res.status(500).json({ error: 'Capsule Generation failed' });
         }
     }
 });
@@ -136,7 +139,8 @@ router.get('/:domain', async (req: TenantRequest, res) => {
         );
         res.json(result ? result.rows : []);
     } catch (e: any) {
-        res.status(500).json({ error: 'Database query failed', details: e.message });
+        console.error('[results] ' + 'Database query failed' + ':', e);
+        res.status(500).json({ error: 'Database query failed' });
     }
 });
 

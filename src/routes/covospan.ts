@@ -35,7 +35,8 @@ router.get('/config', async (req: any, res: Response) => {
         );
         res.json({ config: result.rows[0] || null });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[covospan] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -75,7 +76,8 @@ router.post('/config', async (req: any, res: Response) => {
         );
         res.json({ success: true, message: 'ConvoSpan endpoint configured.' });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[covospan] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -92,7 +94,8 @@ router.delete('/config', async (req: any, res: Response) => {
         );
         res.json({ success: true, message: 'ConvoSpan sync disabled.' });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[covospan] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -141,7 +144,8 @@ router.get('/log', async (req: any, res: Response) => {
             offset
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[covospan] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -206,7 +210,8 @@ router.get('/stats', async (req: any, res: Response) => {
             recent_failures: recentFailures.rows,
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[covospan] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -233,7 +238,8 @@ router.post('/push/:leadId', async (req: any, res: Response) => {
 
         res.json({ status: 'push_queued', lead_id: leadId });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[covospan] Request failed:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 

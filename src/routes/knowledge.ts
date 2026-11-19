@@ -48,7 +48,8 @@ router.post('/query', async (req: TenantRequest, res: Response) => {
         res.json(result);
     } catch (err: any) {
         console.error('[Knowledge API] Query failed:', err.message);
-        res.status(500).json({ error: 'RAG query failed', details: err.message });
+        console.error('[knowledge] ' + 'RAG query failed' + ':', err);
+        res.status(500).json({ error: 'RAG query failed' });
     }
 });
 
@@ -108,7 +109,8 @@ router.post('/upload', upload.single('file'), async (req: TenantRequest, res: Re
         });
     } catch (error: any) {
         console.error('[Knowledge API] Upload failed:', error.message);
-        res.status(500).json({ error: 'Failed to process document', details: error.message });
+        console.error('[knowledge] ' + 'Failed to process document' + ':', error);
+        res.status(500).json({ error: 'Failed to process document' });
     }
 });
 
@@ -179,7 +181,8 @@ router.delete('/sources/:sourceId', async (req: TenantRequest, res: Response) =>
         res.json({ message: `Source "${sourceId}" successfully purged from knowledge base.` });
     } catch (err: any) {
         console.error('[Knowledge API] Delete source error:', err.message);
-        res.status(500).json({ error: 'Failed to delete source', details: err.message });
+        console.error('[knowledge] ' + 'Failed to delete source' + ':', err);
+        res.status(500).json({ error: 'Failed to delete source' });
     }
 });
 

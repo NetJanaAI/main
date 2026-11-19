@@ -8,13 +8,16 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
       Method: ${req.method}
     `);
 
+    const isProduction = process.env.NODE_ENV === 'production';
+    const status = isProduction && !(err.status >= 400 && err.status < 500) ? 500 : err.status || 500;
+
     // Standardized production-grade error response
-    res.status(err.status || 500).json({
-        error: err.name || 'InternalServerError',
-        message: process.env.NODE_ENV === 'production' 
-            ? 'An unexpected error occurred in the intelligence cluster.' 
+    res.status(status).json({
+        error: isProduction ? 'InternalServerError' : err.name || 'InternalServerError',
+        message: isProduction
+            ? 'An unexpected error occurred in the intelligence cluster.'
             : err.message,
-        code: err.code || 'UNKNOWN_ERROR',
+        code: isProduction ? 'UNKNOWN_ERROR' : err.code || 'UNKNOWN_ERROR',
         timestamp: new Date().toISOString()
     });
 }
