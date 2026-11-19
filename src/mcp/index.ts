@@ -7,8 +7,14 @@ import {
     ReadResourceRequestSchema
 } from "@modelcontextprotocol/sdk/types.js";
 import { scrapeB2BSignals } from "../engines/b2bScraper.js";
-import { query } from "../lib/database.js";
+import { queryWithOrg } from "../lib/database.js";
 import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * The stdio client is not a tenant, so the server is bound to one organization through MCP_ORG_ID
+ * and every query runs inside that organization's row-level security context.
+ */
+const mcpOrgId = (): string | undefined => process.env.MCP_ORG_ID?.trim() || undefined;
 
 const server = new Server(
     {
@@ -74,7 +80,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         case "get_campaign_status": {
             const domain = request.params.arguments?.domain as string;
             const sql = domain ? "SELECT * FROM campaigns WHERE domain = $1" : "SELECT * FROM campaigns";
-            const res = await query(sql, domain ? [domain] : []);
+            const res = await queryWithOrg(sql, domain ? [domain] : [], mcpOrgId());
             return {
                 content: [{ type: "text", text: JSON.stringify(res.rows, null, 2) }]
             };
@@ -105,7 +111,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
  */
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     if (request.params.uri === "history://latest") {
-        const res = await query("SELECT * FROM scrape_results ORDER BY timestamp DESC LIMIT 5");
+        const res = await queryWithOrg("SELECT * FROM scrape_results ORDER BY timestamp DESC LIMIT 5", [], mcpOrgId());
         return {
             contents: [{
                 uri: request.params.uri,
@@ -118,6 +124,10 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 });
 
 export async function startMcpServer() {
+    if (!mcpOrgId()) {
+        console.error("NetJana MCP Server not started: set MCP_ORG_ID to the organization it should serve.");
+        return;
+    }
     try {
         const transport = new StdioServerTransport();
         await server.connect(transport);
