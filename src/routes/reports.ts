@@ -1,16 +1,9 @@
 import express from 'express';
 import { queryWithOrg } from '../lib/database';
 import PDFDocument from 'pdfkit';
+import { escapeCsvValue } from '../lib/csv';
 
 const router = express.Router();
-
-function escapeCsvValue(val: string): string {
-    const trimmed = (val || '').trim();
-    if (trimmed.startsWith('=') || trimmed.startsWith('+') || trimmed.startsWith('-') || trimmed.startsWith('@')) {
-        return `'${trimmed}`;
-    }
-    return val || '';
-}
 
 router.get('/export', async (req: any, res) => {
     const orgId = req.organizationId;

@@ -85,7 +85,6 @@ router.get('/match', async (req, res) => {
 
     } catch (error: any) {
         console.error('[Leads Match Error]', error);
-        console.error('[Route] InternalError:', error);
         res.status(500).json({ error: 'InternalError' });
     }
 });

@@ -118,7 +118,6 @@ router.get('/:id/export/roi-report', async (req, res) => {
 
     } catch (error: any) {
         console.error(`[ROIExport] Error:`, error.message);
-        console.error('[Route] ExportFailed:', error);
         res.status(500).json({ error: 'ExportFailed' });
     }
 });

@@ -3,6 +3,7 @@ import { queryWithOrg } from '../lib/database';
 import { TenantRequest } from '../middleware/tenant';
 import crypto from 'crypto';
 import { getHmacSecret } from '../lib/secrets';
+import { csvField } from '../lib/csv';
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.get('/export', async (req: TenantRequest, res: Response) => {
         // Generate CSV content
         const headers = 'domain,friction_score,geo_country,estimated_roi,timestamp';
         const rows = result.rows.map(row => 
-            `${row.domain},${row.friction_score},${row.geo_country},${row.estimated_roi},${row.timestamp}`
+            [row.domain, row.friction_score, row.geo_country, row.estimated_roi, row.timestamp].map(csvField).join(',')
         ).join('\n');
         
         const csvContent = `${headers}\n${rows}`;
@@ -54,7 +55,6 @@ router.get('/export', async (req: TenantRequest, res: Response) => {
         
     } catch (e: any) {
         console.error('[Vault API] Export failed:', e.message);
-        console.error('[vault] ' + 'Vault export failed' + ':', e);
         res.status(500).json({ error: 'Vault export failed' });
     }
 });
