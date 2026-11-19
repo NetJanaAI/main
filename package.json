@@ -70,7 +70,6 @@
     "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
-    "@types/express-rate-limit": "^6.0.0",
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.1.0",
     "@types/node": "^20.10.5",
