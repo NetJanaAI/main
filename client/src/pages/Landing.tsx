@@ -175,7 +175,6 @@ export function TerminalExperience() {
           <div className="space-y-4">
             {[
               { val: stats.total.toLocaleString(), label: "INDEXED_NODES" },
-              { val: "42ms", label: "avg_packet_latency" },
               { val: (stats.alpha_sum / 1000).toFixed(1) + "k", label: "aggregate_alpha" },
               { val: stats.today.toLocaleString(), label: "signals_intercepted_today" }
             ].map((stat) => (
@@ -297,7 +296,7 @@ export function TerminalExperience() {
       {/* System Features Matrix */}
       <section id="protocol" className="relative z-10 px-4 py-16 grid md:grid-cols-3 gap-4 border-t border-white/10 bg-black/40 font-data">
         {[
-          { icon: Zap, label: "LATENCY_ZERO", desc: "Interceptors scan GeM/MCA clusters in < 200ms." },
+          { icon: Zap, label: "ALWAYS_ON", desc: "Interceptors watch GeM and MCA sources continuously." },
           { icon: Cpu, label: "ADVERSARIAL_AUDIT", desc: "Multi-agent consensus scoring before terminal display." },
           { icon: Activity, label: "PREDICTIVE_VECTORS", desc: "Intent graphs map funding ahead of RFP publication." },
         ].map((feat) => (
@@ -393,9 +392,9 @@ function ProductDashboardPreview() {
               <div className="text-sm font-black uppercase tracking-[0.16em] text-white">Signal Orchestration</div>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]" />
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300">Live Agents</span>
+          <div className="flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">Illustrative preview, sample data</span>
           </div>
         </div>
 
