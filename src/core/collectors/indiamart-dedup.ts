@@ -6,12 +6,12 @@ import { v4 as uuidv4 } from 'uuid';
 const DEDUP_TTL_SECONDS = 2592000; // 30 days
 const DEDUP_PREFIX = 'seen:indiamart:';
 
-export async function isIndiaMArtDuplicate(lead: any): Promise<boolean> {
+export async function isIndiaMArtDuplicate(lead: any, organizationId: string): Promise<boolean> {
     // Layer 1: IndiaMART's own query_id (most reliable)
     // Mapping query_id if it comes as QUERY_ID
     const qid = lead.query_id || lead.QUERY_ID;
     if (qid) {
-        const key = `${DEDUP_PREFIX}qid:${qid}`;
+        const key = `${DEDUP_PREFIX}${organizationId}:qid:${qid}`;
         // Upstash opts: { ex: seconds, nx: true }
         const seen = await cache.set(key, '1', { ex: DEDUP_TTL_SECONDS, nx: true });
         if (!seen) {
@@ -23,7 +23,7 @@ export async function isIndiaMArtDuplicate(lead: any): Promise<boolean> {
 
     // Layer 2: No query_id — build content fingerprint
     const fingerprint = buildContentFingerprint(lead);
-    const key = `${DEDUP_PREFIX}fp:${fingerprint}`;
+    const key = `${DEDUP_PREFIX}${organizationId}:fp:${fingerprint}`;
     const seen = await cache.set(key, '1', { ex: DEDUP_TTL_SECONDS, nx: true });
 
     if (!seen) {
@@ -52,11 +52,11 @@ function buildContentFingerprint(lead: any): string {
 }
 
 export async function safeQueueIndiaMARTLead(lead: any, organizationId: string): Promise<void> {
-    const isDuplicate = await isIndiaMArtDuplicate(lead);
+    const isDuplicate = await isIndiaMArtDuplicate(lead, organizationId);
     const today = new Date().toISOString().slice(0, 10);
 
     if (isDuplicate) {
-        await cache.incr(`stats:dedup:indiamart:${today}`);
+        await cache.incr(`stats:dedup:indiamart:${organizationId}:${today}`);
         return; // silently skip
     }
 
@@ -72,10 +72,10 @@ export async function safeQueueIndiaMARTLead(lead: any, organizationId: string):
 
     console.log(`[Collector] New IndiaMART Lead queued for ingestion: ${lead.query_id || lead.QUERY_ID} -> Job: ${ingestJobId}`);
 
-    await cache.incr(`stats:queued:indiamart:${today}`);
+    await cache.incr(`stats:queued:indiamart:${organizationId}:${today}`);
 }
 
-export async function getDedupStats(days = 7): Promise<any[]> {
+export async function getDedupStats(organizationId: string, days = 7): Promise<any[]> {
     const stats = [];
     for (let i = 0; i < days; i++) {
         const d = new Date();
@@ -83,8 +83,8 @@ export async function getDedupStats(days = 7): Promise<any[]> {
         const key = d.toISOString().slice(0, 10);
 
         const [queued, duped] = await Promise.all([
-            cache.get<string>(`stats:queued:indiamart:${key}`),
-            cache.get<string>(`stats:dedup:indiamart:${key}`),
+            cache.get<string>(`stats:queued:indiamart:${organizationId}:${key}`),
+            cache.get<string>(`stats:dedup:indiamart:${organizationId}:${key}`),
         ]);
 
         const q = parseInt(queued || '0');
