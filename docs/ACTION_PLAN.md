@@ -57,7 +57,7 @@ Merge order: #28, #29, #30, then #27 (the page reads fields that #30 adds; it sh
 | 2.13 | **Unbounded input**: `limit` and `page` uncapped on results; multer without a size limit and no row cap on watch-profile CSV. | `routes/results.ts:12`, `routes/watch-profiles.ts:16` | Verified (results) | Cap `limit` at about 200, clamp `page`, set multer limits and a row cap |
 | 2.14 | **Public share links cannot be revoked** (7-day lead links, 30-day ROI links) and the lead payload is `SELECT *` masked by regex. | `core/ShareService.ts`, `routes/share.ts:55`, `routes/campaigns.ts:96` | Reported | Column allowlist, revoke endpoint, shorter expiry |
 | 2.15 | **MCP server has no tenant context** and reads all tenants' campaigns and results. | `mcp/index.ts:65,102` | Reported | Require an org id at startup and use `queryWithOrg`, or do not ship it |
-| 2.16 | Smaller: `replayGuard` sets the nonce before verifying the signature (Redis flood); `/health` and `/metrics` open and costly (new Redis connection per call, leaks env var names); telemetry aggregates across tenants; vault CSV export lacks formula-injection escaping (reuse `escapeCsvValue`); wiki author always `system_user` (reads `userId`, token carries `sub`); `sentinel/compliance.ts:85` fetches robots.txt with a redirect-following `axios.get`. | listed files | Reported | Mostly done (vault CSV, wiki author in #40; `replayGuard` order, `/health` detail and cost, robots redirect here); telemetry tenant aggregation remains |
+| 2.16 | Smaller: `replayGuard` sets the nonce before verifying the signature (Redis flood); `/health` and `/metrics` open and costly (new Redis connection per call, leaks env var names); telemetry aggregates across tenants; vault CSV export lacks formula-injection escaping (reuse `escapeCsvValue`); wiki author always `system_user` (reads `userId`, token carries `sub`); `sentinel/compliance.ts:85` fetches robots.txt with a redirect-following `axios.get`. | listed files | Reported | Done (#40, #49, #50): vault CSV, wiki author, `replayGuard` order, `/health` detail and cost, robots redirect, telemetry and IndiaMART dedup scoped per tenant |
 
 ## 3. Phase 2: correctness and data loss
 
@@ -92,7 +92,7 @@ Merge order: #28, #29, #30, then #27 (the page reads fields that #30 adds; it sh
 | 4.6 | **Hard-coded URLs and third parties**: `Meta.tsx` canonical is the Vercel hostname, `ApiManager` shows `api.netjana.ai`, Login hotlinks an Unsplash image, Google Fonts imported at runtime. | `Meta.tsx:14`, `ApiManager.tsx:366`, `Login.tsx:12`, `index.css:2` | Reported | Env-driven URLs (decision 4); self-host font and image |
 | 4.7 | **Bundle**: all 13 pages imported eagerly, no `manualChunks`. | `routes.tsx`, `vite.config.ts` | Reported | Done for routes (`React.lazy` per page); `manualChunks` not added |
 | 4.8 | **Accessibility and polish**: few labels on icon buttons, very small text, `window.confirm` auth prompts, leftover template files (`react.svg`, `App.css`), "mock signed-in user" copy. | various | Reported | Partly done: template files removed, accessible names on icon-only buttons, login copy; axe audit, small text and `window.confirm` prompts remain |
-| 4.9 | **No client tests.** | `client/` | Reported | Start with auth gating and the API client |
+| 4.9 | **No client tests.** | `client/` | Started (#53): runner, `RequireAuth` and demo-gate tests; API client tests wait on 4.4 |
 
 ## 5. Phase 4: build, deploy, dependencies
 
