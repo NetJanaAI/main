@@ -105,7 +105,7 @@ Merge order: #28, #29, #30, then #27 (the page reads fields that #30 adds; it sh
 | 5.5 | **Compose**: dev credentials `netjana:netjana`, Postgres and Redis published on all interfaces, Redis without a password, `pgbouncer/userlist.txt` tracked with plain auth, prod publishes 6432 and 4000, images on `:latest` or `main-latest`, obsolete `version:`. | Reported | Bind to `127.0.0.1`, template the userlist, scram auth, pin images. Treat any real credential in `userlist.txt` as exposed and rotate it |
 | 5.6 | **CI gaps**: no `npm audit`, no backend ESLint, no Docker build or image scan, actions tag-pinned. | Partly done | `npm audit` (high) and a `docker build` job added; backend lint and SHA-pinned actions remain |
 | 5.7 | **Unused dependencies**: root `concurrently`, `clsx`, `tailwind-merge`, `lucide-react`, `langchain`, `@langchain/community`; client `zod`, `clsx`, `tailwind-merge`, `@supabase/supabase-js`; wildcard `robots-txt-parser: "*"`; stale `@types` packages; `.npmrc` hides peer conflicts. | Reported | Prune after a build and test run; pin the wildcard |
-| 5.8 | **Server CSP** allows `localhost:3001` in production; `vite.config.ts` proxies to 3001 while the server defaults to 3000. | Reported | Make the CSP entries dev-only; align the port |
+| 5.8 | **Server CSP** allows `localhost:3001` in production; `vite.config.ts` proxies to 3001 while the server defaults to 3000. | Done | CSP localhost entries only outside production; Vite proxy points at 3000 |
 
 ## 6. Phase 5: docs and repo cleanup
 
