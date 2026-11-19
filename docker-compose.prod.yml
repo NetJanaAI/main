@@ -105,9 +105,9 @@ services:
       - NETJANA_HMAC_SECRET=${NETJANA_HMAC_SECRET}
       - PUSHER_MAX_RETRIES=5
       - PUSHER_TIMEOUT_SEC=15
-    # P1-E Fix: Added healthcheck so Docker can detect crashes and auto-restart.
+    # The pusher serves no HTTP, so health is "the daemon process is running".
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "pgrep -x push > /dev/null"]
       interval: 30s
       timeout: 5s
       retries: 3
