@@ -105,7 +105,7 @@ export function setupGeminiWorkers(io: Server) {
     // TIER_2 WORKER (3/4-Prompt Full Chain using ModelAPI)
     // ---------------------------------------------------------
     const tier2Worker = new Worker(TIER2_QUEUE_NAME, async (job: Job) => {
-        const { signal, is_triangulated, triangulated_sources } = job.data;
+        const { signal, is_triangulated, triangulated_sources, enriched } = job.data;
         const dateStr = new Date().toISOString().split('T')[0];
         const spendKey = `gemini_calls:${dateStr}`;
 
@@ -174,7 +174,7 @@ OUT: { "procurement_category": "str", "procurement_timeline": "enum", "buying_st
 
         if (!qualResult) throw new Error('Unparseable Qualifier output');
 
-        if (qualResult.confidence === 'LOW') {
+        if (qualResult.confidence === 'LOW' && !enriched) {
             await tier3Queue.add('enrichment_pool', { ...job.data, org_id: orgId });
             return { status: 'downgraded_to_tier3' };
         }
