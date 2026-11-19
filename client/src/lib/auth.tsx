@@ -34,19 +34,22 @@ const isDummyPublishableKey =
 // so ClerkProvider etc. are no-ops. Auth state comes from localStorage.
 export const isFallbackAuthActive = isDummyPublishableKey;
 
+// A stored demo flag is honoured only where demo auth is allowed, so a production
+// build without a Clerk key cannot be unlocked by setting localStorage by hand.
+const demoAuthAllowed =
+  import.meta.env.DEV ||
+  import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true' ||
+  import.meta.env.VITE_ALLOW_DEMO_AUTH === 'true';
+
 const isDemoAuthStored =
+  demoAuthAllowed &&
   typeof window !== 'undefined' &&
   window.localStorage?.getItem('netjana_demo_auth') === 'true';
 
 export const isDemoSessionActive = isDemoAuthStored;
 
 // In fallback mode: signed in if in dev, or if user clicked "Enter Demo Mode"
-const fallbackSignedIn =
-  isFallbackAuthActive &&
-  (import.meta.env.DEV ||
-    import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true' ||
-    import.meta.env.VITE_ALLOW_DEMO_AUTH === 'true' ||
-    isDemoAuthStored);
+const fallbackSignedIn = isFallbackAuthActive && demoAuthAllowed;
 
 // ---------------------------------------------------------------------------
 // AuthProvider
