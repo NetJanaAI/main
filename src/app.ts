@@ -8,7 +8,7 @@ import { SecureLogger } from './utils/logger';
 import { initDb } from './lib/database';
 import { setupScrapeWorker } from './workers/scrapeWorker';
 import { tenantContext } from './middleware/tenant';
-import { register, getSystemHealth } from './lib/telemetry';
+import { register, getCachedSystemHealth, healthView } from './lib/telemetry';
 import Redis from 'ioredis';
 import { connection } from './lib/queue';
 import { requireSignedScreenshot } from './lib/signedScreenshot';
@@ -63,8 +63,8 @@ export async function createSharedApp() {
     });
 
     app.get('/health', async (req, res) => {
-        const health = await getSystemHealth();
-        res.status(health.status === 'UP' ? 200 : 503).json(health);
+        const health = await getCachedSystemHealth();
+        res.status(health.status === 'UP' ? 200 : 503).json(healthView(health, req.headers.authorization));
     });
 
     // Middleware

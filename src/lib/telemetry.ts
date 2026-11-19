@@ -41,6 +41,24 @@ export const llmCallDuration = new Histogram({
 
 // --- Health Checks ---
 
+const HEALTH_CACHE_MS = 5000;
+let healthCache: { at: number; value: Awaited<ReturnType<typeof getSystemHealth>> } | null = null;
+
+/** Public probes share one result for a few seconds so they cannot be used to open Redis and Postgres connections at will. */
+export async function getCachedSystemHealth() {
+    if (healthCache && Date.now() - healthCache.at < HEALTH_CACHE_MS) return healthCache.value;
+    const value = await getSystemHealth();
+    healthCache = { at: Date.now(), value };
+    return value;
+}
+
+/** Callers without the metrics token see the status only, not configuration, env var names or error text. */
+export function healthView(health: { status: string; timestamp: string }, authorizationHeader: string | undefined) {
+    const token = process.env.METRICS_BEARER_TOKEN;
+    if (token && authorizationHeader === `Bearer ${token}`) return health;
+    return { status: health.status, timestamp: health.timestamp };
+}
+
 export async function getSystemHealth() {
     const isProduction = process.env.NODE_ENV === 'production';
     const modelProvider = process.env.GOOGLE_API_KEY ? 'google-gemini' : process.env.OLLAMA_HOST ? 'ollama' : 'demo-fallback';
