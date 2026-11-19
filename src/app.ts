@@ -3,6 +3,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { SecureLogger } from './utils/logger';
 import { initDb } from './lib/database';
@@ -14,6 +15,12 @@ import { connection } from './lib/queue';
 import { requireSignedScreenshot } from './lib/signedScreenshot';
 import { relayWorkerEvent } from './lib/socketRooms';
 
+function corsOrigin(): string | string[] | boolean {
+    const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean);
+    if (allowed.length) return allowed;
+    return process.env.NODE_ENV === 'production' ? false : true;
+}
+
 export async function createSharedApp() {
     // Initialize Secure Logger
     SecureLogger.init();
@@ -24,7 +31,7 @@ export async function createSharedApp() {
     const app = express();
     const httpServer = createServer(app);
     const io = new Server(httpServer, {
-        cors: { origin: "*", methods: ["GET", "POST"] }
+        cors: { origin: corsOrigin(), methods: ["GET", "POST"] }
     });
 
     // Initialize Persistent Worker locally ONLY if not purely an API node
@@ -49,16 +56,21 @@ export async function createSharedApp() {
         console.error('[API] Failed to initialize Redis subscriber for worker_events');
     }
 
-    app.use(cors());
+    app.use(helmet());
+    app.use(cors({ origin: corsOrigin(), credentials: true }));
     app.use(express.json());
 
     // --- Observability Endpoints (Shared) ---
     app.get('/metrics', async (req, res) => {
+        const metricsToken = process.env.METRICS_BEARER_TOKEN;
+        if (metricsToken ? req.headers.authorization !== `Bearer ${metricsToken}` : process.env.NODE_ENV === 'production') {
+            return res.status(401).set('WWW-Authenticate', 'Bearer realm="metrics"').end('Unauthorized');
+        }
         try {
             res.set('Content-Type', register.contentType);
             res.end(await register.metrics());
         } catch (e) {
-            res.status(500).end(e);
+            res.status(500).end('Metrics unavailable');
         }
     });
 

@@ -5,6 +5,7 @@ import resultsRoutes from '../../routes/results';
 import { Feature } from '../../config/featureFlags';
 import { modeGuard } from '../../middleware/modeGuard';
 import { featureGate } from '../../standalone/middleware/featureGate';
+import { tenantUser } from '../../standalone/middleware/tenantUser';
 import shareRoutes from '../../routes/share';
 import leadRoutes from '../../routes/leads';
 import campaignRoutes from '../../routes/campaigns';
@@ -21,19 +22,11 @@ async function bootstrap() {
 
     console.log("[Standalone] Booting Public SaaS Cockpit...");
 
-    // SaaS Routes (Freemium Gated)
-    // Default tenant assignment ensuring execution logic binds to a valid generic state.
-    app.use((req, res, next) => {
-        (req as any).user = { 
-            organizationId: req.headers['x-organization-id'] || 'demo_standalone_org',
-            tier: req.headers['x-tier'] || 'free',
-            subscriptionId: req.headers['x-subscription-id'] || 'sub_fake_123'
-        };
-        next();
-    });
-
     // Public Share Routes (No Auth)
     app.use('/api/share', shareRoutes);
+
+    // Tenant, tier and subscription come from the authenticated session, never from headers
+    app.use('/api', tenantUser);
 
     // Apply Tenant Rate Limiting
     app.use('/api', tenantRateLimiter);
