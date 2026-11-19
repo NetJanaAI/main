@@ -275,12 +275,14 @@ startWorkers(io).then(workers => {
     _registeredWorkers = workers;
 });
 
+const devConnectSources = process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3001', 'ws://localhost:3001'];
+
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             "script-src": ["'self'", "'unsafe-inline'", "https://clerk.netjana.ai", "https://*.clerk.accounts.dev"],
-            "connect-src": ["'self'", "https://clerk.netjana.ai", "https://*.clerk.accounts.dev", "wss://*.clerk.accounts.dev", "http://localhost:3001", "ws://localhost:3001"],
+            "connect-src": ["'self'", "https://clerk.netjana.ai", "https://*.clerk.accounts.dev", "wss://*.clerk.accounts.dev", ...devConnectSources],
             "img-src": ["'self'", "data:", "https://img.clerk.com"],
             "worker-src": ["'self'", "blob:"]
         },
