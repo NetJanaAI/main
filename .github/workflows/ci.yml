@@ -28,6 +28,7 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm test
       - run: npx tsx scripts/verify-security.ts
+      - run: npm audit --omit=dev --audit-level=high
 
   client:
     runs-on: ubuntu-24.04
@@ -45,3 +46,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t netjana-backend .
