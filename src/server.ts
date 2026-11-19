@@ -78,7 +78,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { tenantRateLimiter, ipRateLimiter, scrapeLimiter, entitySearchLimiter } from './middleware/rateLimit';
+import { tenantRateLimiter, ipRateLimiter, intelIpRateLimiter, scrapeLimiter, entitySearchLimiter } from './middleware/rateLimit';
 import path from 'path';
 
 import scrapeRoutes from './routes/scrape';
@@ -381,7 +381,7 @@ app.use('/api/v1/ingest/csv', csvIngestRoutes);
 // NetJana Intel Pull API — external pull endpoint for full lead card details.
 // Mounted at /v1 (not /api) to clearly distinguish it from internal APIs.
 // Auth: x-api-key: NETJANA_PULL_API_KEY  |  Rate-limited: 60 req/min per key.
-app.use('/v1/intel', netjanaIntelRoutes);
+app.use('/v1/intel', intelIpRateLimiter, netjanaIntelRoutes);
 app.use('/share', shareRoutes);
 
 // Error Handling (Must be last)
