@@ -51,7 +51,7 @@ export const EntityOrganogram: React.FC<EntityOrganogramProps> = ({
             primaryTextColor: '#ffffff',
             lineColor: '#64748b',
           },
-          securityLevel: 'loose',
+          securityLevel: 'strict',
         });
 
         const renderId = `organogram_${entityId.replace(/[^a-zA-Z0-9_]/g, '_')}_${Date.now()}`;
