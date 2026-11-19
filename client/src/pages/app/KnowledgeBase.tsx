@@ -806,6 +806,7 @@ export const KnowledgeBase: React.FC = () => {
               <button
                 type="button"
                 onClick={fetchSourcesAndStats}
+                aria-label="Refresh sources"
                 disabled={sourcesLoading}
                 className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white"
               >

@@ -52,7 +52,7 @@ export default function Signals() {
                className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-[#00ffca]/50"
              />
           </div>
-          <button className="p-2 bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-white transition-colors">
+          <button aria-label="Filter signals" className="p-2 bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-white transition-colors">
             <Filter className="w-5 h-5" />
           </button>
         </div>
