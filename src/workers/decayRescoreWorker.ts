@@ -11,20 +11,20 @@ import { isFeatureEnabled, Feature } from '../config/featureFlags';
 export async function startDecayRescoreWorker(io: Server) {
     const worker = new Worker('decay-rescore', async (_job: Job) => {
         const BATCH_SIZE = 200;
-        let offset = 0;
+        let cursor: string | null = null;
         let totalProcessed = 0;
 
-        // OPS-01: Cursor-based batching — avoids loading all scrape_results into memory at once.
-        // At 100k+ leads, a full SELECT would OOM the worker pod.
+        // OPS-01: Keyset batching — avoids loading all scrape_results into memory at once.
+        // Rows flip to Dead while we walk, so an OFFSET would skip the rows that shift into its place.
         while (true) {
             const leads = await query(
                 `SELECT job_id AS id, organization_id, domain AS company_name, domain AS url, 
                         base_score, signal_captured_at, decay_status, previous_decay_status
                  FROM scrape_results
-                 WHERE decay_status != 'Dead'
+                 WHERE decay_status != 'Dead' AND ($1::uuid IS NULL OR job_id > $1)
                  ORDER BY job_id
-                 LIMIT $1 OFFSET $2`,
-                [BATCH_SIZE, offset]
+                 LIMIT $2`,
+                [cursor, BATCH_SIZE]
             );
 
             if (leads.rows.length === 0) break;
@@ -101,55 +101,65 @@ export async function startDecayRescoreWorker(io: Server) {
 
             totalProcessed += leads.rows.length;
             if (leads.rows.length < BATCH_SIZE) break;
-            offset += BATCH_SIZE;
+            cursor = leads.rows[leads.rows.length - 1].id;
         }
 
         // M-06: Rescore lead_cards (signal-pipeline originated leads)
         // These were previously never rescored because the worker only queried scrape_results.
         try {
-            const pipelineLeads = await query(
-                `SELECT lead_id, org_id, company_name, intent_score, decay_score, created_at,
-                        COALESCE(decay_status, 'Hot') as decay_status
-                 FROM lead_cards
-                 WHERE COALESCE(decay_status, 'Hot') != 'Dead'`
-            );
-
-            for (const lead of pipelineLeads.rows) {
-                const decay = calculateDecay(parseFloat(lead.intent_score), new Date(lead.created_at));
-
-                const transitionedToCold = lead.decay_status === 'Warm' && decay.status === 'Cold';
-
-                await query(
-                    `UPDATE lead_cards SET 
-                        decay_score = $1,
-                        decay_status = $2,
-                        last_decay_calc = NOW()
-                     WHERE lead_id = $3`,
-                    [decay.decayedScore, decay.status, lead.lead_id]
+            let leadCursor: string | null = null;
+            while (true) {
+                const pipelineLeads = await query(
+                    `SELECT lead_id, org_id, company_name, intent_score, decay_score, created_at,
+                            COALESCE(decay_status, 'Hot') as decay_status
+                     FROM lead_cards
+                     WHERE COALESCE(decay_status, 'Hot') != 'Dead' AND ($1::uuid IS NULL OR lead_id > $1)
+                     ORDER BY lead_id
+                     LIMIT $2`,
+                    [leadCursor, BATCH_SIZE]
                 );
+                if (pipelineLeads.rows.length === 0) break;
 
-                if (transitionedToCold) {
-                    io.to(`org:${lead.org_id}`).emit('lead:re_engage_alert', {
-                        leadId: lead.lead_id,
-                        companyName: SecureLogger.maskPII(lead.company_name),
-                        daysSince: decay.daysSince,
-                        decayStatus: 'Cold',
-                        previousStatus: 'Warm',
-                        reengageUrl: `/leads/${lead.lead_id}`,
-                        source: 'pipeline'
-                    });
-                }
+                for (const lead of pipelineLeads.rows) {
+                    const decay = calculateDecay(parseFloat(lead.intent_score), new Date(lead.created_at));
 
-                if (decay.status === 'Dead') {
-                    // Archive dead pipeline leads (soft delete via status)
+                    const transitionedToCold = lead.decay_status === 'Warm' && decay.status === 'Cold';
+
                     await query(
-                        `UPDATE lead_cards SET decay_status = 'Dead', archived_at = NOW() WHERE lead_id = $1`,
-                        [lead.lead_id]
+                        `UPDATE lead_cards SET 
+                            decay_score = $1,
+                            decay_status = $2,
+                            last_decay_calc = NOW()
+                         WHERE lead_id = $3`,
+                        [decay.decayedScore, decay.status, lead.lead_id]
                     );
-                    io.to(`org:${lead.org_id}`).emit('lead:archived', { leadId: lead.lead_id, source: 'pipeline' });
+
+                    if (transitionedToCold) {
+                        io.to(`org:${lead.org_id}`).emit('lead:re_engage_alert', {
+                            leadId: lead.lead_id,
+                            companyName: SecureLogger.maskPII(lead.company_name),
+                            daysSince: decay.daysSince,
+                            decayStatus: 'Cold',
+                            previousStatus: 'Warm',
+                            reengageUrl: `/leads/${lead.lead_id}`,
+                            source: 'pipeline'
+                        });
+                    }
+
+                    if (decay.status === 'Dead') {
+                        // Archive dead pipeline leads (soft delete via status)
+                        await query(
+                            `UPDATE lead_cards SET decay_status = 'Dead', archived_at = NOW() WHERE lead_id = $1`,
+                            [lead.lead_id]
+                        );
+                        io.to(`org:${lead.org_id}`).emit('lead:archived', { leadId: lead.lead_id, source: 'pipeline' });
+                    }
                 }
+
+                totalProcessed += pipelineLeads.rows.length;
+                if (pipelineLeads.rows.length < BATCH_SIZE) break;
+                leadCursor = pipelineLeads.rows[pipelineLeads.rows.length - 1].lead_id;
             }
-            totalProcessed += pipelineLeads.rows.length;
         } catch (e: any) {
             console.warn('[DecayWorker] lead_cards rescore failed (table may not have decay columns yet):', e.message);
         }
