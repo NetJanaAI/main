@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { queryWithOrg } from '../lib/database';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
@@ -13,7 +13,17 @@ const ProfileBody = z.object({
     regions: z.array(z.string().min(1).max(100)).max(100).optional(),
     min_amount: z.number().nonnegative().optional(),
 });
-const upload = multer({ storage: multer.memoryStorage() });
+const MAX_UPLOAD_BYTES = 1024 * 1024;
+const MAX_UPLOAD_ROWS = 500;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
+
+function acceptFile(req: Request, res: Response, next: NextFunction) {
+    upload.single('file')(req, res, (err: any) => {
+        if (!err) return next();
+        if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large' });
+        return res.status(400).json({ error: 'Invalid upload' });
+    });
+}
 
 // Get all watch profiles
 router.get('/', async (req: Request, res: Response) => {
@@ -57,7 +67,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // CSV Upload for Bulk Creation
-router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/upload', acceptFile, async (req: Request, res: Response) => {
     const orgId = (req as any).organizationId;
     if (!orgId) return res.status(400).json({ error: 'Organization ID required' });
 
@@ -71,11 +81,19 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
             skip_empty_lines: true
         });
 
+        if ((records as any[]).length > MAX_UPLOAD_ROWS) {
+            return res.status(400).json({ error: `Too many rows (maximum ${MAX_UPLOAD_ROWS})` });
+        }
+
         let successCount = 0;
         for (const row of records as any[]) {
-            const keywords = row.keywords ? row.keywords.split('|').map((k: string) => k.trim()) : [];
-            const regions = row.regions ? row.regions.split('|').map((r: string) => r.trim()) : [];
-            const min_amount = parseInt(row.min_amount) || 0;
+            const parsed = ProfileBody.safeParse({
+                keywords: row.keywords ? row.keywords.split('|').map((k: string) => k.trim()).filter(Boolean) : [],
+                regions: row.regions ? row.regions.split('|').map((r: string) => r.trim()).filter(Boolean) : [],
+                min_amount: Math.max(parseInt(row.min_amount) || 0, 0),
+            });
+            if (!parsed.success) continue;
+            const { keywords = [], regions = [], min_amount = 0 } = parsed.data;
 
             if (keywords.length > 0 || regions.length > 0) {
                 await queryWithOrg(
