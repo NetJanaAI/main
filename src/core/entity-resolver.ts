@@ -1,4 +1,3 @@
-import axios from 'axios';
 import crypto from 'crypto';
 import { cache } from '../lib/cache';
 import { query } from '../lib/database';
@@ -10,9 +9,9 @@ export async function resolveEntity(
     rawName: string,
     geoState: string,
     cinHint?: string | null,
-    rawNameAlias?: string | null,
-    sourceId?: string | null,
-    geoMarket?: string | null
+    _rawNameAlias?: string | null,
+    _sourceId?: string | null,
+    _geoMarket?: string | null
 ): Promise<string> {
     const cleanName = cleanCompanyName(rawName);
     const phoneticKey = getPhoneticKey(cleanName);

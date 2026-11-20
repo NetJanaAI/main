@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { Feature, isFeatureEnabled } from '../../config/featureFlags';
-import { RazorpayService } from '../services/RazorpayService';
 
 /**
  * Enterprise Feature Gating Middleware

@@ -1,6 +1,6 @@
 import express from 'express';
-import { query, queryWithOrg } from '../lib/database';
-import { encryptCredential, decryptCredential } from '../lib/credentialVault';
+import { queryWithOrg } from '../lib/database';
+import { encryptCredential } from '../lib/credentialVault';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { sendSampleCraftMyFunnelSignal } from '../core/CraftMyFunnelPusher';

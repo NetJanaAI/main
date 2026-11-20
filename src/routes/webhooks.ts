@@ -3,9 +3,8 @@ import { z } from 'zod';
 import { Webhook } from 'svix';
 import { query, withSystemTransaction } from '../lib/database';
 import crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 import { createClerkClient } from '@clerk/backend';
-import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { getApiKeySecret } from '../lib/secrets';
 import { RazorpayService } from '../standalone/services/RazorpayService';
 
 const router = express.Router();

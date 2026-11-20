@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import * as cron from 'node-cron';
 import { query } from '../lib/database';
-import { addSchedule, removeSchedule, listSchedules } from '../lib/scheduler';
+import { addSchedule, removeSchedule } from '../lib/scheduler';
 import { TenantRequest } from '../middleware/tenant';
 
 const router = Router();

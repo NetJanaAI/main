@@ -12,9 +12,7 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOllama } from '@langchain/ollama';
 import { ChatOpenAI } from '@langchain/openai';
 import { getSharedRedisClient } from './redis';
-import { cache } from './cache';
 import { TokenTracker } from './ai/token-tracker';
-import { jsonToToon } from './ai/toon';
 import { llmCallDuration } from './telemetry';
 
 function getSpendRedis() {

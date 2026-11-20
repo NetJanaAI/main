@@ -47,7 +47,7 @@ export function getRegionalQueueName(base: string, region?: string): string {
 }
 
 class DummyQueue {
-    add = jest.fn(async (name: string, data: any, opts?: any) => {
+    add = jest.fn(async (name: string, data: any, _opts?: any) => {
         return { id: 'dummy-job-id', name, data };
     });
     async close() {}

@@ -2,8 +2,6 @@ import { createSharedApp } from '../../app';
 import { bootstrapSchedules } from '../../lib/scheduler';
 import scrapeRoutes from '../../routes/scrape';
 import resultsRoutes from '../../routes/results';
-import { Feature } from '../../config/featureFlags';
-import { modeGuard } from '../../middleware/modeGuard';
 import { featureGate } from '../../standalone/middleware/featureGate';
 import { tenantUser } from '../../standalone/middleware/tenantUser';
 import shareRoutes from '../../routes/share';
