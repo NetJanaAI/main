@@ -23,7 +23,7 @@ export function setupTier3Worker(io?: Server | null): Worker {
     const critic = new AdversarialCritic();
 
     const worker = new Worker(TIER3_QUEUE_NAME, async (job: Job) => {
-        const { signal, org_id, is_triangulated, triangulated_sources } = job.data;
+        const { signal, org_id } = job.data;
 
         console.log(`[Tier3Worker] Enriching signal ${signal?.signal_id} for org ${org_id}`);
 

@@ -54,10 +54,6 @@ export class AdversarialCritic {
             // 1. RAG Retrieve
             const store = new TenantRAGStore(organizationId || 'default');
             const relevantDocs = await store.query("technical debt, friction, purchase intent", 8, jobId);
-            const contextText = relevantDocs.length > 0 
-                ? relevantDocs.map((d: LangchainDocument) => d.pageContent).join("\n---\n")
-                : text; 
-
             // 2. TOON Convert
             const toonContext = jsonToToon(relevantDocs.length > 0 
                 ? relevantDocs.map((d: LangchainDocument) => ({ content: d.pageContent, meta: d.metadata })) 

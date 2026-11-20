@@ -1,12 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../lib/database';
 import crypto from 'crypto';
-import { createClerkClient, verifyToken } from '@clerk/backend';
+import { verifyToken } from '@clerk/backend';
 import { getApiKeySecret } from '../lib/secrets';
 import { AuditTrail } from '../core/compliance/AuditTrail';
 import { isPlatformAdmin } from './adminAuth';
-
-const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 export interface TenantRequest extends Request {
     organizationId?: string;
@@ -32,16 +30,12 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
     const apiKey = req.headers['x-api-key'] as string;
     const authHeader = req.headers.authorization;
     const orgIdHeader = req.headers['x-organization-id'] as string;
-    const publicApiPaths = new Set([
-        '/api/leads/stats'
-    ]);
 
     if (req.path.startsWith('/api/ingest')) {
         return next();
     }
 
-    // UI-01: /api/leads/stats is now auth-required. Removing from publicApiPaths
-    // prevents unauthenticated callers from reading aggregate business intelligence.
+    // UI-01: /api/leads/stats requires auth, so aggregate business intelligence is never public.
     const hasAuthMaterial = Boolean(apiKey || authHeader?.startsWith('Bearer ') || orgIdHeader);
     if (!hasAuthMaterial && !req.path.startsWith('/api')) {
         return next();

@@ -1,12 +1,14 @@
 import { parse } from 'csv-parse/sync';
 import crypto from 'crypto';
-import { query } from '../../lib/database';
+import { query, queryWithOrg } from '../../lib/database';
 import { EmployeeContact } from '../entity-resolution/types';
 import { TenantRAGStore } from '../rag/TenantRAGStore';
 
 export interface ColumnMapping {
     [csvHeader: string]: string; // csvHeader -> platformField
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface IngestOptions {
     orgId?: string;
@@ -172,7 +174,7 @@ export class CsvIngestionService {
 
             try {
                 if (options.type === 'company') {
-                    const res = await this.ingestCompanyRecord(mappedRow, orgId);
+                    const res = await this.ingestCompanyRecord(mappedRow);
                     if (res.isNew) createdCount++;
                     else updatedCount++;
                     successCount++;
@@ -225,7 +227,7 @@ LinkedIn: ${mappedRow.linkedinUrl || 'N/A'}`;
                     }
                 } else {
                     // Unified mode: Company + Employee in same row
-                    const compRes = await this.ingestCompanyRecord(mappedRow, orgId);
+                    const compRes = await this.ingestCompanyRecord(mappedRow);
                     if (compRes.isNew) createdCount++;
                     else updatedCount++;
 
@@ -273,7 +275,7 @@ LinkedIn: ${mappedRow.linkedinUrl || 'N/A'}`;
     /**
      * Upsert a company into canonical_entity_cache & org_registry.
      */
-    private static async ingestCompanyRecord(row: Record<string, string>, orgId: string): Promise<{ entityId: string; isNew: boolean }> {
+    private static async ingestCompanyRecord(row: Record<string, string>): Promise<{ entityId: string; isNew: boolean }> {
         const canonicalName = row.canonicalName || row.name || row.company;
         if (!canonicalName) {
             throw new Error('Missing company name in record');
@@ -376,7 +378,7 @@ LinkedIn: ${mappedRow.linkedinUrl || 'N/A'}`;
                     canonicalName: companyName,
                     cin: cin || '',
                     registeredState: 'IN'
-                }, orgId);
+                });
                 entityId = stubRes.entityId;
                 createdCompany = true;
             }
@@ -416,41 +418,47 @@ LinkedIn: ${mappedRow.linkedinUrl || 'N/A'}`;
                 [JSON.stringify(contact), email || '__NO_EMAIL__', contactId, entityId]
             );
 
-            // Also persist as knowledge graph node & edge for organogram visualizer
+            // Also persist as knowledge graph node & edge for organogram visualizer, inside the importing tenant
             try {
-                const nodeRes = await query(
+                if (!UUID_PATTERN.test(orgId)) throw new Error('no tenant to own the graph entries');
+
+                const nodeRes = await queryWithOrg(
                     `INSERT INTO graph_nodes (type, label, data, organization_id)
-                     VALUES ('EMPLOYEE', $1, $2, (SELECT id FROM tenants WHERE name = 'Default Organization' LIMIT 1))
+                     VALUES ('EMPLOYEE', $1, $2, $3::uuid)
                      ON CONFLICT (type, label, organization_id) DO UPDATE SET data = EXCLUDED.data
                      RETURNING id`,
-                    [name, JSON.stringify(contact)]
+                    [name, JSON.stringify(contact), orgId],
+                    orgId
                 );
 
-                const compNodeRes = await query(
+                const compNodeRes = await queryWithOrg(
                     `INSERT INTO graph_nodes (type, label, data, organization_id)
-                     VALUES ('ORG', $1, $2, (SELECT id FROM tenants WHERE name = 'Default Organization' LIMIT 1))
+                     VALUES ('ORG', $1, $2, $3::uuid)
                      ON CONFLICT (type, label, organization_id) DO NOTHING
                      RETURNING id`,
-                    [companyName, JSON.stringify({ entityId, cin })]
+                    [companyName, JSON.stringify({ entityId, cin }), orgId],
+                    orgId
                 );
 
                 const employeeNodeId = nodeRes.rows[0]?.id;
                 let orgNodeId = compNodeRes.rows[0]?.id;
 
                 if (!orgNodeId) {
-                    const existingNode = await query(
-                        `SELECT id FROM graph_nodes WHERE type = 'ORG' AND label = $1 LIMIT 1`,
-                        [companyName]
+                    const existingNode = await queryWithOrg(
+                        `SELECT id FROM graph_nodes WHERE type = 'ORG' AND label = $1 AND organization_id = $2::uuid LIMIT 1`,
+                        [companyName, orgId],
+                        orgId
                     );
                     orgNodeId = existingNode.rows[0]?.id;
                 }
 
                 if (employeeNodeId && orgNodeId) {
-                    await query(
+                    await queryWithOrg(
                         `INSERT INTO graph_edges (from_id, to_id, type, data, organization_id)
-                         VALUES ($1, $2, 'EMPLOYED_AT', $3, (SELECT id FROM tenants WHERE name = 'Default Organization' LIMIT 1))
+                         VALUES ($1, $2, 'EMPLOYED_AT', $3, $4::uuid)
                          ON CONFLICT (from_id, to_id, type, organization_id) DO UPDATE SET data = EXCLUDED.data`,
-                        [employeeNodeId, orgNodeId, JSON.stringify({ designation, department })]
+                        [employeeNodeId, orgNodeId, JSON.stringify({ designation, department }), orgId],
+                        orgId
                     );
                 }
             } catch (graphErr: any) {

@@ -139,6 +139,29 @@ describe('Tier 2 Pipeline Integration Test (DEMO_MODE)', () => {
         expect(emitLeadCard).toHaveBeenCalledTimes(1);
     });
 
+    it('gives the lead card and model spend to the routed tenant, not the company id', async () => {
+        const TENANT = '11111111-1111-1111-1111-111111111111';
+        (callModel as jest.Mock)
+            .mockResolvedValueOnce(JSON.stringify({ is_buyer: true, confidence: 0.9, valid: true, reason: 'ok' }))
+            .mockResolvedValueOnce(JSON.stringify({
+                procurement_category: 'Steel', procurement_timeline: 'IMMEDIATE',
+                buying_stage: 'DECISION', pain_point: 'Supply', confidence: 'HIGH'
+            }))
+            .mockResolvedValueOnce(JSON.stringify({ company: 'Acme', why_now: 'x', what_they_need: 'y', do_this: 'z' }));
+
+        const signal = {
+            signal_id: 'sig_tenant', company_name_raw: 'Acme Corp', company_name_clean: 'Acme Corp',
+            geo_state: 'Maharashtra', geo_market: 'IN', sector_inferred: 'Steel', source_id: 'gem',
+            source_tier: 'TIER_2', signal_strength_I0: 0.9, lambda: 0.05,
+            collected_at: new Date().toISOString(), raw_payload: { need: 'steel' },
+        };
+
+        await tier2Processor({ data: { signal, org_id: TENANT, entity_id: 'ENTITY-1', is_triangulated: false } } as any);
+
+        expect((emitLeadCard as jest.Mock).mock.calls[0][1].org_id).toBe(TENANT);
+        for (const call of (callModel as jest.Mock).mock.calls) expect(call[0].orgId).toBe(TENANT);
+    });
+
     it('discards a signal when Gate identifies no buying intent', async () => {
         (callModel as jest.Mock).mockResolvedValueOnce(JSON.stringify({ is_buyer: false, confidence: 0.3, valid: false, reason: 'No intent' }));
 

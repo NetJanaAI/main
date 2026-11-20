@@ -9,8 +9,6 @@ export const featureGate = (req: Request, res: Response, next: NextFunction) => 
     // Tier is extracted from JWT (added to req.user by auth middleware)
     // Defaulting to 'free' for safety
     const userTier = (req as any).user?.tier || 'free';
-    const organizationId = (req as any).user?.organizationId;
-    const subscriptionId = (req as any).user?.subscriptionId;
 
     if (userTier === 'paid' || userTier === 'sovereign') return next();
 
