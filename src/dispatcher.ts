@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { SovereignFirewall } from './lib/ai/SovereignFirewall'; // Air-gapped logic
-import { ScrapeResultSchema, type ScrapeResult } from './lib/schemas';
 import { query } from './lib/database';
 import { generateCapsule, signCapsule } from './lib/dataCapsule';
 import { getHmacSecret } from './lib/secrets';

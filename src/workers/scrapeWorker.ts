@@ -5,7 +5,6 @@ import { Server } from 'socket.io';
 import os from 'os';
 import { getSharedRedisClient } from '../lib/redis';
 import { db } from '../lib/database';
-import { cache } from '../lib/cache';
 import { emitToOrg } from '../lib/socketRooms';
 
 const redis = getSharedRedisClient();

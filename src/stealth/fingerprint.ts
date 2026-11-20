@@ -37,7 +37,7 @@ export const stealthScripts = [
     // Canvas Fingerprinting Defense: Inject tiny noise into toDataURL
     () => {
         const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function (type) {
+        HTMLCanvasElement.prototype.toDataURL = function (_type) {
             const res = originalToDataURL.apply(this, arguments as any);
             // Just slightly modify the result string for non-empty signatures
             return res.length > 10 ? res + '0' : res;

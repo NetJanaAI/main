@@ -1,4 +1,4 @@
-import { chromium, Page, Request } from 'playwright';
+import { chromium } from 'playwright';
 import { getRandomUserAgent, stealthScripts } from '../stealth/fingerprint';
 import { checkLegalSafety } from '../sentinel/compliance';
 import { sendResults } from '../dispatcher';
@@ -7,7 +7,6 @@ import { validateTargetUrl } from '../middleware/urlValidator';
 import { startGuardProxy } from '../lib/guardProxy';
 // @ts-ignore
 import * as geoipLite from 'geoip-lite';
-import axios from 'axios';
 import { AdversarialCritic } from './AdversarialCritic';
 import { discoverUrls } from './siteSpider';
 import { TenantRAGStore } from '../core/rag/TenantRAGStore';

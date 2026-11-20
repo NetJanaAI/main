@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { query } from '../lib/database';
 import { cache } from '../lib/cache';
 import crypto from 'crypto';
-import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { getApiKeySecret } from '../lib/secrets';
 import { isOrgAdmin } from '../lib/orgRole';
 
 const router = express.Router();

@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { VanishProtocol } from '../core/rag/VanishProtocol';
 import { DeadLetterQueue } from '../lib/DeadLetterQueue';
 import { AuditTrail } from '../core/compliance/AuditTrail';
-import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { getApiKeySecret } from '../lib/secrets';
 import { adminAuth } from '../middleware/adminAuth';
 import { sendCraftMyFunnelLeadSignal, sendSampleCraftMyFunnelSignal } from '../core/CraftMyFunnelPusher';
 

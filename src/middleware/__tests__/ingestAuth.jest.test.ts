@@ -1,6 +1,6 @@
 import { cidrContains, ingestAuthGuard } from '../ingestAuth';
 import { query } from '../../lib/database';
-import { getApiKeySecret, getHmacSecret } from '../../lib/secrets';
+import { getApiKeySecret } from '../../lib/secrets';
 import crypto from 'crypto';
 
 jest.mock('../../lib/database', () => {

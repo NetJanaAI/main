@@ -1,12 +1,5 @@
 import { scrapeB2BSignals } from '../b2bScraper';
 import { chromium } from 'playwright';
-import { checkLegalSafety } from '../../sentinel/compliance';
-import { validateTargetUrl } from '../../middleware/urlValidator';
-import { sendResults } from '../../dispatcher';
-import { AuditTrail } from '../../core/compliance/AuditTrail';
-import { TenantRAGStore } from '../../core/rag/TenantRAGStore';
-import { AdversarialCritic } from '../AdversarialCritic';
-import { scrapeCount } from '../../lib/telemetry';
 
 const mockPage = {
     close: jest.fn().mockResolvedValue(null),

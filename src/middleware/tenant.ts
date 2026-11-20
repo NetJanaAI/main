@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { query } from '../lib/database';
 import crypto from 'crypto';
 import { createClerkClient, verifyToken } from '@clerk/backend';
-import { getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { getApiKeySecret } from '../lib/secrets';
 import { AuditTrail } from '../core/compliance/AuditTrail';
 import { isPlatformAdmin } from './adminAuth';
 

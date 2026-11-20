@@ -1,12 +1,5 @@
-import {
-    InstaClient,
-    getInstaClient,
-    resolveStateCode,
-    PAN_INDIA_GST_SENTINEL,
-    SANDBOX_APPROVED_TEST_CIN
-} from '../insta-client';
+import { InstaClient, SANDBOX_APPROVED_TEST_CIN } from '../insta-client';
 import { cache } from '../../../lib/cache';
-import axios from 'axios';
 
 jest.mock('../../../lib/cache', () => ({
     cache: {
@@ -133,7 +126,7 @@ describe('InstaClient API Implementation & Current Documentation Alignment', () 
                 }
             });
 
-            const mockGetStatus = jest.spyOn((client as any).client, 'get')
+            jest.spyOn((client as any).client, 'get')
                 .mockResolvedValueOnce({
                     data: {
                         OrderID: 987654,

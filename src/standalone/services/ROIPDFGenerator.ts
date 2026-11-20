@@ -1,10 +1,9 @@
 import PDFDocument from 'pdfkit';
 import { CampaignROIStats } from './CampaignROIAggregator';
-import { SovereignFirewall } from '../../lib/ai/SovereignFirewall';
 
 export class ROIPDFGenerator {
     static async generate(stats: CampaignROIStats, organizationId: string, hmac: string, redacted: boolean = false): Promise<Buffer> {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, _reject) => {
             const doc = new PDFDocument({ margin: 50, size: 'A4' });
             const buffers: Buffer[] = [];
 
