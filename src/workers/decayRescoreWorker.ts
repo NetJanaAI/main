@@ -19,7 +19,9 @@ export async function startDecayRescoreWorker(io: Server) {
         while (true) {
             const leads = await query(
                 `SELECT job_id AS id, organization_id, domain AS company_name, domain AS url, 
-                        base_score, signal_captured_at, decay_status, previous_decay_status
+                        -- Rows stored before base_score was written have 0; start those from the friction score.
+                        COALESCE(NULLIF(base_score, 0), friction_score) AS base_score,
+                        signal_captured_at, decay_status, previous_decay_status
                  FROM scrape_results
                  WHERE decay_status != 'Dead' AND ($1::uuid IS NULL OR job_id > $1)
                  ORDER BY job_id
