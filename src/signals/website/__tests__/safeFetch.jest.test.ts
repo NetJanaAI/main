@@ -55,7 +55,7 @@ describe('fetchPublicText blocks', () => {
     });
 
     it('connects to the address it validated, not a later DNS answer', async () => {
-        let answers = [[PUBLIC], ['10.0.0.9']];
+        const answers = [[PUBLIC], ['10.0.0.9']];
         const calls: string[] = [];
         const transport: Transport = async ({ address }) => { calls.push(address); return ok(); };
         await fetchPublicText('http://flip.example/', { resolve: async () => answers.shift()!, transport, minHostGapMs: 0 });

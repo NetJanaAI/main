@@ -19,8 +19,8 @@ interface StoredDoc {
 
 export class TurboQuant {
     static compress(vector: number[]): { compressed: Uint8Array, scale: number, min: number } {
-        let min = Math.min(...vector);
-        let max = Math.max(...vector);
+        const min = Math.min(...vector);
+        const max = Math.max(...vector);
         let scale = (max - min) / 255;
         if (scale === 0) scale = 1;
 

@@ -20,17 +20,17 @@ export default tseslint.config(
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' }],
       '@typescript-eslint/ban-ts-comment': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unsafe-function-type': 'off',
       'no-useless-assignment': 'off',
       'prefer-rest-params': 'off',
-      'no-empty': 'off',
+      'no-empty': ['warn', { allowEmptyCatch: true }],
       'no-console': 'off',
       'no-useless-escape': 'off',
       'no-control-regex': 'off',
-      'prefer-const': 'off',
+      'prefer-const': 'warn',
       'no-useless-catch': 'off',
       'preserve-caught-error': 'off'
     },

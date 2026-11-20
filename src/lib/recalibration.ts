@@ -30,7 +30,7 @@ export function setupRecalibrationCron() {
                 if (source_id === 'gem') base_I0 = 0.90;
                 if (source_id === 'indiamart') base_I0 = 0.95;
 
-                let old_I0 = parseFloat(await redis.get(`source_weights:${source_id}`) || base_I0.toString());
+                const old_I0 = parseFloat(await redis.get(`source_weights:${source_id}`) || base_I0.toString());
 
                 // Weight formula from specifications
                 let new_I0 = base_I0 * (1 + conversion_rate) * (1 - wrong_rate * 0.5);

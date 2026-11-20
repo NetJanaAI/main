@@ -211,7 +211,7 @@ export async function callModel(opts: ModelCallOptions): Promise<string> {
 export function parseModelJson(raw: string): any {
     try {
         // Strip markdown code fences first
-        let cleaned = raw.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+        const cleaned = raw.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
 
         // M-04: Find the first balanced JSON object by tracking brace depth
         // instead of greedy regex which captures non-JSON text between first '{' and last '}'

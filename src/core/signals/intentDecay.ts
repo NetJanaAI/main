@@ -31,7 +31,7 @@ export function calculateDecay(baseScore: number, capturedAt: Date): DecayResult
     // decayedScore = baseScore * Math.exp(-Math.LN2 / 30 * t)
     // t = -30 * ln(targetScore/baseScore) / ln(2)
     const targetScores = [84.9, 59.9, 29.9];
-    let nextThreshold = targetScores.find(t => t < decayedScore) || 0;
+    const nextThreshold = targetScores.find(t => t < decayedScore) || 0;
     
     let daysToNext = 0;
     if (nextThreshold > 0) {
