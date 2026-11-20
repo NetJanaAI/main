@@ -65,6 +65,9 @@
     "uuid": "^9.0.1",
     "zod": "^4.3.6"
   },
+  "overrides": {
+    "qs": "^6.17.1"
+  },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
     "@eslint/js": "^10.0.1",
