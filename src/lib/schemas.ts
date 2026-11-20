@@ -60,7 +60,9 @@ export const RawSignalSchema = z.object({
     pii_safe: z.boolean(),
     is_triangulated: z.boolean().optional(),
     triangulated_sources: z.array(z.string()).optional(),
-    geo_market: z.enum(['IN', 'AE']).default('IN')
+    geo_market: z.enum(['IN', 'AE']).default('IN'),
+    // The tenant that ingested the signal; leads, spend and graph entries belong to it.
+    tenant_id: z.string().uuid().optional()
 });
 
 export const GeMCollectorPayloadSchema = z.object({

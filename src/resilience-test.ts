@@ -6,10 +6,6 @@
 import { SecureLogger } from './utils/logger';
 import { checkLegalSafety } from './sentinel/compliance';
 
-// Mock console to capture outputs
-const capturedLogs: string[] = [];
-const originalLog = console.log;
-
 async function runResilienceTests() {
     console.log('--- STARTING RESILIENCE VERIFICATION ---\n');
 

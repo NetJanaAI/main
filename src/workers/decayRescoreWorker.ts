@@ -117,7 +117,6 @@ export async function startDecayRescoreWorker(io: Server) {
             for (const lead of pipelineLeads.rows) {
                 const decay = calculateDecay(parseFloat(lead.intent_score), new Date(lead.created_at));
 
-                const statusChanged = lead.decay_status !== decay.status;
                 const transitionedToCold = lead.decay_status === 'Warm' && decay.status === 'Cold';
 
                 await query(

@@ -68,7 +68,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (request.params.name) {
         case "scrape_intent": {
-            const { url, intent, spiderMode } = request.params.arguments as any;
+            const { url, spiderMode } = request.params.arguments as any;
             const jobId = uuidv4();
             // Trigger scrape (Note: We use the engine directly here or could enqueue)
             // Corrected argument order: (targetUrl, maxRetries, onProgress, forceFailure, useOnlineAI, jobId, spiderMode, maxPages)

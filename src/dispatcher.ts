@@ -5,7 +5,6 @@ import { query } from './lib/database';
 import { generateCapsule, signCapsule } from './lib/dataCapsule';
 import { getHmacSecret } from './lib/secrets';
 
-const firewall = new SovereignFirewall(process.env.REGION_ID || 'UAE_DUBAI_01');
 import { IS_COVOSPAN } from './config/mode';
 
 const HMAC_SECRET = process.env.HMAC_SECRET;

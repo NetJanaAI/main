@@ -2,11 +2,17 @@ import { Router, Request, Response } from 'express';
 import { createHash } from 'crypto';
 import { GeMCollectorPayloadSchema, IndiaMARTCollectorPayloadSchema, FundingCollectorPayloadSchema, NaukriCollectorPayloadSchema, ZaubaCollectorPayloadSchema, McaCollectorPayloadSchema, PariveshCollectorPayloadSchema, ReraCollectorPayloadSchema } from '../lib/schemas';
 import { adaptGeM, adaptIndiaMART, adaptFunding, adaptNaukri, adaptZauba, adaptMca, adaptParivesh, adaptRera } from '../core/adapters';
+import type { RawSignal } from '../lib/schemas';
 import { rawSignalsQueue } from '../lib/queue';
 import { ingestAuthGuard } from '../middleware/ingestAuth';
 import { cache } from '../lib/cache';
 
 const router = Router();
+
+async function enqueueSignal(req: Request, signal: RawSignal) {
+    const tenantId = (req as any).organizationId;
+    await rawSignalsQueue.add('process_raw', tenantId ? { ...signal, tenant_id: tenantId } : signal, { jobId: signal.signal_id });
+}
 
 // Apply auth, IP whitelisting, and HMAC verification globally to all ingest webhooks
 router.use(ingestAuthGuard);
@@ -39,7 +45,7 @@ router.post('/gem', async (req: Request, res: Response) => {
             return res.status(200).json({ status: 'skipped', message: 'Signal skipped (e.g. deadline > 30 days)' });
         }
 
-        await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        await enqueueSignal(req, signal);
         (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'GeM',
@@ -60,7 +66,7 @@ router.post('/indiamart', async (req: Request, res: Response) => {
         }
         const signal = await adaptIndiaMART(payload);
 
-        await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        await enqueueSignal(req, signal);
         (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'IndiaMART',
@@ -81,7 +87,7 @@ router.post('/funding', async (req: Request, res: Response) => {
         }
         const signal = await adaptFunding(payload);
 
-        await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        await enqueueSignal(req, signal);
         (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'Funding',
@@ -102,7 +108,7 @@ router.post('/naukri', async (req: Request, res: Response) => {
         }
         const signal = await adaptNaukri(payload);
 
-        await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        await enqueueSignal(req, signal);
         (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'Naukri',
@@ -123,7 +129,7 @@ router.post('/zauba', async (req: Request, res: Response) => {
         }
         const signal = await adaptZauba(payload);
 
-        await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        await enqueueSignal(req, signal);
         (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'Zauba',
@@ -144,7 +150,7 @@ router.post('/mca', async (req: Request, res: Response) => {
         }
         const signal = await adaptMca(payload);
 
-        await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        await enqueueSignal(req, signal);
         (req as any).io?.to(`org:${(req as any).organizationId}`).emit('ingest_signal', {
             id: signal.signal_id,
             source: 'MCA',
@@ -165,7 +171,7 @@ router.post('/parivesh', async (req: Request, res: Response) => {
         }
         const signal = await adaptParivesh(payload);
 
-        await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        await enqueueSignal(req, signal);
         res.status(201).json({ status: 'enqueued', signal_id: signal.signal_id });
     } catch (err: any) {
         res.status(400).json({ error: 'Validation Error', details: err.errors || err.message });
@@ -180,7 +186,7 @@ router.post('/rera', async (req: Request, res: Response) => {
         }
         const signal = await adaptRera(payload);
 
-        await rawSignalsQueue.add('process_raw', signal, { jobId: signal.signal_id });
+        await enqueueSignal(req, signal);
         res.status(201).json({ status: 'enqueued', signal_id: signal.signal_id });
     } catch (err: any) {
         res.status(400).json({ error: 'Validation Error', details: err.errors || err.message });

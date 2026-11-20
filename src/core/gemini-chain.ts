@@ -47,12 +47,13 @@ export function setupGeminiWorkers(io: Server) {
     const tier1Worker = new Worker(TIER1_QUEUE_NAME, async (job: Job) => {
         const { signal, is_triangulated } = job.data;
 
-        // Resolve entity with phonetic matching and lock
-        const orgId = await resolveEntitySafe(
+        // Resolve entity with phonetic matching and lock; the lead belongs to the routed tenant.
+        const entityId = await resolveEntitySafe(
             signal.company_name_raw,
             signal.geo_state,
             signal.cin || undefined
         );
+        const orgId = job.data.org_id ?? entityId;
 
         // M-05: Infer buying stage from source type instead of hardcoding DECISION
         const inferredBuyingStage = signal.source_id === 'gem' ? 'DECISION' :
@@ -107,19 +108,21 @@ export function setupGeminiWorkers(io: Server) {
     const tier2Worker = new Worker(TIER2_QUEUE_NAME, async (job: Job) => {
         const { signal, is_triangulated, triangulated_sources, enriched } = job.data;
         const dateStr = new Date().toISOString().split('T')[0];
-        const spendKey = `gemini_calls:${dateStr}`;
 
         // H-05: Handle empty TOON payload
         const toonPayload = (signal.raw_payload && Object.keys(signal.raw_payload).length > 0)
             ? jsonToToon(signal.raw_payload)
             : 'NO_DATA';
 
-        // Resolve entity
-        const orgId = await resolveEntitySafe(
+        // Resolve entity; the lead belongs to the routed tenant.
+        const entityId = await resolveEntitySafe(
             signal.company_name_raw,
             signal.geo_state,
             signal.cin || undefined
         );
+        const orgId = job.data.org_id ?? entityId;
+        // Per-tenant, so /api/profile/credits reports what this tenant used.
+        const spendKey = `gemini_calls:${orgId}:${dateStr}`;
 
         // --- 1. GATE ---
         const gateSysPrompt = "Role: B2B Gatekeeper [TOON_PARSER]. Respond JSON only.";
@@ -147,7 +150,7 @@ OUT: { "is_buyer": bool, "confidence": num, "valid": bool, "reason": "str" }
         }
 
         // --- 2. QUALIFIER ---
-        const kgContext = await KnowledgeGraphService.getGraphContext(signal.company_name_clean);
+        const kgContext = await KnowledgeGraphService.getGraphContext(signal.company_name_clean, orgId);
         const qualSysPrompt = "Role: Procurement Analyst [TOON_PARSER]. Respond JSON only.";
         const qualUserPrompt = `[TOON:QUALIFIER_v1]
 COMP: ${signal.company_name_clean} | LOC: ${signal.geo_state} (${signal.geo_market})
