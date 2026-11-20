@@ -2,7 +2,6 @@
 // @ts-ignore
 import robotsParser from 'robots-txt-parser';
 import { reportViolation } from '../dispatcher';
-import { setTimeout } from 'timers/promises';
 
 function getOllamaGenerateEndpoint(): string {
     const baseUrl = process.env.OLLAMA_HOST || 'http://localhost:11434';

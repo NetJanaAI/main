@@ -5,7 +5,6 @@ import { query } from '../lib/database';
 import { TenantRAGStore } from '../core/rag/TenantRAGStore';
 import { calculateInfluenceScore, calculateAlphaScore, InfluenceMap } from '../core/signals/influenceScorer';
 import { humanizeScrolling, humanizeMouse, randomizedDwell } from '../stealth/humanize';
-import { SecureLogger } from '../utils/logger';
 import { Server } from 'socket.io';
 
 export async function startInfluenceWorker(io: Server) {

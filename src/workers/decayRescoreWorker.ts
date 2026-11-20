@@ -9,7 +9,7 @@ import { IS_COVOSPAN } from '../config/mode';
 import { isFeatureEnabled, Feature } from '../config/featureFlags';
 
 export async function startDecayRescoreWorker(io: Server) {
-    const worker = new Worker('decay-rescore', async (job: Job) => {
+    const worker = new Worker('decay-rescore', async (_job: Job) => {
         const BATCH_SIZE = 200;
         let offset = 0;
         let totalProcessed = 0;

@@ -1,4 +1,4 @@
-import { createClerkClient, verifyToken } from '@clerk/backend';
+import { verifyToken } from '@clerk/backend';
 import { db } from '../lib/database';
 import crypto from 'crypto';
 import { getApiKeySecret } from '../lib/secrets';

@@ -1,14 +1,9 @@
 import { Router, Request } from 'express';
-import { Server } from 'socket.io';
 import { ScrapeRequestSchema } from '../lib/schemas';
 import { v4 as uuidv4 } from 'uuid';
 import os from 'os';
 
 const router = Router();
-
-interface RequestWithSocket extends Request {
-    io: Server;
-}
 
 import { scrapeQueue } from '../lib/queue';
 import { enqueueScrape, QuotaExceededError } from '../lib/quota';

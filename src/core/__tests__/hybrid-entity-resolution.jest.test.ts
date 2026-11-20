@@ -35,7 +35,6 @@ jest.mock('axios-retry', () => {
 import { cache } from '../../lib/cache';
 import { query } from '../../lib/database';
 import { entityEnrichmentQueue } from '../../lib/queue';
-import axios from 'axios';
 
 jest.mock('double-metaphone', () => ({
     doubleMetaphone: jest.fn((word: string) => [word.toUpperCase().slice(0, 4), ''])

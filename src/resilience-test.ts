@@ -5,7 +5,6 @@
 
 import { SecureLogger } from './utils/logger';
 import { checkLegalSafety } from './sentinel/compliance';
-import axios from 'axios';
 
 // Mock console to capture outputs
 const capturedLogs: string[] = [];

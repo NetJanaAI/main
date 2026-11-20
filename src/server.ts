@@ -77,7 +77,6 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import { tenantRateLimiter, ipRateLimiter, intelIpRateLimiter, scrapeLimiter, entitySearchLimiter } from './middleware/rateLimit';
 import path from 'path';
 

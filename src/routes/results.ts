@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query, queryWithOrg } from '../lib/database';
+import { queryWithOrg } from '../lib/database';
 import { generateReport } from '../lib/pdfReport';
 import { generateCapsule, signCapsule } from '../lib/dataCapsule';
 import { TenantRequest } from '../middleware/tenant';

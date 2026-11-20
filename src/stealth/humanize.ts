@@ -5,7 +5,6 @@ import { Page } from 'playwright';
  */
 export async function humanizeScrolling(page: Page) {
     const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
-    const viewportHeight = await page.evaluate(() => window.innerHeight);
     
     let currentScroll = 0;
     while (currentScroll < scrollHeight) {

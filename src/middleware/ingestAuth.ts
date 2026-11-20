@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import net from 'net';
 import { query } from '../lib/database';
-import { DEV_HMAC_SECRET, getHmacSecret, getApiKeySecret } from '../lib/secrets';
+import { DEV_HMAC_SECRET, getApiKeySecret } from '../lib/secrets';
 import { AuditTrail } from '../core/compliance/AuditTrail';
 
 /**
