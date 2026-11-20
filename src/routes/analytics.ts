@@ -50,7 +50,7 @@ router.get('/dashboard', async (req: any, res: any) => {
 
         const totalActive = parseInt(activeRes.rows[0]?.count || '0', 10);
         
-        let estimatedRoi = parseInt(roiRes.rows[0]?.estimated_roi || '0', 10);
+        const estimatedRoi = parseInt(roiRes.rows[0]?.estimated_roi || '0', 10);
 
         // Format ROI for display
         const formatROI = (val: number) => {
