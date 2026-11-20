@@ -79,7 +79,9 @@ export async function emitLeadCard(io: Server, leadData: any) {
             console.warn('[LeadEmitter] RAG index failed (non-fatal):', ragErr.message);
         }
     } catch (e: any) {
-        console.warn('[LeadEmitter] Failed to persist LeadCard to Postgres:', e.message);
+        // Rethrow so the queue retries; announcing a lead that was never stored would lose it on the next reload.
+        console.error('[LeadEmitter] Failed to persist LeadCard to Postgres:', e.message);
+        throw e;
     }
 
     try {
