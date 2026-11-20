@@ -41,3 +41,9 @@ data/dlq.jsonl
 
 # pgbouncer credentials never belong in git
 pgbouncer/userlist.txt
+
+# go-pusher build artifacts
+go-pusher/push
+go-pusher/push.exe
+go-pusher/build-output.txt
+go-pusher/test_out.txt
