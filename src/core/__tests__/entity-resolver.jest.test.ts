@@ -1,6 +1,6 @@
 import { cleanCompanyName, getPhoneticKey, resolveEntity, resolveEntitySafe } from '../entity-resolver';
 import { cache } from '../../lib/cache';
-import { query } from '../../lib/database';
+import { query, pool } from '../../lib/database';
 
 jest.mock('double-metaphone', () => ({
     doubleMetaphone: jest.fn((word: string) => [word.toUpperCase().slice(0, 4), ''])
@@ -14,8 +14,24 @@ jest.mock('../../lib/cache', () => ({
 }));
 
 jest.mock('../../lib/database', () => ({
-    query: jest.fn()
+    query: jest.fn(),
+    pool: { connect: jest.fn() }
 }));
+
+// The lock runs on one checked-out connection, apart from the pooled lookups.
+function lockClient(lockResults: boolean[]) {
+    const client = {
+        query: jest.fn().mockImplementation(async (sql: string) => {
+            if (sql.includes('pg_try_advisory_lock')) {
+                return { rows: [{ pg_try_advisory_lock: lockResults.length > 1 ? lockResults.shift() : lockResults[0] }] };
+            }
+            return { rows: [{ pg_advisory_unlock: true }] };
+        }),
+        release: jest.fn()
+    };
+    (pool!.connect as jest.Mock).mockResolvedValue(client);
+    return client;
+}
 
 
 describe('Entity Resolver Compiler Agent', () => {
@@ -96,34 +112,35 @@ describe('Entity Resolver Compiler Agent', () => {
 
     describe('resolveEntitySafe (Advisory Lock Safety)', () => {
         it('should acquire advisory lock, resolve entity, and release lock', async () => {
+            const client = lockClient([true]);
             (query as jest.Mock)
-                .mockResolvedValueOnce({ rows: [{ pg_try_advisory_lock: true }] }) // lock acquire
                 .mockResolvedValueOnce({ rows: [{ org_id: 'org_safe_789' }] })     // exact lookup
-                .mockResolvedValueOnce({ rows: [] })                              // touchOrgLastSeen
-                .mockResolvedValueOnce({ rows: [{ pg_advisory_unlock: true }] }); // unlock
+                .mockResolvedValueOnce({ rows: [] });                             // touchOrgLastSeen
 
             (cache.get as jest.Mock).mockResolvedValue(null);
 
             const orgId = await resolveEntitySafe('Acme Safe', 'KA');
             expect(orgId).toBe('org_safe_789');
-            expect(query).toHaveBeenCalledWith(
+            expect(client.query).toHaveBeenCalledWith(
                 expect.stringContaining('pg_try_advisory_lock'),
                 expect.any(Array)
             );
-            expect(query).toHaveBeenCalledWith(
+            expect(client.query).toHaveBeenCalledWith(
                 expect.stringContaining('pg_advisory_unlock'),
                 expect.any(Array)
             );
+            expect(client.release).toHaveBeenCalledWith(undefined);
         });
 
         it('should retry if advisory lock fails up to MAX_LOCK_RETRIES limit', async () => {
             (cache.get as jest.Mock).mockResolvedValue('org_cached_fallback');
-            (query as jest.Mock).mockResolvedValue({ rows: [{ pg_try_advisory_lock: false }] });
+            const client = lockClient([false]);
 
             const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
             const orgId = await resolveEntitySafe('Locked Company', 'MH', null, null, null, null, 10);
             expect(orgId).toBe('org_cached_fallback');
+            expect(client.release).toHaveBeenCalled();
             expect(consoleSpy).toHaveBeenCalledWith(
                 expect.stringContaining('Advisory lock exhausted after 10 retries')
             );

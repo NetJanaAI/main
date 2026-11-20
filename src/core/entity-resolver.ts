@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { cache } from '../lib/cache';
-import { query } from '../lib/database';
+import { query, pool } from '../lib/database';
 import { cleanCompanyName, getPhoneticKey, LEGAL_SUFFIXES, INDUSTRY_NOISE } from '../lib/text-utils';
 
 export { cleanCompanyName, getPhoneticKey, LEGAL_SUFFIXES, INDUSTRY_NOISE };
@@ -186,28 +186,43 @@ export async function resolveEntitySafe(
     rawNameAlias?: string | null,
     sourceId?: string | null,
     geoMarket?: string | null,
-    _retryCount: number = 0  // H-04: depth limiter
+    attemptsUsed: number = 0  // H-04: lock attempts already spent
 ): Promise<string> {
     const MAX_LOCK_RETRIES = 10;
     const cleanName = cleanCompanyName(rawName);
     const lockId = nameToLockId(`${cleanName}:${geoState.slice(0, 2)}`);
+    const unsynchronized = () => resolveEntity(rawName, geoState, cinHint, rawNameAlias, sourceId, geoMarket);
 
-    // Postgres advisory lock
-    const { rows } = await query('SELECT pg_try_advisory_lock($1)', [lockId]);
-    const acquired = rows[0].pg_try_advisory_lock;
+    if (!pool) return unsynchronized();
 
-    if (!acquired) {
-        if (_retryCount >= MAX_LOCK_RETRIES) {
-            console.warn(`[EntityResolver] Advisory lock exhausted after ${MAX_LOCK_RETRIES} retries for ${cleanName}. Falling back to unsynchronized resolve.`);
-            return resolveEntity(rawName, geoState, cinHint, rawNameAlias, sourceId, geoMarket);
-        }
-        await new Promise(resolve => setTimeout(resolve, 300));
-        return resolveEntitySafe(rawName, geoState, cinHint, rawNameAlias, sourceId, geoMarket, _retryCount + 1);
-    }
-
+    // An advisory lock belongs to one session, so it is taken and released on one checked-out connection.
+    const client = await pool.connect();
+    let releaseError: Error | undefined;
     try {
-        return await resolveEntity(rawName, geoState, cinHint, rawNameAlias, sourceId, geoMarket);
+        let acquired = false;
+        for (let attempt = attemptsUsed; attempt <= MAX_LOCK_RETRIES; attempt++) {
+            const { rows } = await client.query('SELECT pg_try_advisory_lock($1)', [lockId]);
+            acquired = rows[0].pg_try_advisory_lock;
+            if (acquired || attempt === MAX_LOCK_RETRIES) break;
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        if (!acquired) {
+            console.warn(`[EntityResolver] Advisory lock exhausted after ${MAX_LOCK_RETRIES} retries for ${cleanName}. Falling back to unsynchronized resolve.`);
+            return await unsynchronized();
+        }
+
+        try {
+            return await unsynchronized();
+        } finally {
+            try {
+                await client.query('SELECT pg_advisory_unlock($1)', [lockId]);
+            } catch (e) {
+                // A connection that could not unlock is destroyed, which drops its session locks.
+                releaseError = e as Error;
+            }
+        }
     } finally {
-        await query('SELECT pg_advisory_unlock($1)', [lockId]);
+        client.release(releaseError);
     }
 }
