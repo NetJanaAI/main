@@ -6,6 +6,7 @@ import os from 'os';
 import { getSharedRedisClient } from '../lib/redis';
 import { db } from '../lib/database';
 import { emitToOrg } from '../lib/socketRooms';
+import { enabledSourcesFrom } from '../lib/enabledSources';
 
 const redis = getSharedRedisClient();
 
@@ -52,13 +53,10 @@ export function setupScrapeWorker(io?: Server | null) {
             enabledSources = JSON.parse(cached);
         } else {
             const results = await db.query(
-                `SELECT source_id FROM source_configs WHERE org_id = $1 AND is_enabled = TRUE`,
+                `SELECT source_id, is_enabled FROM source_configs WHERE org_id = $1`,
                 [orgId]
             );
-            enabledSources = results.rows.map(r => r.source_id);
-            if (enabledSources.length === 0) {
-                enabledSources = ['indiamart', 'gem', 'mca', 'zauba', 'webscrape', 'funding', 'naukri', 'rera', 'parivesh'];
-            }
+            enabledSources = enabledSourcesFrom(results.rows);
             await redis.setex(cacheKey, 3600, JSON.stringify(enabledSources));
         }
 

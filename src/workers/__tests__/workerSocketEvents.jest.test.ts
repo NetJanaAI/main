@@ -16,7 +16,7 @@ jest.mock('../../lib/redis', () => ({
     getSharedRedisClient: () => ({ on: jest.fn(), publish, get: jest.fn().mockResolvedValue(null), setex: jest.fn() }),
 }));
 jest.mock('../../lib/database', () => ({
-    db: { query: jest.fn().mockResolvedValue({ rows: [{ source_id: 'webscrape' }] }) },
+    db: { query: jest.fn().mockResolvedValue({ rows: [{ source_id: 'webscrape', is_enabled: true }] }) },
     query: jest.fn().mockResolvedValue({ rows: [] }),
 }));
 jest.mock('../../lib/cache', () => ({ cache: {} }));

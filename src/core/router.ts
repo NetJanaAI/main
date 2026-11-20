@@ -4,6 +4,7 @@ import { resolveEntity } from './entity-resolver';
 import { KnowledgeGraphService } from './knowledge-graph';
 import { getSharedRedisClient } from '../lib/redis';
 import { RawSignal } from '../lib/schemas';
+import { enabledSourcesFrom } from '../lib/enabledSources';
 
 const redis = getSharedRedisClient();
 redis.on('error', (err) => {
@@ -27,14 +28,10 @@ async function isSourceEnabled(orgId: string, sourceId: string): Promise<boolean
     } else {
         const { db } = await import('../lib/database');
         const results = await db.query(
-            `SELECT source_id FROM source_configs WHERE org_id = $1 AND is_enabled = TRUE`,
+            `SELECT source_id, is_enabled FROM source_configs WHERE org_id = $1`,
             [orgId]
         );
-        enabledSources = results.rows.map(r => r.source_id);
-        // Default to all enabled if no config found (Phase 1 behavior)
-        if (enabledSources.length === 0) {
-            enabledSources = ['indiamart', 'gem', 'mca', 'zauba', 'webscrape', 'funding', 'naukri', 'rera', 'parivesh'];
-        }
+        enabledSources = enabledSourcesFrom(results.rows);
         await redis.setex(cacheKey, 3600, JSON.stringify(enabledSources));
     }
 
