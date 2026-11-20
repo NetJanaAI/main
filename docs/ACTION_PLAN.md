@@ -78,7 +78,7 @@ Merge order: #28, #29, #30, then #27 (the page reads fields that #30 adds; it sh
 | 3.13 | **Decay worker**: `OFFSET` paging while rows flip to Dead skips rows; `lead_cards` rescore loads everything with no batching. | `workers/decayRescoreWorker.ts:19,110` | Reported | Keyset pagination or one set-based update |
 | 3.14 | **Scrape worker**: 60 s timeout rejects the job but does not stop the browser, and the retry starts a second scrape; rescrape job ids may not be UUIDs (insert failure swallowed). Quota `incr` and `expire` are separate calls; month boundary uses server-local time. | `workers/scrapeWorker.ts:79`, `lib/quota.ts:37` | Reported (id issue UNVERIFIED) | Pass an abort signal and close the browser; use UUID ids; set the quota TTL atomically in UTC |
 | 3.15 | **Canary**: `checkDrought` runs in both the 5-minute and hourly jobs (Slack spam), and the Slack call in the catch is unguarded. Recalibration's Redis client may fail its first command. | `lib/canary.ts:62,76`, `lib/scheduler.ts:105`, `lib/recalibration.ts:5` | Reported (recalibration UNVERIFIED) | One schedule for the drought check; guard the call; use the shared client |
-| 3.16 | **Tenants cannot disable all sources**: an empty result falls back to "all enabled". | `core/router.ts:30`, `workers/scrapeWorker.ts:55` | Reported | Treat an explicit empty set as empty |
+| 3.16 | **Tenants cannot disable all sources**: an empty result falls back to "all enabled". | `core/router.ts:30`, `workers/scrapeWorker.ts:55` | Fixed on branch `fix/empty-source-set`: `lib/enabledSources.ts` defaults to all sources only for a tenant with no config rows | Treat an explicit empty set as empty |
 
 ## 4. Phase 3: client
 
