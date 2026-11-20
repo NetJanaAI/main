@@ -20,13 +20,7 @@ router.get('/credits', async (req: any, res) => {
         if (tenantRes.rows.length === 0) return res.status(404).json({ error: 'Tenant not found' });
 
         const dateStr = new Date().toISOString().split('T')[0];
-        const spendKey = `gemini_calls:${dateStr}`;
-        // This is a global spend key currently in the project. 
-        // In a real multi-tenant setting, we'd want per-tenant spend keys.
-        // For now, let's use the global one or a tenant-specific one if we want to be accurate.
-        const tenantSpendKey = `gemini_calls:${orgId}:${dateStr}`;
-        
-        const countStr = await cache.get<string>(tenantSpendKey);
+        const countStr = await cache.get<string>(`gemini_calls:${orgId}:${dateStr}`);
         const used = countStr ? parseInt(countStr, 10) : 0;
 
         res.json({

@@ -51,12 +51,8 @@ export async function query(text: string, params?: any[]) {
         throw new Error('Database is not initialized (DATABASE_URL missing).');
     }
 
-    // Simple query execution
-    const start = Date.now();
     try {
         const res = await pool.query(text, params);
-        const duration = Date.now() - start;
-        // console.log(`[Database] Executed query in ${duration}ms: ${text.substring(0, 100)}...`);
         return res;
     } catch (error: any) {
         console.error(`[Database] Query error:`, error.message);

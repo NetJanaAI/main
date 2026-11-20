@@ -67,9 +67,6 @@ export class ProxyManager {
      */
     static async checkHealth(config: ProxyConfig): Promise<boolean> {
         try {
-            const proxyAuth = config.username ? `${config.username}:${config.password}@` : '';
-            const proxyUrl = `${config.protocol}://${proxyAuth}${config.host}:${config.port}`;
-            
             await axios.get('https://api.ipify.org?format=json', {
                 proxy: {
                     protocol: config.protocol,

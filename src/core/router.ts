@@ -48,7 +48,9 @@ export function setupRouterWorker() {
         const signal: RawSignal = job.data;
 
         // 1. Resolve Entity
-        const org_id = await resolveEntity(signal.company_name_clean, signal.geo_state, signal.cin, signal.company_name_raw, signal.source_id, signal.geo_market);
+        const entity_id = await resolveEntity(signal.company_name_clean, signal.geo_state, signal.cin, signal.company_name_raw, signal.source_id, signal.geo_market);
+        // Ownership follows the tenant that ingested the signal; signals without one keep the company id.
+        const org_id = signal.tenant_id ?? entity_id;
 
         // 1.1 Enforcement: Source Autonomy
         const enabled = await isSourceEnabled(org_id, signal.source_id);
@@ -65,7 +67,7 @@ export function setupRouterWorker() {
         }
 
         // 1.1 Sync Knowledge Graph
-        await KnowledgeGraphService.syncSignal(signal, org_id);
+        if (signal.tenant_id) await KnowledgeGraphService.syncSignal(signal, signal.tenant_id);
 
         // 2. Recent Signals & Check Corroboration
         const recentKey = `org:${org_id}:recent_signals`;
@@ -107,6 +109,7 @@ export function setupRouterWorker() {
         const routedJobData = {
             signal,
             org_id,
+            entity_id,
             is_triangulated,
             triangulated_sources,
             routed_at: new Date().toISOString()
